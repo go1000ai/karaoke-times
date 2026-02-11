@@ -85,7 +85,11 @@ export default function HomePage() {
 
       {/* ─── HERO SECTION with NeonFlow ─── */}
       <section className="relative h-[100vh] min-h-[700px]">
-        <TubesBackground className="h-full" enableClickInteraction>
+        <TubesBackground
+          className="h-full"
+          enableClickInteraction
+          backgroundImage="https://images.unsplash.com/photo-1566417713940-fe7c737a9ef2?w=1600&q=80"
+        >
           <div className="flex flex-col items-center justify-center h-full text-center px-6 max-w-3xl mx-auto pointer-events-auto">
             {/* Logo with North Star sparkle */}
             <div className="mb-8 animate-[fadeSlideUp_1s_ease-out_0.2s_both] relative">

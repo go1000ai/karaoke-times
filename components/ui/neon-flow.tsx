@@ -13,12 +13,14 @@ interface TubesBackgroundProps {
   children?: React.ReactNode;
   className?: string;
   enableClickInteraction?: boolean;
+  backgroundImage?: string;
 }
 
 export function TubesBackground({
   children,
   className,
   enableClickInteraction = true,
+  backgroundImage,
 }: TubesBackgroundProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -89,10 +91,30 @@ export function TubesBackground({
       )}
       onClick={handleClick}
     >
+      {/* Background image with parallax */}
+      {backgroundImage && (
+        <>
+          <div
+            className="absolute inset-0 w-full h-full"
+            style={{
+              backgroundImage: `url(${backgroundImage})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundAttachment: "fixed",
+              filter: "brightness(0.2) saturate(0.6)",
+            }}
+          />
+          <div className="absolute inset-0 bg-bg-dark/40" />
+        </>
+      )}
+
       <canvas
         ref={canvasRef}
         className="absolute inset-0 w-full h-full block"
-        style={{ touchAction: "none" }}
+        style={{
+          touchAction: "none",
+          mixBlendMode: backgroundImage ? "screen" : "normal",
+        }}
       />
 
       {/* Content Overlay */}
