@@ -113,84 +113,104 @@ export default function HomePage() {
       <TopNav />
 
       {/* ─── HERO SECTION ─── */}
-      <section className="relative h-[90vh] min-h-[600px] flex items-end overflow-hidden">
+      <section className="relative h-[90vh] min-h-[600px] flex items-center justify-center overflow-hidden">
         <img
           alt="KJ performing at a neon lit venue"
           className="absolute inset-0 w-full h-full object-cover scale-105 animate-[slowZoom_20s_ease-in-out_infinite_alternate]"
           src={sponsoredKJ.image}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-bg-dark via-bg-dark/40 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-r from-bg-dark/60 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-bg-dark via-bg-dark/60 to-bg-dark/30" />
+        <div className="absolute inset-0 bg-bg-dark/40" />
 
         {/* Floating particles */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          {[...Array(6)].map((_, i) => (
+          {[...Array(12)].map((_, i) => (
             <div
               key={i}
-              className="absolute w-1 h-1 bg-primary/40 rounded-full"
+              className={`absolute rounded-full ${i % 3 === 0 ? "w-1.5 h-1.5 bg-primary/30" : i % 3 === 1 ? "w-1 h-1 bg-accent/30" : "w-0.5 h-0.5 bg-white/20"}`}
               style={{
-                left: `${15 + i * 15}%`,
-                bottom: `${10 + i * 8}%`,
-                animation: `float ${3 + i * 0.5}s ease-in-out infinite alternate`,
-                animationDelay: `${i * 0.3}s`,
+                left: `${5 + i * 8}%`,
+                top: `${10 + (i * 7) % 80}%`,
+                animation: `float ${3 + i * 0.4}s ease-in-out infinite alternate`,
+                animationDelay: `${i * 0.2}s`,
               }}
             />
           ))}
         </div>
 
-        {/* Decorative cursive text */}
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-          <p className="text-[8rem] md:text-[12rem] font-bold opacity-[0.04] text-white whitespace-nowrap" style={{ fontFamily: "var(--font-script)" }}>
-            Karaoke Times
-          </p>
+        {/* Animated neon ring behind logo */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+          <div
+            className="w-[500px] h-[500px] md:w-[700px] md:h-[700px] rounded-full border border-primary/10 animate-[spin_30s_linear_infinite]"
+            style={{ boxShadow: "0 0 60px rgba(0, 255, 194, 0.05), inset 0 0 60px rgba(0, 255, 194, 0.03)" }}
+          />
+        </div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+          <div
+            className="w-[400px] h-[400px] md:w-[550px] md:h-[550px] rounded-full border border-accent/10 animate-[spin_25s_linear_infinite_reverse]"
+            style={{ boxShadow: "0 0 40px rgba(255, 0, 122, 0.05), inset 0 0 40px rgba(255, 0, 122, 0.03)" }}
+          />
         </div>
 
-        {/* Play button */}
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2">
-          <button className="w-20 h-20 rounded-full border-2 border-primary/60 flex items-center justify-center hover:bg-primary/20 transition-colors group animate-pulse">
-            <span className="material-icons-round text-primary text-4xl group-hover:scale-110 transition-transform">play_arrow</span>
-          </button>
+        {/* Hero content - centered with logo */}
+        <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-3xl mx-auto">
+          {/* Animated Logo */}
+          <div className="relative mb-6 animate-[fadeSlideUp_1s_ease-out_0.2s_both]">
+            {/* Glow behind logo */}
+            <div className="absolute inset-0 scale-150 blur-3xl bg-primary/10 rounded-full animate-pulse" />
+            <img
+              src="/logo.png"
+              alt="Karaoke Times"
+              className="relative w-64 md:w-80 h-auto drop-shadow-[0_0_30px_rgba(0,255,194,0.3)] hover:drop-shadow-[0_0_50px_rgba(0,255,194,0.5)] transition-all duration-700 hover:scale-105"
+            />
+          </div>
+
+          {/* Tagline */}
+          <p className="text-primary text-2xl md:text-3xl mb-3 neon-glow-green animate-[fadeSlideUp_0.8s_ease-out_0.6s_both]" style={{ fontFamily: "var(--font-script)" }}>
+            NYC&apos;s Ultimate Karaoke Directory
+          </p>
+          <p className="text-text-secondary text-sm md:text-base max-w-lg mb-8 animate-[fadeSlideUp_0.8s_ease-out_0.8s_both]">
+            Discover live venues, find your favorite songs, connect with KJs,
+            and never miss a karaoke night again.
+          </p>
+
+          {/* CTA Buttons */}
+          <div className="flex flex-col sm:flex-row items-center gap-4 animate-[fadeSlideUp_0.8s_ease-out_1s_both]">
+            <Link
+              href="/search"
+              className="inline-flex items-center gap-2 bg-primary text-black font-bold px-8 py-3.5 rounded-full hover:shadow-lg hover:shadow-primary/40 transition-all"
+            >
+              Explore Venues
+              <span className="material-icons-round">arrow_forward</span>
+            </Link>
+            <Link
+              href="/map"
+              className="inline-flex items-center gap-2 border border-border text-white font-semibold px-8 py-3.5 rounded-full hover:border-primary hover:text-primary transition-all"
+            >
+              <span className="material-icons-round">map</span>
+              View Map
+            </Link>
+          </div>
+
+          {/* Sponsored KJ badge */}
+          <div className="mt-10 animate-[fadeSlideUp_0.8s_ease-out_1.2s_both]">
+            <Link href="/venue/neon-echo-lounge" className="inline-flex items-center gap-3 glass-card rounded-full px-5 py-2.5 hover:border-primary/30 transition-all group">
+              <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center">
+                <span className="material-icons-round text-accent text-sm">star</span>
+              </div>
+              <div className="text-left">
+                <p className="text-[10px] text-primary uppercase tracking-wider font-bold">Sponsored KJ</p>
+                <p className="text-sm text-white font-semibold">{sponsoredKJ.name} <span className="text-text-muted">at {sponsoredKJ.venue}</span></p>
+              </div>
+              <span className="material-icons-round text-text-muted group-hover:text-primary transition-colors">chevron_right</span>
+            </Link>
+          </div>
         </div>
 
-        {/* Hero content */}
-        <div className="relative z-10 max-w-6xl mx-auto px-6 md:px-8 pb-16 md:pb-20 w-full">
-          <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/30 rounded-full px-4 py-1.5 mb-4 animate-[fadeSlideUp_0.8s_ease-out_0.2s_both]">
-            <span className="material-icons-round text-primary text-sm">star</span>
-            <span className="text-primary text-xs font-bold uppercase tracking-wider">Sponsored KJ of the Month</span>
-          </div>
-          <h1 className="text-5xl md:text-7xl font-extrabold text-white leading-none mb-2 animate-[fadeSlideUp_0.8s_ease-out_0.4s_both]" style={{ fontFamily: "var(--font-script)" }}>
-            {sponsoredKJ.name}
-          </h1>
-          <p className="text-xl md:text-2xl text-primary neon-glow-green font-semibold mb-4 animate-[fadeSlideUp_0.8s_ease-out_0.6s_both]" style={{ fontFamily: "var(--font-script)" }}>
-            {sponsoredKJ.venue}
-          </p>
-          <div className="flex items-center gap-4 mb-6 animate-[fadeSlideUp_0.8s_ease-out_0.8s_both]">
-            <span className="text-sm text-text-secondary flex items-center gap-1.5">
-              <span className="material-icons-round text-lg">schedule</span>
-              {sponsoredKJ.time}
-            </span>
-            <span className="text-sm text-accent flex items-center gap-1.5 neon-glow-pink">
-              <span className="material-icons-round text-lg">local_fire_department</span>
-              Trending
-            </span>
-          </div>
-          <Link
-            href="/venue/neon-echo-lounge"
-            className="inline-flex items-center gap-2 bg-primary text-black font-bold px-8 py-3.5 rounded-full hover:shadow-lg hover:shadow-primary/40 transition-all animate-[fadeSlideUp_0.8s_ease-out_1s_both]"
-          >
-            View Venue
-            <span className="material-icons-round">arrow_forward</span>
-          </Link>
-
-          {/* Navigation arrows */}
-          <div className="absolute right-8 bottom-20 hidden md:flex gap-3">
-            <button className="w-12 h-12 rounded-full border border-border flex items-center justify-center text-text-secondary hover:text-primary hover:border-primary transition-colors">
-              <span className="material-icons-round">chevron_left</span>
-            </button>
-            <button className="w-12 h-12 rounded-full border border-border flex items-center justify-center text-text-secondary hover:text-primary hover:border-primary transition-colors">
-              <span className="material-icons-round">chevron_right</span>
-            </button>
-          </div>
+        {/* Scroll indicator */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 animate-bounce">
+          <span className="text-[10px] text-text-muted uppercase tracking-widest">Scroll</span>
+          <span className="material-icons-round text-text-muted">expand_more</span>
         </div>
       </section>
 
