@@ -48,7 +48,7 @@ export default function TopNav() {
             href="/add-event"
             className="hidden md:flex bg-primary text-black font-bold text-sm px-5 py-2.5 rounded-full items-center gap-1.5 hover:shadow-lg hover:shadow-primary/30 transition-all"
           >
-            Add Event
+            Add Karaoke Event
           </Link>
           <button className="w-10 h-10 rounded-full glass-card flex items-center justify-center text-primary">
             <span className="material-icons-round text-xl">notifications</span>
