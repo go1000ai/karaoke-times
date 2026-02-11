@@ -87,12 +87,24 @@ export default function HomePage() {
       <section className="relative h-[100vh] min-h-[700px]">
         <TubesBackground className="h-full" enableClickInteraction>
           <div className="flex flex-col items-center justify-center h-full text-center px-6 max-w-3xl mx-auto pointer-events-auto">
-            {/* Logo */}
-            <div className="mb-8 animate-[fadeSlideUp_1s_ease-out_0.2s_both]">
+            {/* Logo with glow */}
+            <div className="mb-8 animate-[fadeSlideUp_1s_ease-out_0.2s_both] relative">
+              {/* Glow layer behind logo */}
+              <div
+                className="absolute inset-0 blur-[40px] opacity-70 scale-110 pointer-events-none"
+                style={{
+                  background:
+                    "radial-gradient(ellipse at center, rgba(212,160,23,0.5) 0%, rgba(192,57,43,0.3) 40%, transparent 70%)",
+                }}
+              />
               <img
                 src="/logo.png"
                 alt="Karaoke Times"
-                className="w-72 md:w-96 h-auto drop-shadow-[0_0_40px_rgba(0,255,194,0.3)] hover:drop-shadow-[0_0_60px_rgba(0,255,194,0.5)] transition-all duration-500 hover:scale-[1.03]"
+                className="relative z-10 w-72 md:w-96 h-auto drop-shadow-[0_0_30px_rgba(212,160,23,0.6)] hover:drop-shadow-[0_0_50px_rgba(212,160,23,0.8)] transition-all duration-500 hover:scale-[1.03]"
+                style={{
+                  filter:
+                    "drop-shadow(0 0 20px rgba(212,160,23,0.5)) drop-shadow(0 0 60px rgba(192,57,43,0.3))",
+                }}
               />
             </div>
 
