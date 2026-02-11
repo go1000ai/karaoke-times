@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import BottomNav from "@/components/BottomNav";
 import TopNav from "@/components/TopNav";
 import { CardStack, type CardStackItem } from "@/components/ui/card-stack";
@@ -76,19 +76,31 @@ function useScrollReveal() {
   return ref;
 }
 
+function useIsMobile() {
+  const [mobile, setMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+  return mobile;
+}
+
 export default function HomePage() {
   const scrollRef = useScrollReveal();
+  const isMobile = useIsMobile();
 
   return (
     <div ref={scrollRef} className="min-h-screen bg-bg-dark overflow-x-hidden">
       <TopNav />
 
       {/* ─── HERO SECTION with NeonFlow ─── */}
-      <section className="relative h-[100vh] min-h-[700px]">
+      <section className="relative h-[100svh] min-h-[600px]">
         <TubesBackground
           className="h-full"
           enableClickInteraction
-          backgroundImage="https://images.unsplash.com/photo-1501612780327-45045538702b?w=1920&q=80"
+          backgroundImage="https://images.unsplash.com/photo-1574391884720-bbc3740c59d1?w=1920&q=80"
         >
           <div className="flex flex-col items-center justify-center h-full text-center px-6 max-w-3xl mx-auto pointer-events-auto">
             {/* Logo with North Star sparkle */}
@@ -216,11 +228,11 @@ export default function HomePage() {
           <div className="reveal">
             <CardStack
               items={venueCards}
-              cardWidth={520}
-              cardHeight={320}
-              maxVisible={5}
-              overlap={0.48}
-              spreadDeg={48}
+              cardWidth={isMobile ? 300 : 520}
+              cardHeight={isMobile ? 200 : 320}
+              maxVisible={isMobile ? 3 : 5}
+              overlap={isMobile ? 0.55 : 0.48}
+              spreadDeg={isMobile ? 30 : 48}
               autoAdvance
               intervalMs={3500}
               loop
