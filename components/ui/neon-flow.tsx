@@ -101,10 +101,10 @@ export function TubesBackground({
               backgroundSize: "cover",
               backgroundPosition: "center",
               backgroundAttachment: "fixed",
-              filter: "brightness(0.15) saturate(0.5)",
+              filter: "brightness(0.45) saturate(0.7)",
             }}
           />
-          <div className="absolute inset-0 bg-bg-dark/40" />
+          <div className="absolute inset-0 bg-bg-dark/20" />
         </>
       )}
 
