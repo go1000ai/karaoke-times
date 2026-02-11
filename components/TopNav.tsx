@@ -19,7 +19,15 @@ export default function TopNav() {
       <div className="max-w-6xl mx-auto px-6 flex items-center justify-between h-16">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-3 flex-shrink-0">
-          <img src="/logo.png" alt="Karaoke Times" className="h-10 w-auto" />
+          <img
+            src="/logo.png"
+            alt="Karaoke Times"
+            className="h-14 w-auto"
+            style={{
+              filter:
+                "drop-shadow(0 0 2px rgba(255,255,255,0.8)) drop-shadow(0 0 6px rgba(212,160,23,0.9)) drop-shadow(0 0 12px rgba(212,160,23,0.5)) drop-shadow(0 0 30px rgba(192,57,43,0.3))",
+            }}
+          />
         </Link>
 
         {/* Desktop Nav Links */}
