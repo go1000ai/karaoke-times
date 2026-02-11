@@ -1,0 +1,29 @@
+import type { Metadata } from "next";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: "Karaoke Times NYC",
+  description: "Your ultimate guide to the karaoke scene in NYC",
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <head>
+        <link
+          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Mr+Dafoe&display=swap"
+          rel="stylesheet"
+        />
+        <link
+          href="https://fonts.googleapis.com/icon?family=Material+Icons+Round"
+          rel="stylesheet"
+        />
+      </head>
+      <body className="bg-bg text-text-primary antialiased">
+        <div className="max-w-md mx-auto min-h-screen bg-bg-white relative">
+          {children}
+        </div>
+      </body>
+    </html>
+  );
+}
