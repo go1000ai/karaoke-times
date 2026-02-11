@@ -147,15 +147,32 @@ export default function HomePage() {
                 />
               ))}
 
-              <img
-                src="/logo.png"
-                alt="Karaoke Times"
-                className="relative z-10 w-72 md:w-96 h-auto transition-all duration-500 hover:scale-[1.03]"
-                style={{
-                  filter:
-                    "drop-shadow(0 0 15px rgba(212,160,23,0.5)) drop-shadow(0 0 40px rgba(192,57,43,0.25))",
-                }}
-              />
+              {/* Logo with edge glow + shine sweep */}
+              <div className="relative z-10 w-72 md:w-96 transition-all duration-500 hover:scale-[1.03]">
+                <img
+                  src="/logo.png"
+                  alt="Karaoke Times"
+                  className="w-full h-auto"
+                  style={{
+                    filter:
+                      "drop-shadow(0 0 2px rgba(255,255,255,0.8)) drop-shadow(0 0 6px rgba(212,160,23,0.9)) drop-shadow(0 0 12px rgba(212,160,23,0.5)) drop-shadow(0 0 30px rgba(192,57,43,0.3))",
+                  }}
+                />
+                {/* Shine sweep overlay */}
+                <div
+                  className="absolute inset-0 overflow-hidden pointer-events-none"
+                  style={{ mixBlendMode: "overlay" }}
+                >
+                  <div
+                    className="absolute inset-0 w-[40%] h-full"
+                    style={{
+                      background:
+                        "linear-gradient(90deg, transparent, rgba(255,255,255,0.5) 40%, rgba(255,255,255,0.8) 50%, rgba(255,255,255,0.5) 60%, transparent)",
+                      animation: "shineSweep 3.5s ease-in-out infinite",
+                    }}
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Tagline */}
