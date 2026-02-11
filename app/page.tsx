@@ -217,7 +217,7 @@ export default function HomePage() {
               Swipe &amp; Discover
             </p>
             <h2 className="reveal text-3xl md:text-5xl font-extrabold text-white uppercase tracking-tight mb-4">
-              Featured Bars &amp; Clubs
+              Featured Bars &amp; Restaurants
             </h2>
             <p className="reveal text-text-secondary leading-relaxed max-w-lg mx-auto">
               Swipe through the hottest karaoke spots in NYC. Each venue
