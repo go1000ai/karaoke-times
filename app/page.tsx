@@ -113,104 +113,86 @@ export default function HomePage() {
       <TopNav />
 
       {/* ─── HERO SECTION ─── */}
-      <section className="relative h-[90vh] min-h-[600px] flex items-center justify-center overflow-hidden">
+      <section className="relative h-[100vh] min-h-[700px] flex items-center justify-center overflow-hidden">
+        {/* Background video-style image */}
         <img
-          alt="KJ performing at a neon lit venue"
+          alt="Neon lit karaoke venue"
           className="absolute inset-0 w-full h-full object-cover scale-105 animate-[slowZoom_20s_ease-in-out_infinite_alternate]"
           src={sponsoredKJ.image}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-bg-dark via-bg-dark/60 to-bg-dark/30" />
-        <div className="absolute inset-0 bg-bg-dark/40" />
+        <div className="absolute inset-0 bg-gradient-to-b from-bg-dark/70 via-bg-dark/80 to-bg-dark" />
 
-        {/* Floating particles */}
+        {/* Subtle floating particles */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          {[...Array(12)].map((_, i) => (
+          {[...Array(8)].map((_, i) => (
             <div
               key={i}
-              className={`absolute rounded-full ${i % 3 === 0 ? "w-1.5 h-1.5 bg-primary/30" : i % 3 === 1 ? "w-1 h-1 bg-accent/30" : "w-0.5 h-0.5 bg-white/20"}`}
+              className="absolute w-0.5 h-0.5 bg-white/15 rounded-full"
               style={{
-                left: `${5 + i * 8}%`,
-                top: `${10 + (i * 7) % 80}%`,
-                animation: `float ${3 + i * 0.4}s ease-in-out infinite alternate`,
-                animationDelay: `${i * 0.2}s`,
+                left: `${10 + i * 10}%`,
+                top: `${15 + (i * 9) % 70}%`,
+                animation: `float ${4 + i * 0.5}s ease-in-out infinite alternate`,
+                animationDelay: `${i * 0.3}s`,
               }}
             />
           ))}
         </div>
 
-        {/* Animated neon ring behind logo */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-          <div
-            className="w-[500px] h-[500px] md:w-[700px] md:h-[700px] rounded-full border border-primary/10 animate-[spin_30s_linear_infinite]"
-            style={{ boxShadow: "0 0 60px rgba(0, 255, 194, 0.05), inset 0 0 60px rgba(0, 255, 194, 0.03)" }}
-          />
-        </div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-          <div
-            className="w-[400px] h-[400px] md:w-[550px] md:h-[550px] rounded-full border border-accent/10 animate-[spin_25s_linear_infinite_reverse]"
-            style={{ boxShadow: "0 0 40px rgba(255, 0, 122, 0.05), inset 0 0 40px rgba(255, 0, 122, 0.03)" }}
-          />
-        </div>
-
-        {/* Hero content - centered with logo */}
+        {/* Hero content */}
         <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-3xl mx-auto">
-          {/* Animated Logo */}
-          <div className="relative mb-6 animate-[fadeSlideUp_1s_ease-out_0.2s_both]">
-            {/* Glow behind logo */}
-            <div className="absolute inset-0 scale-150 blur-3xl bg-primary/10 rounded-full animate-pulse" />
+          {/* Logo — transparent PNG */}
+          <div className="mb-8 animate-[fadeSlideUp_1s_ease-out_0.2s_both]">
             <img
               src="/logo.png"
               alt="Karaoke Times"
-              className="relative w-64 md:w-80 h-auto drop-shadow-[0_0_30px_rgba(0,255,194,0.3)] hover:drop-shadow-[0_0_50px_rgba(0,255,194,0.5)] transition-all duration-700 hover:scale-105"
+              className="w-72 md:w-96 h-auto drop-shadow-[0_0_40px_rgba(255,255,255,0.15)] hover:drop-shadow-[0_0_60px_rgba(255,255,255,0.25)] transition-all duration-500 hover:scale-[1.03]"
             />
           </div>
 
           {/* Tagline */}
-          <p className="text-primary text-2xl md:text-3xl mb-3 neon-glow-green animate-[fadeSlideUp_0.8s_ease-out_0.6s_both]" style={{ fontFamily: "var(--font-script)" }}>
-            NYC&apos;s Ultimate Karaoke Directory
-          </p>
-          <p className="text-text-secondary text-sm md:text-base max-w-lg mb-8 animate-[fadeSlideUp_0.8s_ease-out_0.8s_both]">
-            Discover live venues, find your favorite songs, connect with KJs,
-            and never miss a karaoke night again.
+          <p className="text-lg md:text-xl text-text-secondary tracking-wide mb-8 max-w-md animate-[fadeSlideUp_0.8s_ease-out_0.6s_both]">
+            Discover the best karaoke spots, live events, and KJs across New York City.
           </p>
 
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row items-center gap-4 animate-[fadeSlideUp_0.8s_ease-out_1s_both]">
-            <Link
-              href="/search"
-              className="inline-flex items-center gap-2 bg-primary text-black font-bold px-8 py-3.5 rounded-full hover:shadow-lg hover:shadow-primary/40 transition-all"
-            >
-              Explore Venues
-              <span className="material-icons-round">arrow_forward</span>
-            </Link>
-            <Link
-              href="/map"
-              className="inline-flex items-center gap-2 border border-border text-white font-semibold px-8 py-3.5 rounded-full hover:border-primary hover:text-primary transition-all"
-            >
-              <span className="material-icons-round">map</span>
-              View Map
+          {/* Search bar hero */}
+          <div className="w-full max-w-lg mb-6 animate-[fadeSlideUp_0.8s_ease-out_0.8s_both]">
+            <Link href="/search" className="flex items-center gap-3 glass-card rounded-full px-6 py-4 hover:border-primary/30 transition-all group cursor-pointer">
+              <span className="material-icons-round text-text-muted group-hover:text-primary transition-colors">search</span>
+              <span className="text-text-muted text-sm flex-grow text-left">Search venues, songs, or KJs...</span>
+              <span className="bg-primary text-black text-xs font-bold px-4 py-1.5 rounded-full">Go</span>
             </Link>
           </div>
 
-          {/* Sponsored KJ badge */}
-          <div className="mt-10 animate-[fadeSlideUp_0.8s_ease-out_1.2s_both]">
-            <Link href="/venue/neon-echo-lounge" className="inline-flex items-center gap-3 glass-card rounded-full px-5 py-2.5 hover:border-primary/30 transition-all group">
-              <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center">
-                <span className="material-icons-round text-accent text-sm">star</span>
-              </div>
-              <div className="text-left">
-                <p className="text-[10px] text-primary uppercase tracking-wider font-bold">Sponsored KJ</p>
-                <p className="text-sm text-white font-semibold">{sponsoredKJ.name} <span className="text-text-muted">at {sponsoredKJ.venue}</span></p>
-              </div>
-              <span className="material-icons-round text-text-muted group-hover:text-primary transition-colors">chevron_right</span>
+          {/* Quick links */}
+          <div className="flex flex-wrap justify-center gap-3 animate-[fadeSlideUp_0.8s_ease-out_1s_both]">
+            <Link href="/map" className="inline-flex items-center gap-1.5 text-text-secondary text-sm hover:text-primary transition-colors">
+              <span className="material-icons-round text-base">map</span>
+              Map View
+            </Link>
+            <span className="text-border">|</span>
+            <Link href="/add-event" className="inline-flex items-center gap-1.5 text-text-secondary text-sm hover:text-primary transition-colors">
+              <span className="material-icons-round text-base">event</span>
+              Post Event
+            </Link>
+            <span className="text-border">|</span>
+            <Link href="/favorites" className="inline-flex items-center gap-1.5 text-text-secondary text-sm hover:text-primary transition-colors">
+              <span className="material-icons-round text-base">favorite_border</span>
+              Favorites
+            </Link>
+          </div>
+
+          {/* Sponsored KJ — minimal pill */}
+          <div className="mt-12 animate-[fadeSlideUp_0.8s_ease-out_1.2s_both]">
+            <Link href="/venue/neon-echo-lounge" className="inline-flex items-center gap-2 text-text-muted text-xs hover:text-white transition-colors">
+              <span className="w-1.5 h-1.5 bg-accent rounded-full animate-pulse" />
+              <span>Live Now: <span className="text-white font-medium">{sponsoredKJ.name}</span> at {sponsoredKJ.venue}</span>
             </Link>
           </div>
         </div>
 
         {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 animate-bounce">
-          <span className="text-[10px] text-text-muted uppercase tracking-widest">Scroll</span>
-          <span className="material-icons-round text-text-muted">expand_more</span>
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
+          <span className="material-icons-round text-text-muted/50 text-2xl">expand_more</span>
         </div>
       </section>
 
