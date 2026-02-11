@@ -87,23 +87,73 @@ export default function HomePage() {
       <section className="relative h-[100vh] min-h-[700px]">
         <TubesBackground className="h-full" enableClickInteraction>
           <div className="flex flex-col items-center justify-center h-full text-center px-6 max-w-3xl mx-auto pointer-events-auto">
-            {/* Logo with glow */}
+            {/* Logo with North Star sparkle */}
             <div className="mb-8 animate-[fadeSlideUp_1s_ease-out_0.2s_both] relative">
-              {/* Glow layer behind logo */}
+              {/* Warm glow behind logo */}
               <div
-                className="absolute inset-0 blur-[40px] opacity-70 scale-110 pointer-events-none"
+                className="absolute inset-0 blur-[40px] opacity-60 scale-125 pointer-events-none"
                 style={{
                   background:
-                    "radial-gradient(ellipse at center, rgba(212,160,23,0.5) 0%, rgba(192,57,43,0.3) 40%, transparent 70%)",
+                    "radial-gradient(ellipse at center, rgba(212,160,23,0.5) 0%, rgba(192,57,43,0.25) 40%, transparent 70%)",
                 }}
               />
+
+              {/* North Star starburst — cross rays */}
+              <div className="absolute top-1/2 left-1/2 pointer-events-none" style={{ animation: "starburstPulse 4s ease-in-out infinite" }}>
+                {/* Vertical ray */}
+                <div className="absolute -translate-x-1/2 -translate-y-1/2 w-[2px] h-[280px] md:h-[360px]"
+                  style={{ background: "linear-gradient(to bottom, transparent, rgba(212,160,23,0.7) 40%, rgba(255,255,255,0.9) 50%, rgba(212,160,23,0.7) 60%, transparent)" }}
+                />
+                {/* Horizontal ray */}
+                <div className="absolute -translate-x-1/2 -translate-y-1/2 h-[2px] w-[280px] md:w-[360px]"
+                  style={{ background: "linear-gradient(to right, transparent, rgba(212,160,23,0.7) 40%, rgba(255,255,255,0.9) 50%, rgba(212,160,23,0.7) 60%, transparent)" }}
+                />
+              </div>
+
+              {/* Diagonal rays — slow spin */}
+              <div className="absolute top-1/2 left-1/2 pointer-events-none" style={{ animation: "starburstSpin 20s linear infinite" }}>
+                {/* 45° ray */}
+                <div className="absolute -translate-x-1/2 -translate-y-1/2 w-[1px] h-[200px] md:h-[260px] rotate-45 opacity-60"
+                  style={{ background: "linear-gradient(to bottom, transparent, rgba(212,160,23,0.5) 40%, rgba(255,255,255,0.7) 50%, rgba(212,160,23,0.5) 60%, transparent)" }}
+                />
+                {/* -45° ray */}
+                <div className="absolute -translate-x-1/2 -translate-y-1/2 w-[1px] h-[200px] md:h-[260px] -rotate-45 opacity-60"
+                  style={{ background: "linear-gradient(to bottom, transparent, rgba(212,160,23,0.5) 40%, rgba(255,255,255,0.7) 50%, rgba(212,160,23,0.5) 60%, transparent)" }}
+                />
+              </div>
+
+              {/* Sparkle dots */}
+              {[
+                { top: "5%", left: "10%", size: 6, delay: "0s", dur: "2.5s" },
+                { top: "15%", left: "85%", size: 5, delay: "0.8s", dur: "3s" },
+                { top: "80%", left: "5%", size: 4, delay: "1.5s", dur: "2.8s" },
+                { top: "75%", left: "90%", size: 5, delay: "0.4s", dur: "3.2s" },
+                { top: "0%", left: "50%", size: 3, delay: "2s", dur: "2.6s" },
+                { top: "90%", left: "45%", size: 4, delay: "1.2s", dur: "3s" },
+              ].map((s, i) => (
+                <div
+                  key={i}
+                  className="absolute pointer-events-none"
+                  style={{
+                    top: s.top,
+                    left: s.left,
+                    width: s.size,
+                    height: s.size,
+                    borderRadius: "50%",
+                    background: "radial-gradient(circle, rgba(255,255,255,0.9), rgba(212,160,23,0.6))",
+                    boxShadow: "0 0 6px 2px rgba(212,160,23,0.5)",
+                    animation: `sparkle ${s.dur} ease-in-out ${s.delay} infinite`,
+                  }}
+                />
+              ))}
+
               <img
                 src="/logo.png"
                 alt="Karaoke Times"
-                className="relative z-10 w-72 md:w-96 h-auto drop-shadow-[0_0_30px_rgba(212,160,23,0.6)] hover:drop-shadow-[0_0_50px_rgba(212,160,23,0.8)] transition-all duration-500 hover:scale-[1.03]"
+                className="relative z-10 w-72 md:w-96 h-auto transition-all duration-500 hover:scale-[1.03]"
                 style={{
                   filter:
-                    "drop-shadow(0 0 20px rgba(212,160,23,0.5)) drop-shadow(0 0 60px rgba(192,57,43,0.3))",
+                    "drop-shadow(0 0 15px rgba(212,160,23,0.5)) drop-shadow(0 0 40px rgba(192,57,43,0.25))",
                 }}
               />
             </div>
