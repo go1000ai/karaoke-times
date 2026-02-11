@@ -14,26 +14,26 @@ export default function MapPage() {
   const venue = selectedVenue ? venues.find((v) => v.id === selectedVenue) : null;
 
   return (
-    <div className="min-h-screen pb-28 md:pb-12">
+    <div className="min-h-screen pb-28 md:pb-12 bg-bg-dark">
       <TopNav />
       <div className="max-w-4xl mx-auto">
       {/* Map Area */}
-      <div className="relative h-[65vh] bg-bg">
+      <div className="relative h-[65vh]">
         {/* Fake map background */}
         <img
           src="https://images.unsplash.com/photo-1524661135-423995f22d0b?w=800&q=50"
           alt="Map of NYC"
-          className="w-full h-full object-cover opacity-60"
+          className="w-full h-full object-cover opacity-30"
         />
 
         {/* Toggle */}
-        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-20">
-          <div className="flex bg-white rounded-full p-1 shadow-lg border border-border">
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20">
+          <div className="flex glass-card rounded-full p-1">
             <button
               onClick={() => setViewMode("map")}
               className={`px-5 py-2 rounded-full text-sm font-semibold transition-colors ${
                 viewMode === "map"
-                  ? "bg-crimson text-white"
+                  ? "bg-primary text-black"
                   : "text-text-secondary"
               }`}
             >
@@ -43,7 +43,7 @@ export default function MapPage() {
               onClick={() => setViewMode("list")}
               className={`px-5 py-2 rounded-full text-sm font-semibold transition-colors ${
                 viewMode === "list"
-                  ? "bg-crimson text-white"
+                  ? "bg-primary text-black"
                   : "text-text-secondary"
               }`}
             >
@@ -53,7 +53,7 @@ export default function MapPage() {
         </div>
 
         {/* Search */}
-        <div className="absolute top-28 left-5 right-5 z-20">
+        <div className="absolute top-32 left-5 right-5 z-20">
           <SearchBar placeholder="Search venues, songs, or neighborhoods" />
         </div>
 
@@ -72,12 +72,12 @@ export default function MapPage() {
           >
             <span
               className={`material-icons-round text-3xl transition-colors ${
-                pin.id === selectedVenue ? "text-crimson" : "text-navy"
+                pin.id === selectedVenue ? "text-primary neon-glow-green" : "text-accent"
               }`}
             >
               location_on
             </span>
-            <span className="bg-white/90 backdrop-blur-sm text-navy text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm mt-0.5">
+            <span className="glass-card text-white text-[9px] font-bold px-2 py-0.5 rounded-full mt-0.5">
               {pin.label}
             </span>
           </button>
@@ -89,23 +89,23 @@ export default function MapPage() {
         <div className="px-5 -mt-6 relative z-20">
           <Link
             href={`/venue/${venue.id}`}
-            className="block bg-white rounded-2xl p-4 shadow-lg border border-border"
+            className="block glass-card rounded-2xl p-4"
           >
             <div className="flex gap-3">
               <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
                 <img src={venue.image} alt={venue.name} className="w-full h-full object-cover" />
               </div>
               <div className="flex-grow">
-                <h3 className="font-bold text-navy">{venue.name}</h3>
+                <h3 className="font-bold text-white">{venue.name}</h3>
                 <p className="text-xs text-text-secondary">{venue.neighborhood}</p>
                 <div className="flex items-center gap-2 mt-1">
-                  <div className="flex items-center text-gold text-xs font-bold">
+                  <div className="flex items-center text-primary text-xs font-bold">
                     <span className="material-icons-round text-sm mr-0.5">star</span>
                     {venue.rating}
                   </div>
                   <span className="text-xs text-text-secondary">{venue.priceRange}</span>
                   {venue.isLive && (
-                    <span className="bg-crimson text-white text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                    <span className="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
                       <span className="w-1 h-1 bg-white rounded-full animate-pulse" /> LIVE
                     </span>
                   )}

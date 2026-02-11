@@ -27,7 +27,7 @@ export default function StarRating({ rating = 0, interactive = false, onRate, si
           onMouseLeave={() => interactive && setHoverRating(0)}
           onClick={() => interactive && onRate?.(star)}
         >
-          <span className={`material-icons-round ${sizeClass} ${star <= displayRating ? "text-gold" : "text-border"}`}>
+          <span className={`material-icons-round ${sizeClass} ${star <= displayRating ? "text-primary" : "text-border"}`}>
             {star <= displayRating ? "star" : "star_border"}
           </span>
         </button>

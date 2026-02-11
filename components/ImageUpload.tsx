@@ -59,7 +59,7 @@ export default function ImageUpload({
               <button
                 type="button"
                 onClick={() => removePreview(i)}
-                className="absolute top-1 right-1 w-5 h-5 bg-crimson text-white rounded-full flex items-center justify-center text-xs"
+                className="absolute top-1 right-1 w-5 h-5 bg-accent text-white rounded-full flex items-center justify-center text-xs"
               >
                 <span className="material-icons-round text-sm">close</span>
               </button>
@@ -72,9 +72,9 @@ export default function ImageUpload({
         <button
           type="button"
           onClick={handleClick}
-          className="w-full border-2 border-dashed border-border rounded-2xl py-8 flex flex-col items-center gap-2 hover:border-crimson hover:bg-crimson/5 transition-colors"
+          className="w-full border-2 border-dashed border-border rounded-2xl py-8 flex flex-col items-center gap-2 hover:border-primary hover:bg-primary/5 transition-colors"
         >
-          <span className="material-icons-round text-3xl text-crimson">add_photo_alternate</span>
+          <span className="material-icons-round text-3xl text-primary">add_photo_alternate</span>
           <span className="text-sm font-semibold text-text-primary">{label}</span>
           <span className="text-xs text-text-muted">JPG, PNG up to {maxSize}</span>
         </button>
