@@ -88,7 +88,7 @@ export default function HomePage() {
         <TubesBackground
           className="h-full"
           enableClickInteraction
-          backgroundImage="https://images.unsplash.com/photo-1566417713940-fe7c737a9ef2?w=1600&q=80"
+          backgroundImage="https://images.unsplash.com/photo-1501612780327-45045538702b?w=1920&q=80"
         >
           <div className="flex flex-col items-center justify-center h-full text-center px-6 max-w-3xl mx-auto pointer-events-auto">
             {/* Logo with North Star sparkle */}
