@@ -1,5 +1,6 @@
 import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
+import TopNav from "@/components/TopNav";
 import { venues } from "@/lib/mock-data";
 
 export default function FavoritesPage() {
@@ -7,7 +8,9 @@ export default function FavoritesPage() {
   const allVenues = venues;
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="min-h-screen pb-28 md:pb-12">
+      <TopNav />
+      <div className="max-w-4xl mx-auto">
       <header className="pt-12 px-5 mb-6">
         <h1 className="text-2xl font-extrabold text-navy">My Favorites</h1>
         <p className="text-sm text-text-secondary">Venues you&apos;ve saved</p>
@@ -53,6 +56,7 @@ export default function FavoritesPage() {
         </section>
       )}
 
+      </div>
       <BottomNav />
     </div>
   );

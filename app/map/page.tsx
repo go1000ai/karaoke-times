@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
+import TopNav from "@/components/TopNav";
 import SearchBar from "@/components/SearchBar";
 import { venues } from "@/lib/mock-data";
 
@@ -13,7 +14,9 @@ export default function MapPage() {
   const venue = selectedVenue ? venues.find((v) => v.id === selectedVenue) : null;
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="min-h-screen pb-28 md:pb-12">
+      <TopNav />
+      <div className="max-w-4xl mx-auto">
       {/* Map Area */}
       <div className="relative h-[65vh] bg-bg">
         {/* Fake map background */}
@@ -123,6 +126,7 @@ export default function MapPage() {
         </p>
       </div>
 
+      </div>
       <BottomNav />
     </div>
   );

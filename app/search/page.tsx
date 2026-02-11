@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
+import TopNav from "@/components/TopNav";
 import { songSearchResults } from "@/lib/mock-data";
 
 export default function SearchPage() {
@@ -11,7 +12,9 @@ export default function SearchPage() {
   const result = songSearchResults[0];
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="min-h-screen pb-28 md:pb-12">
+      <TopNav />
+      <div className="max-w-4xl mx-auto">
       {/* Header */}
       <header className="pt-12 px-5 mb-6">
         <div className="flex items-center gap-3 mb-4">
@@ -161,6 +164,7 @@ export default function SearchPage() {
         </Link>
       </section>
 
+      </div>
       <BottomNav />
     </div>
   );

@@ -2,13 +2,13 @@ import Link from "next/link";
 
 export default function SignInPage() {
   return (
-    <div className="min-h-screen relative flex flex-col items-center justify-center overflow-hidden">
+    <div className="min-h-screen relative flex items-center justify-center overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 bg-navy">
         <div
           className="absolute inset-0 opacity-30"
           style={{
-            backgroundImage: "url('https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=800&q=60')",
+            backgroundImage: "url('https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=1600&q=60')",
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
@@ -17,17 +17,14 @@ export default function SignInPage() {
       </div>
 
       {/* Content */}
-      <div className="relative z-10 flex flex-col items-center px-8 w-full">
-        {/* Logo area */}
-        <div className="mb-2">
-          <div className="w-16 h-16 rounded-2xl bg-crimson/20 flex items-center justify-center mb-4 mx-auto">
-            <span className="material-icons-round text-4xl text-crimson">mic</span>
-          </div>
-        </div>
-        <h1 className="text-3xl font-extrabold text-white tracking-tight text-center">
-          KARAOKE <span className="text-crimson">TIMES</span>
-        </h1>
-        <p className="text-xs uppercase tracking-[0.3em] text-gold font-bold mt-1 mb-2">
+      <div className="relative z-10 flex flex-col items-center px-6 w-full max-w-md mx-auto py-12">
+        {/* Logo */}
+        <img
+          src="/logo.png"
+          alt="Karaoke Times"
+          className="w-64 h-auto mb-4 drop-shadow-2xl"
+        />
+        <p className="text-xs uppercase tracking-[0.3em] text-gold font-bold mb-2">
           New York City Edition
         </p>
         <p className="text-sm text-white/70 text-center mb-10">

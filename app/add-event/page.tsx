@@ -2,11 +2,14 @@
 
 import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
+import TopNav from "@/components/TopNav";
 import ImageUpload from "@/components/ImageUpload";
 
 export default function AddEventPage() {
   return (
-    <div className="min-h-screen pb-28">
+    <div className="min-h-screen pb-28 md:pb-12">
+      <TopNav />
+      <div className="max-w-4xl mx-auto">
       {/* Header */}
       <header className="pt-12 px-5 mb-2">
         <div className="flex items-center gap-3 mb-1">
@@ -142,6 +145,7 @@ export default function AddEventPage() {
         </div>
       </section>
 
+      </div>
       <BottomNav />
     </div>
   );

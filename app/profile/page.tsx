@@ -1,10 +1,13 @@
 import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
+import TopNav from "@/components/TopNav";
 import { userProfile } from "@/lib/mock-data";
 
 export default function ProfilePage() {
   return (
-    <div className="min-h-screen pb-24">
+    <div className="min-h-screen pb-28 md:pb-12">
+      <TopNav />
+      <div className="max-w-4xl mx-auto">
       {/* Profile Header */}
       <div className="pt-16 pb-6 flex flex-col items-center px-5">
         <div className="relative mb-3">
@@ -135,6 +138,7 @@ export default function ProfilePage() {
         </Link>
       </section>
 
+      </div>
       <BottomNav />
     </div>
   );

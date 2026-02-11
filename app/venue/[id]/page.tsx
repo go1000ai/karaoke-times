@@ -3,6 +3,7 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
+import TopNav from "@/components/TopNav";
 import StarRating from "@/components/StarRating";
 import { venues, reviews } from "@/lib/mock-data";
 
@@ -12,7 +13,9 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
   const [isFavorite, setIsFavorite] = useState(venue.isFavorite);
 
   return (
-    <div className="min-h-screen pb-28">
+    <div className="min-h-screen pb-28 md:pb-12">
+      <TopNav />
+      <div className="max-w-4xl mx-auto">
       {/* Hero Image */}
       <div className="relative h-64">
         <img src={venue.image} alt={venue.name} className="w-full h-full object-cover" />
@@ -230,6 +233,7 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
         </button>
       </div>
 
+      </div>
       <BottomNav />
     </div>
   );

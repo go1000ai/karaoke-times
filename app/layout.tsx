@@ -4,6 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Karaoke Times NYC",
   description: "Your ultimate guide to the karaoke scene in NYC",
+  icons: { icon: "/logo.png" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -20,9 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="bg-bg text-text-primary antialiased">
-        <div className="max-w-md mx-auto min-h-screen bg-bg-white relative">
-          {children}
-        </div>
+        {children}
       </body>
     </html>
   );
