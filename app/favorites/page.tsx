@@ -50,7 +50,7 @@ export default function FavoritesPage() {
         <section className="px-5 py-20 text-center">
           <span className="material-icons-round text-6xl text-border mb-4">favorite_border</span>
           <p className="text-text-secondary text-sm">No favorites yet. Explore venues to save your picks!</p>
-          <Link href="/home" className="text-crimson text-sm font-semibold mt-2 inline-block">
+          <Link href="/" className="text-crimson text-sm font-semibold mt-2 inline-block">
             Explore Venues
           </Link>
         </section>

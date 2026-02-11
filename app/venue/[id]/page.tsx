@@ -22,7 +22,7 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
         <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent" />
         <div className="absolute top-12 left-4 right-4 flex justify-between">
           <Link
-            href="/home"
+            href="/"
             className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md"
           >
             <span className="material-icons-round text-navy">arrow_back</span>

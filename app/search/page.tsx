@@ -18,7 +18,7 @@ export default function SearchPage() {
       {/* Header */}
       <header className="pt-12 px-5 mb-6">
         <div className="flex items-center gap-3 mb-4">
-          <Link href="/home">
+          <Link href="/">
             <span className="material-icons-round text-navy">arrow_back</span>
           </Link>
           <h1 className="text-xl font-extrabold text-navy">Search Results</h1>

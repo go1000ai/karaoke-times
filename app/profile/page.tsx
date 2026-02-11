@@ -131,7 +131,7 @@ export default function ProfilePage() {
       {/* Sign Out */}
       <section className="px-5 mt-6">
         <Link
-          href="/"
+          href="/signin"
           className="w-full border-2 border-crimson text-crimson font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:bg-crimson/5 transition-colors"
         >
           Sign Out

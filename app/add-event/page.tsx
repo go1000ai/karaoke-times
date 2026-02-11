@@ -13,7 +13,7 @@ export default function AddEventPage() {
       {/* Header */}
       <header className="pt-12 px-5 mb-2">
         <div className="flex items-center gap-3 mb-1">
-          <Link href="/home">
+          <Link href="/">
             <span className="material-icons-round text-navy">arrow_back</span>
           </Link>
           <div className="flex-1 text-center">

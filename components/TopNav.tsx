@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const navLinks = [
-  { label: "Explore", href: "/home", icon: "home" },
+  { label: "Explore", href: "/", icon: "home" },
   { label: "Search", href: "/search", icon: "search" },
   { label: "Map", href: "/map", icon: "map" },
   { label: "Favorites", href: "/favorites", icon: "favorite_border" },
@@ -17,7 +17,7 @@ export default function TopNav() {
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-border">
       <div className="max-w-6xl mx-auto px-6 flex items-center justify-between h-16">
         {/* Logo */}
-        <Link href="/home" className="flex items-center gap-3 flex-shrink-0">
+        <Link href="/" className="flex items-center gap-3 flex-shrink-0">
           <img src="/logo.png" alt="Karaoke Times" className="h-10 w-auto" />
         </Link>
 
