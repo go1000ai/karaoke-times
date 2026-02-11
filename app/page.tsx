@@ -98,81 +98,16 @@ export default function HomePage() {
                 }}
               />
 
-              {/* North Star starburst — cross rays */}
-              <div className="absolute top-1/2 left-1/2 pointer-events-none" style={{ animation: "starburstPulse 4s ease-in-out infinite" }}>
-                {/* Vertical ray */}
-                <div className="absolute -translate-x-1/2 -translate-y-1/2 w-[2px] h-[280px] md:h-[360px]"
-                  style={{ background: "linear-gradient(to bottom, transparent, rgba(212,160,23,0.7) 40%, rgba(255,255,255,0.9) 50%, rgba(212,160,23,0.7) 60%, transparent)" }}
-                />
-                {/* Horizontal ray */}
-                <div className="absolute -translate-x-1/2 -translate-y-1/2 h-[2px] w-[280px] md:w-[360px]"
-                  style={{ background: "linear-gradient(to right, transparent, rgba(212,160,23,0.7) 40%, rgba(255,255,255,0.9) 50%, rgba(212,160,23,0.7) 60%, transparent)" }}
-                />
-              </div>
-
-              {/* Diagonal rays — slow spin */}
-              <div className="absolute top-1/2 left-1/2 pointer-events-none" style={{ animation: "starburstSpin 20s linear infinite" }}>
-                {/* 45° ray */}
-                <div className="absolute -translate-x-1/2 -translate-y-1/2 w-[1px] h-[200px] md:h-[260px] rotate-45 opacity-60"
-                  style={{ background: "linear-gradient(to bottom, transparent, rgba(212,160,23,0.5) 40%, rgba(255,255,255,0.7) 50%, rgba(212,160,23,0.5) 60%, transparent)" }}
-                />
-                {/* -45° ray */}
-                <div className="absolute -translate-x-1/2 -translate-y-1/2 w-[1px] h-[200px] md:h-[260px] -rotate-45 opacity-60"
-                  style={{ background: "linear-gradient(to bottom, transparent, rgba(212,160,23,0.5) 40%, rgba(255,255,255,0.7) 50%, rgba(212,160,23,0.5) 60%, transparent)" }}
-                />
-              </div>
-
-              {/* Sparkle dots */}
-              {[
-                { top: "5%", left: "10%", size: 6, delay: "0s", dur: "2.5s" },
-                { top: "15%", left: "85%", size: 5, delay: "0.8s", dur: "3s" },
-                { top: "80%", left: "5%", size: 4, delay: "1.5s", dur: "2.8s" },
-                { top: "75%", left: "90%", size: 5, delay: "0.4s", dur: "3.2s" },
-                { top: "0%", left: "50%", size: 3, delay: "2s", dur: "2.6s" },
-                { top: "90%", left: "45%", size: 4, delay: "1.2s", dur: "3s" },
-              ].map((s, i) => (
-                <div
-                  key={i}
-                  className="absolute pointer-events-none"
-                  style={{
-                    top: s.top,
-                    left: s.left,
-                    width: s.size,
-                    height: s.size,
-                    borderRadius: "50%",
-                    background: "radial-gradient(circle, rgba(255,255,255,0.9), rgba(212,160,23,0.6))",
-                    boxShadow: "0 0 6px 2px rgba(212,160,23,0.5)",
-                    animation: `sparkle ${s.dur} ease-in-out ${s.delay} infinite`,
-                  }}
-                />
-              ))}
-
-              {/* Logo with edge glow + shine sweep */}
-              <div className="relative z-10 w-72 md:w-96 transition-all duration-500 hover:scale-[1.03]">
-                <img
-                  src="/logo.png"
-                  alt="Karaoke Times"
-                  className="w-full h-auto"
-                  style={{
-                    filter:
-                      "drop-shadow(0 0 2px rgba(255,255,255,0.8)) drop-shadow(0 0 6px rgba(212,160,23,0.9)) drop-shadow(0 0 12px rgba(212,160,23,0.5)) drop-shadow(0 0 30px rgba(192,57,43,0.3))",
-                  }}
-                />
-                {/* Shine sweep overlay */}
-                <div
-                  className="absolute inset-0 overflow-hidden pointer-events-none"
-                  style={{ mixBlendMode: "overlay" }}
-                >
-                  <div
-                    className="absolute inset-0 w-[40%] h-full"
-                    style={{
-                      background:
-                        "linear-gradient(90deg, transparent, rgba(255,255,255,0.5) 40%, rgba(255,255,255,0.8) 50%, rgba(255,255,255,0.5) 60%, transparent)",
-                      animation: "shineSweep 3.5s ease-in-out infinite",
-                    }}
-                  />
-                </div>
-              </div>
+              {/* Logo with edge glow */}
+              <img
+                src="/logo.png"
+                alt="Karaoke Times"
+                className="relative z-10 w-72 md:w-96 h-auto transition-all duration-500 hover:scale-[1.03]"
+                style={{
+                  filter:
+                    "drop-shadow(0 0 2px rgba(255,255,255,0.8)) drop-shadow(0 0 6px rgba(212,160,23,0.9)) drop-shadow(0 0 12px rgba(212,160,23,0.5)) drop-shadow(0 0 30px rgba(192,57,43,0.3))",
+                }}
+              />
             </div>
 
             {/* Tagline */}
