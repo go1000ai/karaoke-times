@@ -11,6 +11,8 @@ export const venues = [
     hasDrinkSpecials: true,
     image: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=600&q=80",
     address: "32 W 32nd St, New York, NY 10001",
+    longitude: -73.9857,
+    latitude: 40.7479,
     hours: {
       today: "5:00 PM - 4:00 AM",
       monThu: "6:00 PM - 2:00 AM",
@@ -40,6 +42,8 @@ export const venues = [
     hasDrinkSpecials: false,
     image: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&q=80",
     address: "81 Avenue A, New York, NY 10009",
+    longitude: -73.9843,
+    latitude: 40.7264,
     hours: {
       today: "6:00 PM - 2:00 AM",
       monThu: "6:00 PM - 2:00 AM",
@@ -65,6 +69,8 @@ export const venues = [
     hasDrinkSpecials: true,
     image: "https://images.unsplash.com/photo-1574391884720-bbc3740c59d1?w=600&q=80",
     address: "123 Ludlow St, New York, NY 10002",
+    longitude: -73.9882,
+    latitude: 40.7195,
     hours: {
       today: "5:00 PM - 4:00 AM",
       monThu: "6:00 PM - 2:00 AM",
@@ -94,6 +100,8 @@ export const venues = [
     hasDrinkSpecials: true,
     image: "https://images.unsplash.com/photo-1543794327-59a91fb815d1?w=600&q=80",
     address: "161 Lafayette St, New York, NY 10013",
+    longitude: -73.9988,
+    latitude: 40.7198,
     hours: {
       today: "7:00 PM - 3:00 AM",
       monThu: "7:00 PM - 2:00 AM",
