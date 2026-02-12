@@ -3,7 +3,6 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
-import TopNav from "@/components/TopNav";
 import StarRating from "@/components/StarRating";
 import QueueStatus from "@/components/QueueStatus";
 import SongRequestModal from "@/components/SongRequestModal";
@@ -26,7 +25,6 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
 
   return (
     <div className="min-h-screen pb-28 md:pb-12 bg-bg-dark">
-      <TopNav />
       <div className="max-w-4xl mx-auto">
         {/* Hero Image */}
         <div className="relative h-72">

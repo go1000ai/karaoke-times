@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/components/AuthProvider";
+import GlobalNav from "@/components/GlobalNav";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -25,6 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="bg-bg-dark text-text-primary antialiased">
         <ThemeProvider>
           <AuthProvider>
+            <GlobalNav />
             {children}
           </AuthProvider>
         </ThemeProvider>

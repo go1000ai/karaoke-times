@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import BottomNav from "@/components/BottomNav";
-import TopNav from "@/components/TopNav";
 import { TubesBackground } from "@/components/ui/neon-flow";
 import { karaokeEvents, DAY_ORDER, getEventsByDay, type KaraokeEvent } from "@/lib/mock-data";
 
@@ -190,7 +189,6 @@ export default function HomePage() {
 
   return (
     <div ref={scrollRef} className="min-h-screen bg-bg-dark overflow-x-hidden">
-      <TopNav />
 
       {/* ─── HERO SECTION with NeonFlow ─── */}
       <section className="relative h-[100svh] min-h-[600px]">

@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -107,12 +108,14 @@ function SignInContent() {
 
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center px-6 w-full max-w-md mx-auto py-12">
-        {/* Logo */}
-        <img
-          src="/logo.png"
-          alt="Karaoke Times"
-          className="w-64 h-auto mb-4 drop-shadow-2xl"
-        />
+        {/* Logo — links back to home */}
+        <Link href="/">
+          <img
+            src="/logo.png"
+            alt="Karaoke Times"
+            className="w-64 h-auto mb-4 drop-shadow-2xl hover:scale-105 transition-transform"
+          />
+        </Link>
         <p className="text-xs uppercase tracking-[0.3em] text-primary font-bold mb-2 neon-glow-green">
           New York City Edition
         </p>

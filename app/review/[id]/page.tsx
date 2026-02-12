@@ -2,7 +2,6 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
-import TopNav from "@/components/TopNav";
 import StarRating from "@/components/StarRating";
 import ImageUpload from "@/components/ImageUpload";
 import { venues } from "@/lib/mock-data";
@@ -23,7 +22,6 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
 
   return (
     <div className="min-h-screen pb-8 bg-bg-dark">
-      <TopNav />
       {/* Header */}
       <header className="pt-20 px-5 flex justify-between items-center mb-8">
         <Link href={`/venue/${venue.id}`} className="text-accent text-sm font-semibold">

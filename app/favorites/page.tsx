@@ -1,6 +1,5 @@
 import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
-import TopNav from "@/components/TopNav";
 import { venues } from "@/lib/mock-data";
 
 export default function FavoritesPage() {
@@ -9,7 +8,6 @@ export default function FavoritesPage() {
 
   return (
     <div className="min-h-screen pb-28 md:pb-12 bg-bg-dark">
-      <TopNav />
       <div className="max-w-4xl mx-auto">
       <header className="pt-20 px-5 mb-6">
         <h1 className="text-2xl font-extrabold text-white">My Favorites</h1>

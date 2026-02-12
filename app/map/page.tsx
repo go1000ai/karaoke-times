@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
-import TopNav from "@/components/TopNav";
 import SearchBar from "@/components/SearchBar";
 import {
   Map,
@@ -20,7 +19,6 @@ export default function MapPage() {
 
   return (
     <div className="min-h-screen pb-28 md:pb-12 bg-bg-dark">
-      <TopNav />
       <div className="max-w-4xl mx-auto">
         {/* Map Area */}
         <div className="relative h-[65vh]">
