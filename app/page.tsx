@@ -305,10 +305,10 @@ export default function HomePage() {
       {/* ─── VIDEO + ABOUT SECTION ─── */}
       <section className="py-16 md:py-24 bg-bg-dark">
         <div className="max-w-6xl mx-auto px-6 md:px-8">
-          <div className="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-12">
+          <div className="flex flex-col md:flex-row items-center gap-6 md:gap-8">
             {/* Video — left side on desktop, top on mobile */}
-            <div className="w-full md:w-5/12 reveal">
-              <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-accent/10 aspect-[9/16] max-h-[420px] md:max-h-[480px] mx-auto">
+            <div className="w-full md:w-[280px] lg:w-[320px] flex-shrink-0 reveal">
+              <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-accent/10 aspect-[9/16] max-h-[380px] mx-auto">
                 <video
                   className="w-full h-full object-cover rounded-2xl"
                   autoPlay
@@ -329,7 +329,7 @@ export default function HomePage() {
             </div>
 
             {/* Text — right side on desktop, bottom on mobile */}
-            <div className="w-full md:w-5/12 text-center md:text-left">
+            <div className="flex-1 text-center md:text-left">
               <p
                 className="reveal text-primary text-2xl mb-2 neon-glow-green"
                 style={{ fontFamily: "var(--font-script)" }}
