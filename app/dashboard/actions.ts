@@ -92,6 +92,34 @@ export async function deletePromo(promoId: string) {
   return { success: true };
 }
 
+export async function createEvent(formData: FormData) {
+  const user = await requireVenueOwner();
+  const supabase = await createClient();
+
+  const { data: venue } = await supabase
+    .from("venues")
+    .select("id")
+    .eq("owner_id", user.id)
+    .single();
+
+  if (!venue) return { error: "No venue found" };
+
+  const { error } = await supabase.from("venue_events").insert({
+    venue_id: venue.id,
+    day_of_week: formData.get("day_of_week") as string,
+    event_name: (formData.get("event_name") as string) || "Karaoke Night",
+    dj: (formData.get("dj") as string) || null,
+    start_time: formData.get("start_time") as string,
+    end_time: formData.get("end_time") as string,
+    notes: (formData.get("notes") as string) || null,
+    is_active: true,
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard/events");
+  return { success: true };
+}
+
 export async function updateEvent(eventId: string, formData: FormData) {
   await requireVenueOwner();
   const supabase = await createClient();
@@ -101,12 +129,37 @@ export async function updateEvent(eventId: string, formData: FormData) {
     .update({
       day_of_week: formData.get("day_of_week") as string,
       event_name: formData.get("event_name") as string,
-      dj: formData.get("dj") as string,
+      dj: (formData.get("dj") as string) || null,
       start_time: formData.get("start_time") as string,
       end_time: formData.get("end_time") as string,
-      notes: formData.get("notes") as string,
+      notes: (formData.get("notes") as string) || null,
     })
     .eq("id", eventId);
+
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard/events");
+  return { success: true };
+}
+
+export async function toggleEvent(eventId: string, isActive: boolean) {
+  await requireVenueOwner();
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("venue_events")
+    .update({ is_active: isActive })
+    .eq("id", eventId);
+
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard/events");
+  return { success: true };
+}
+
+export async function deleteEvent(eventId: string) {
+  await requireVenueOwner();
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("venue_events").delete().eq("id", eventId);
 
   if (error) return { error: error.message };
   revalidatePath("/dashboard/events");
