@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
 import { TubesBackground } from "@/components/ui/neon-flow";
 import { karaokeEvents, DAY_ORDER, getEventsByDay, type KaraokeEvent } from "@/lib/mock-data";
@@ -150,8 +151,13 @@ function VenueCard({ event, onClick }: { event: KaraokeEvent; onClick: () => voi
   );
 }
 
+function isZipCode(value: string): boolean {
+  return /^\d{5}$/.test(value.trim());
+}
+
 export default function HomePage() {
   const scrollRef = useScrollReveal();
+  const router = useRouter();
   const [activeDay, setActiveDay] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -227,7 +233,13 @@ export default function HomePage() {
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  if (searchQuery.trim()) setSearchOpen(true);
+                  const q = searchQuery.trim();
+                  if (!q) return;
+                  if (isZipCode(q)) {
+                    router.push(`/map?zip=${q}`);
+                  } else {
+                    setSearchOpen(true);
+                  }
                 }}
                 className="flex items-center gap-3 glass-card rounded-full px-6 py-3"
               >
@@ -237,7 +249,7 @@ export default function HomePage() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search venues, DJs, neighborhoods..."
+                  placeholder="Search venues, DJs, or enter a zip code..."
                   className="bg-transparent text-white text-sm flex-grow outline-none placeholder:text-text-muted"
                 />
                 {searchQuery ? (

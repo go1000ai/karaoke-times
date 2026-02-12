@@ -17,6 +17,8 @@ export interface KaraokeEvent {
   isPrivateRoom: boolean;
   bookingUrl: string | null;
   website: string | null;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 export const DAY_ORDER = [
@@ -52,6 +54,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.655973,
+    longitude: -73.873590,
   },
   {
     id: "footprints-cafe-monday",
@@ -72,6 +76,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.644911,
+    longitude: -73.921054,
   },
   {
     id: "saints-scholars-monday",
@@ -92,6 +98,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.907447,
+    longitude: -73.872178,
   },
   {
     id: "native-monday",
@@ -112,6 +120,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: "https://www.nativebk.com",
+    latitude: 40.697736,
+    longitude: -73.936474,
   },
   // ─── TUESDAY ───
   {
@@ -133,6 +143,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.654022,
+    longitude: -73.959614,
   },
   {
     id: "metropolitan-bar-tuesday",
@@ -153,6 +165,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.713656,
+    longitude: -73.949379,
   },
   {
     id: "waterfall-lounge-tuesday",
@@ -173,6 +187,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.651667,
+    longitude: -73.933210,
   },
   // ─── WEDNESDAY ───
   {
@@ -194,6 +210,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.668518,
+    longitude: -73.953335,
   },
   {
     id: "poseidon-wednesday",
@@ -214,6 +232,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.679511,
+    longitude: -73.974062,
   },
   {
     id: "buck-it-sports-latin-grill-wednesday",
@@ -234,6 +254,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.575548,
+    longitude: -73.978694,
   },
   {
     id: "my-place-tavern-wednesday",
@@ -254,6 +276,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.863850,
+    longitude: -73.047384,
   },
   {
     id: "gt-kingston-wednesday",
@@ -274,6 +298,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.677980,
+    longitude: -73.820041,
   },
   {
     id: "lagos-times-square-wednesday",
@@ -294,6 +320,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.760253,
+    longitude: -73.983792,
   },
   {
     id: "mc-shane-s-pub-restaurant-wednesday",
@@ -314,6 +342,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 41.002549,
+    longitude: -73.661653,
   },
   // ─── THURSDAY ───
   {
@@ -335,6 +365,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.722684,
+    longitude: -73.901299,
   },
   {
     id: "fusion-east-thursday",
@@ -355,6 +387,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.655973,
+    longitude: -73.873590,
   },
   {
     id: "murf-s-backstreet-tavern-thursday",
@@ -375,6 +409,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 41.000122,
+    longitude: -72.294049,
   },
   {
     id: "the-samurai-lounge-thursday",
@@ -395,6 +431,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.621141,
+    longitude: -74.029109,
   },
   {
     id: "deja-vu-haitian-restaurant-thursday",
@@ -415,6 +453,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.826707,
+    longitude: -73.939177,
   },
   {
     id: "prohibition-thursday",
@@ -435,6 +475,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.678040,
+    longitude: -73.455571,
   },
   {
     id: "the-noon-inn-thursday",
@@ -455,6 +497,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.714521,
+    longitude: -73.559895,
   },
   {
     id: "curly-wolf-saloon-thursday",
@@ -475,6 +519,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.539498,
+    longitude: -74.148280,
   },
   {
     id: "rollin-greens-thursday",
@@ -495,6 +541,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.725976,
+    longitude: -73.718989,
   },
   // ─── FRIDAY ───
   {
@@ -516,6 +564,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.748679,
+    longitude: -73.950633,
   },
   {
     id: "it-s-about-time-cocktail-lounge-friday",
@@ -536,6 +586,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.723205,
+    longitude: -73.441982,
   },
   {
     id: "good-company-friday",
@@ -556,6 +608,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.771405,
+    longitude: -73.734779,
   },
   {
     id: "allan-s-bakery-friday",
@@ -576,6 +630,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.660641,
+    longitude: -73.950549,
   },
   {
     id: "american-legion-hall-friday",
@@ -596,6 +652,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.641784,
+    longitude: -73.905513,
   },
   {
     id: "woodzy-friday",
@@ -616,6 +674,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.660691,
+    longitude: -73.920883,
   },
   {
     id: "essence-bar-grill-friday",
@@ -636,6 +696,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.677572,
+    longitude: -73.935788,
   },
   // ─── SATURDAY ───
   {
@@ -657,6 +719,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.834388,
+    longitude: -73.850364,
   },
   {
     id: "whisky-red-s-saturday",
@@ -677,6 +741,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.724036,
+    longitude: -73.540765,
   },
   {
     id: "moonlight-pub-saturday",
@@ -697,6 +763,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.725976,
+    longitude: -73.718989,
   },
   {
     id: "irish-american-pub-saturday",
@@ -717,6 +785,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.709948,
+    longitude: -74.008893,
   },
   // ─── SUNDAY ───
   {
@@ -738,6 +808,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.677822,
+    longitude: -73.972842,
   },
   // ─── BI MONTHLY SUNDAYS ───
   {
@@ -759,6 +831,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,
+    latitude: 40.640022,
+    longitude: -73.661935,
   },
   // ─── PRIVATE ROOM KARAOKE ───
   {
@@ -780,6 +854,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: true,
     bookingUrl: null,
     website: null,
+    latitude: 40.725231,
+    longitude: -73.984221,
   },
   {
     id: "sing-sing-karaoke-private-room-karaoke",
@@ -800,6 +876,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: true,
     bookingUrl: null,
     website: null,
+    latitude: 40.729375,
+    longitude: -73.989333,
   },
   {
     id: "boho-karaoke-private-room-karaoke",
@@ -820,6 +898,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: true,
     bookingUrl: null,
     website: null,
+    latitude: 40.732476,
+    longitude: -74.001893,
   },
   {
     id: "aux-karaoke-private-room-karaoke",
@@ -840,6 +920,8 @@ export const karaokeEvents: KaraokeEvent[] = [
     isPrivateRoom: true,
     bookingUrl: null,
     website: "www.auxkaraokebox.com",
+    latitude: 40.678252,
+    longitude: -73.911339,
   },
 ];
 
@@ -867,6 +949,8 @@ export const venues = karaokeEvents.reduce<
     state: string;
     image: string | null;
     isPrivateRoom: boolean;
+    latitude: number | null;
+    longitude: number | null;
   }>
 >((acc, event) => {
   if (!acc.find((v) => v.name === event.venueName)) {
@@ -879,6 +963,8 @@ export const venues = karaokeEvents.reduce<
       state: event.state,
       image: event.image,
       isPrivateRoom: event.isPrivateRoom,
+      latitude: event.latitude,
+      longitude: event.longitude,
     });
   }
   return acc;
