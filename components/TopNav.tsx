@@ -58,14 +58,12 @@ export default function TopNav() {
           >
             Add Karaoke Event
           </Link>
-          <button className="w-10 h-10 rounded-full glass-card flex items-center justify-center text-primary">
-            <span className="material-icons-round text-xl">notifications</span>
-          </button>
           <Link
-            href="/profile"
-            className="w-10 h-10 rounded-full glass-card flex items-center justify-center text-text-secondary hover:text-primary transition-colors"
+            href="/signin"
+            className="flex items-center gap-1.5 border border-primary/40 text-primary font-semibold text-sm px-5 py-2 rounded-full hover:bg-primary/10 transition-colors"
           >
-            <span className="material-icons-round text-xl">person</span>
+            <span className="material-icons-round text-base">login</span>
+            Login
           </Link>
         </div>
       </div>

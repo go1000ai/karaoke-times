@@ -4,56 +4,32 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import BottomNav from "@/components/BottomNav";
 import TopNav from "@/components/TopNav";
-import { CardStack, type CardStackItem } from "@/components/ui/card-stack";
 import { TubesBackground } from "@/components/ui/neon-flow";
-import { venues, events, sponsoredKJ } from "@/lib/mock-data";
+import { karaokeEvents, DAY_ORDER, getEventsByDay, type KaraokeEvent } from "@/lib/mock-data";
 
-const venueCards: CardStackItem[] = [
-  {
-    id: 1,
-    title: "Space Karaoke",
-    description: "Koreatown, Manhattan — No Cover, Drink Specials",
-    imageSrc:
-      "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=800&q=80",
-    href: "/venue/space-karaoke",
-    tag: "LIVE",
-  },
-  {
-    id: 2,
-    title: "Neon Echo Lounge",
-    description: "Lower East Side — Happy Hour, Top Rated",
-    imageSrc:
-      "https://images.unsplash.com/photo-1574391884720-bbc3740c59d1?w=800&q=80",
-    href: "/venue/neon-echo-lounge",
-    tag: "FEATURED",
-  },
-  {
-    id: 3,
-    title: "Sing Sing Ave A",
-    description: "East Village — Private Rooms, $10 Hourly",
-    imageSrc:
-      "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&q=80",
-    href: "/venue/sing-sing-ave-a",
-  },
-  {
-    id: 4,
-    title: "Baby Grand",
-    description: "Nolita, Manhattan — No Cover, $5 Wells",
-    imageSrc:
-      "https://images.unsplash.com/photo-1543794327-59a91fb815d1?w=800&q=80",
-    href: "/venue/baby-grand",
-    tag: "LIVE",
-  },
-  {
-    id: 5,
-    title: "Radio Star Karaoke",
-    description: "Hell's Kitchen — Private Rooms, Late Night",
-    imageSrc:
-      "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=800&q=80",
-    href: "/venue/radio-star",
-    tag: "NEW",
-  },
-];
+const DAY_ICONS: Record<string, string> = {
+  Monday: "looks_one",
+  Tuesday: "looks_two",
+  Wednesday: "looks_3",
+  Thursday: "looks_4",
+  Friday: "looks_5",
+  Saturday: "looks_6",
+  Sunday: "calendar_today",
+  "Bi-Monthly Sundays": "event_repeat",
+  "Private Room Karaoke": "meeting_room",
+};
+
+const DAY_SHORT: Record<string, string> = {
+  Monday: "Mon",
+  Tuesday: "Tue",
+  Wednesday: "Wed",
+  Thursday: "Thu",
+  Friday: "Fri",
+  Saturday: "Sat",
+  Sunday: "Sun",
+  "Bi-Monthly Sundays": "Bi-Sun",
+  "Private Room Karaoke": "Private",
+};
 
 function useScrollReveal() {
   const ref = useRef<HTMLDivElement>(null);
@@ -76,20 +52,121 @@ function useScrollReveal() {
   return ref;
 }
 
-function useIsMobile() {
-  const [mobile, setMobile] = useState(false);
-  useEffect(() => {
-    const check = () => setMobile(window.innerWidth < 640);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-  return mobile;
+function VenueCard({ event }: { event: KaraokeEvent }) {
+  return (
+    <div className="glass-card rounded-2xl overflow-hidden hover:border-primary/30 transition-all group">
+      {/* Image or Placeholder */}
+      <div className="h-52 relative overflow-hidden">
+        {event.image ? (
+          <img
+            alt={event.venueName}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+            src={event.image}
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-navy via-card-dark to-bg-dark flex flex-col items-center justify-center p-4">
+            <span className="material-icons-round text-primary/30 text-6xl mb-2">mic</span>
+            <p className="text-white/60 text-sm font-bold text-center">{event.venueName}</p>
+            <p className="text-white/30 text-xs mt-1">{event.city}</p>
+          </div>
+        )}
+        {/* Day badge */}
+        <div className="absolute top-3 left-3 bg-primary text-black text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
+          {event.dayOfWeek === "Private Room Karaoke" ? "Private Room" : event.dayOfWeek}
+        </div>
+        {event.image && (
+          <div className="absolute inset-0 bg-gradient-to-t from-card-dark to-transparent opacity-60" />
+        )}
+      </div>
+
+      {/* Info */}
+      <div className="p-5">
+        <div className="flex justify-between items-start mb-1">
+          <h4 className="font-bold text-white text-lg leading-tight">{event.venueName}</h4>
+        </div>
+        <p className="text-accent text-xs font-bold uppercase tracking-wider mb-2">
+          {event.eventName}
+        </p>
+
+        {/* Address */}
+        <p className="text-text-muted text-xs mb-3">
+          {event.address}, {event.city}, {event.state}
+          {event.neighborhood ? ` — ${event.neighborhood}` : ""}
+        </p>
+
+        {/* Details row */}
+        <div className="flex flex-wrap gap-2 mb-3">
+          {event.startTime && (
+            <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-[10px] px-2.5 py-1 rounded-full font-bold">
+              <span className="material-icons-round text-xs">schedule</span>
+              {event.startTime}{event.endTime ? ` - ${event.endTime}` : ""}
+            </span>
+          )}
+          {event.dj && event.dj !== "Open" && (
+            <span className="inline-flex items-center gap-1 bg-accent/10 text-accent text-[10px] px-2.5 py-1 rounded-full font-bold">
+              <span className="material-icons-round text-xs">headphones</span>
+              {event.dj}
+            </span>
+          )}
+        </div>
+
+        {/* Notes */}
+        {event.notes && (
+          <p className="text-text-secondary text-xs leading-relaxed mb-3">
+            {event.notes}
+          </p>
+        )}
+
+        {/* Cross street */}
+        {event.crossStreet && (
+          <p className="text-text-muted text-[10px] mb-3">
+            <span className="material-icons-round text-[10px] align-middle mr-0.5">near_me</span>
+            Near {event.crossStreet}
+          </p>
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-2 mt-2">
+          {event.phone && (
+            <a
+              href={`tel:${event.phone}`}
+              className="inline-flex items-center gap-1.5 border border-primary/30 text-primary text-xs font-semibold px-4 py-2 rounded-full hover:bg-primary/10 transition-colors"
+            >
+              <span className="material-icons-round text-sm">call</span>
+              Call
+            </a>
+          )}
+          {event.isPrivateRoom && (
+            <button
+              className="inline-flex items-center gap-1.5 bg-accent text-white text-xs font-semibold px-4 py-2 rounded-full hover:bg-accent/80 transition-colors cursor-default"
+              title="Coming Soon"
+            >
+              <span className="material-icons-round text-sm">meeting_room</span>
+              Book Now — Coming Soon
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function HomePage() {
   const scrollRef = useScrollReveal();
-  const isMobile = useIsMobile();
+  const [activeDay, setActiveDay] = useState<string>("All");
+  const eventsByDay = getEventsByDay();
+  const tabBarRef = useRef<HTMLDivElement>(null);
+
+  const filteredEvents =
+    activeDay === "All"
+      ? karaokeEvents
+      : karaokeEvents.filter((e) => e.dayOfWeek === activeDay);
+
+  // Count by day for badges
+  const countByDay: Record<string, number> = {};
+  for (const day of DAY_ORDER) {
+    countByDay[day] = eventsByDay[day]?.length ?? 0;
+  }
 
   return (
     <div ref={scrollRef} className="min-h-screen bg-bg-dark overflow-x-hidden">
@@ -103,9 +180,7 @@ export default function HomePage() {
           backgroundImage="/karaoke-hero-2.png"
         >
           <div className="flex flex-col items-center justify-center h-full text-center px-6 max-w-3xl mx-auto pointer-events-auto">
-            {/* Logo with North Star sparkle */}
             <div className="mb-8 animate-[fadeSlideUp_1s_ease-out_0.2s_both] relative">
-              {/* Warm glow behind logo */}
               <div
                 className="absolute inset-0 blur-[40px] opacity-60 scale-125 pointer-events-none"
                 style={{
@@ -113,8 +188,6 @@ export default function HomePage() {
                     "radial-gradient(ellipse at center, rgba(212,160,23,0.5) 0%, rgba(192,57,43,0.25) 40%, transparent 70%)",
                 }}
               />
-
-              {/* Logo with edge glow */}
               <img
                 src="/logo.png"
                 alt="Karaoke Times"
@@ -126,13 +199,11 @@ export default function HomePage() {
               />
             </div>
 
-            {/* Tagline */}
             <p className="text-lg md:text-xl text-white/70 tracking-wide mb-8 max-w-md animate-[fadeSlideUp_0.8s_ease-out_0.6s_both]">
               Discover the best karaoke spots, live events, and KJs across New
               York City.
             </p>
 
-            {/* Search bar */}
             <div className="w-full max-w-lg mb-6 animate-[fadeSlideUp_0.8s_ease-out_0.8s_both]">
               <Link
                 href="/search"
@@ -150,7 +221,6 @@ export default function HomePage() {
               </Link>
             </div>
 
-            {/* Quick links */}
             <div className="flex flex-wrap justify-center gap-3 animate-[fadeSlideUp_0.8s_ease-out_1s_both]">
               <Link
                 href="/map"
@@ -179,26 +249,18 @@ export default function HomePage() {
               </Link>
             </div>
 
-            {/* Live Now pill */}
             <div className="mt-12 animate-[fadeSlideUp_0.8s_ease-out_1.2s_both]">
-              <Link
-                href="/venue/neon-echo-lounge"
-                className="inline-flex items-center gap-2 text-white/40 text-xs hover:text-white transition-colors"
-              >
-                <span className="w-1.5 h-1.5 bg-accent rounded-full animate-pulse" />
+              <span className="inline-flex items-center gap-2 text-white/40 text-xs">
+                <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
                 <span>
-                  Live Now:{" "}
-                  <span className="text-white font-medium">
-                    {sponsoredKJ.name}
-                  </span>{" "}
-                  at {sponsoredKJ.venue}
+                  <span className="text-white font-medium">{karaokeEvents.length}</span>{" "}
+                  karaoke events listed across NYC
                 </span>
-              </Link>
+              </span>
             </div>
           </div>
         </TubesBackground>
 
-        {/* Scroll indicator */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce z-20">
           <span className="material-icons-round text-white/30 text-2xl">
             expand_more
@@ -206,54 +268,38 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ─── FEATURED BARS — HORIZONTAL CARD STACK ─── */}
-      <section className="py-20 md:py-28 bg-bg-dark overflow-hidden">
-        <div className="max-w-6xl mx-auto px-6 md:px-8">
-          <div className="text-center mb-10">
+      {/* ─── VIDEO HIGHLIGHT SECTION ─── */}
+      <section className="py-16 md:py-20 bg-bg-dark">
+        <div className="max-w-4xl mx-auto px-6 md:px-8">
+          <div className="text-center mb-8">
             <p
               className="reveal text-accent text-2xl mb-2 neon-glow-pink"
               style={{ fontFamily: "var(--font-script)" }}
             >
-              Swipe &amp; Discover
+              See The Vibes
             </p>
-            <h2 className="reveal text-3xl md:text-5xl font-extrabold text-white uppercase tracking-tight mb-4">
-              Featured Bars &amp; Restaurants
+            <h2 className="reveal text-3xl md:text-4xl font-extrabold text-white uppercase tracking-tight">
+              Karaoke Highlights
             </h2>
-            <p className="reveal text-text-secondary leading-relaxed max-w-lg mx-auto">
-              Swipe through the hottest karaoke spots in NYC. Each venue
-              hand-picked for the best vibes, sound systems, and drink specials.
-            </p>
           </div>
-
-          <div className="reveal">
-            <CardStack
-              items={venueCards}
-              cardWidth={isMobile ? 300 : 520}
-              cardHeight={isMobile ? 200 : 320}
-              maxVisible={isMobile ? 3 : 5}
-              overlap={isMobile ? 0.55 : 0.48}
-              spreadDeg={isMobile ? 30 : 48}
-              autoAdvance
-              intervalMs={3500}
+          <div className="reveal relative rounded-3xl overflow-hidden shadow-2xl shadow-accent/10">
+            <video
+              className="w-full h-auto rounded-3xl"
+              autoPlay
+              muted
               loop
-              showDots
-            />
-          </div>
-
-          <div className="text-center mt-10">
-            <Link
-              href="/search"
-              className="reveal inline-flex items-center gap-2 bg-primary text-black font-bold px-8 py-3.5 rounded-full hover:shadow-lg hover:shadow-primary/40 transition-all"
+              playsInline
+              poster="/karaoke-hero-2.png"
             >
-              Explore All Venues
-              <span className="material-icons-round">arrow_forward</span>
-            </Link>
+              <source src="/karaoke-highlight.mp4" type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
           </div>
         </div>
       </section>
 
       {/* ─── ABOUT SECTION ─── */}
-      <section className="py-20 md:py-28">
+      <section className="py-16 md:py-20">
         <div className="max-w-4xl mx-auto px-6 md:px-8 text-center">
           <p
             className="reveal text-primary text-2xl mb-2 neon-glow-green"
@@ -267,121 +313,110 @@ export default function HomePage() {
           <p className="reveal text-text-secondary leading-relaxed max-w-2xl mx-auto mb-8">
             Your ultimate guide to the karaoke scene in New York City. Discover
             live venues, find your favorite songs, connect with KJs, and never
-            miss a karaoke night again. From Koreatown to the East Village,
-            we&apos;ve got every mic in the city covered.
+            miss a karaoke night again. From Brooklyn to Manhattan, the Bronx to
+            Queens — we&apos;ve got every mic in the city covered.
           </p>
-          <Link
-            href="/search"
-            className="reveal inline-flex items-center gap-2 border border-primary text-primary font-semibold px-8 py-3 rounded-full hover:bg-primary/10 transition-colors"
-          >
-            Explore Venues
-          </Link>
         </div>
       </section>
 
-      {/* ─── VIDEO / PROMO SECTION ─── */}
-      <section className="relative">
+      {/* ─── KARAOKE LISTINGS ─── */}
+      <section className="py-16 md:py-20" id="listings">
         <div className="max-w-6xl mx-auto px-6 md:px-8">
-          <div className="reveal relative rounded-3xl overflow-hidden h-72 md:h-96">
-            <img
-              src="https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=1200&q=70"
-              alt="Karaoke venue interior"
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-bg-dark/50" />
-            <p
-              className="absolute top-1/2 left-0 -translate-y-1/2 text-[6rem] md:text-[10rem] font-bold opacity-[0.06] text-white whitespace-nowrap pointer-events-none"
-              style={{ fontFamily: "var(--font-script)" }}
-            >
-              Club Session
-            </p>
-            <button className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 rounded-full border-2 border-primary/60 flex items-center justify-center hover:bg-primary/20 transition-colors group">
-              <span className="material-icons-round text-primary text-4xl group-hover:scale-110 transition-transform">
-                play_arrow
-              </span>
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── LIVE NOW / FEATURED VENUES ─── */}
-      <section className="py-20 md:py-28">
-        <div className="max-w-6xl mx-auto px-6 md:px-8">
-          <div className="text-center mb-12">
+          <div className="text-center mb-10">
             <p
               className="reveal text-accent text-2xl mb-2 neon-glow-pink"
               style={{ fontFamily: "var(--font-script)" }}
             >
-              Active Mics
+              Find Your Night
             </p>
-            <h2 className="reveal text-3xl md:text-4xl font-extrabold text-white uppercase tracking-tight">
-              Live Now in NYC
+            <h2 className="reveal text-3xl md:text-5xl font-extrabold text-white uppercase tracking-tight mb-4">
+              Karaoke Listings
             </h2>
+            <p className="reveal text-text-secondary leading-relaxed max-w-lg mx-auto">
+              {karaokeEvents.length} karaoke nights across NYC and beyond. Filter by day to find your spot.
+            </p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {venues.map((venue, i) => (
-              <Link
-                key={venue.id}
-                href={`/venue/${venue.id}`}
-                className="reveal glass-card rounded-2xl overflow-hidden hover:border-primary/30 transition-all group"
-                style={{ transitionDelay: `${i * 0.1}s` }}
+
+          {/* Day filter tabs */}
+          <div className="reveal mb-10 relative">
+            <div
+              ref={tabBarRef}
+              className="flex gap-2 overflow-x-auto hide-scrollbar pb-2 px-1"
+            >
+              <button
+                onClick={() => setActiveDay("All")}
+                className={`flex-shrink-0 px-5 py-2.5 rounded-full text-sm font-bold transition-all ${
+                  activeDay === "All"
+                    ? "bg-primary text-black shadow-lg shadow-primary/30"
+                    : "glass-card text-text-secondary hover:text-white hover:border-primary/30"
+                }`}
               >
-                <div className="h-48 relative overflow-hidden">
-                  <img
-                    alt={venue.name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                    src={venue.image}
-                  />
-                  {venue.isLive && (
-                    <div className="absolute top-3 right-3 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />{" "}
-                      LIVE
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-card-dark to-transparent opacity-60" />
-                </div>
-                <div className="p-4">
-                  <div className="flex justify-between items-start mb-1">
-                    <h4 className="font-bold text-white">{venue.name}</h4>
-                    <span className="flex items-center text-primary font-bold text-xs">
-                      <span className="material-icons-round text-sm mr-0.5">
-                        star
-                      </span>
-                      {venue.rating}
+                All ({karaokeEvents.length})
+              </button>
+              {DAY_ORDER.map((day) => (
+                <button
+                  key={day}
+                  onClick={() => setActiveDay(day)}
+                  className={`flex-shrink-0 px-5 py-2.5 rounded-full text-sm font-bold transition-all ${
+                    activeDay === day
+                      ? "bg-primary text-black shadow-lg shadow-primary/30"
+                      : "glass-card text-text-secondary hover:text-white hover:border-primary/30"
+                  }`}
+                >
+                  <span className="hidden sm:inline">{day}</span>
+                  <span className="sm:hidden">{DAY_SHORT[day]}</span>
+                  {" "}({countByDay[day]})
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Listings Grid */}
+          {activeDay === "All" ? (
+            // Show grouped by day
+            DAY_ORDER.map((day) => {
+              const dayEvents = eventsByDay[day];
+              if (!dayEvents || dayEvents.length === 0) return null;
+              return (
+                <div key={day} className="mb-16">
+                  <div className="flex items-center gap-3 mb-6">
+                    <span className="material-icons-round text-primary text-2xl">
+                      {DAY_ICONS[day] || "event"}
+                    </span>
+                    <h3 className="text-2xl md:text-3xl font-extrabold text-white uppercase tracking-tight">
+                      {day}
+                    </h3>
+                    <span className="text-text-muted text-sm font-medium">
+                      ({dayEvents.length} {dayEvents.length === 1 ? "event" : "events"})
                     </span>
                   </div>
-                  <p className="text-xs text-text-muted mb-3">
-                    {venue.neighborhood}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    {!venue.coverCharge ? (
-                      <span className="bg-primary/10 text-primary text-[10px] px-2 py-1 rounded-full font-bold">
-                        No Cover
-                      </span>
-                    ) : (
-                      <span className="bg-primary/10 text-primary text-[10px] px-2 py-1 rounded-full font-bold">
-                        {venue.coverCharge}
-                      </span>
-                    )}
-                    {venue.hasDrinkSpecials && (
-                      <span className="bg-accent/10 text-accent text-[10px] px-2 py-1 rounded-full font-bold">
-                        Drink Spec
-                      </span>
-                    )}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {dayEvents.map((event) => (
+                      <VenueCard key={event.id} event={event} />
+                    ))}
                   </div>
                 </div>
-              </Link>
-            ))}
-          </div>
-          <div className="text-center mt-10">
-            <Link
-              href="/map"
-              className="reveal inline-flex items-center gap-2 border border-border text-text-secondary font-semibold px-8 py-3 rounded-full hover:text-primary hover:border-primary transition-colors"
-            >
-              <span className="material-icons-round">map</span>
-              View All on Map
-            </Link>
-          </div>
+              );
+            })
+          ) : (
+            // Show filtered day
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredEvents.map((event) => (
+                <VenueCard key={event.id} event={event} />
+              ))}
+            </div>
+          )}
+
+          {filteredEvents.length === 0 && (
+            <div className="text-center py-20">
+              <span className="material-icons-round text-text-muted text-6xl mb-4 block">
+                search_off
+              </span>
+              <p className="text-text-secondary text-lg">
+                No events found for this day.
+              </p>
+            </div>
+          )}
         </div>
       </section>
 
@@ -393,7 +428,7 @@ export default function HomePage() {
               {
                 icon: "mic",
                 title: "Live Karaoke",
-                desc: "Find venues with open mics happening right now",
+                desc: "Find venues with open mics happening every night",
               },
               {
                 icon: "queue_music",
@@ -411,7 +446,7 @@ export default function HomePage() {
                 desc: "Happy hours and deals at karaoke bars near you",
               },
               {
-                icon: "celebration",
+                icon: "meeting_room",
                 title: "Private Rooms",
                 desc: "Book private karaoke rooms for your group",
               },
@@ -436,105 +471,6 @@ export default function HomePage() {
                 <p className="text-xs text-text-muted leading-relaxed">
                   {service.desc}
                 </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── UPCOMING EVENTS ─── */}
-      <section className="py-20 md:py-28">
-        <div className="max-w-6xl mx-auto px-6 md:px-8">
-          <div className="text-center mb-12">
-            <p
-              className="reveal text-primary text-2xl mb-2 neon-glow-green"
-              style={{ fontFamily: "var(--font-script)" }}
-            >
-              Don&apos;t Miss Out
-            </p>
-            <h2 className="reveal text-3xl md:text-4xl font-extrabold text-white uppercase tracking-tight">
-              Upcoming Parties
-            </h2>
-            <p className="reveal text-text-secondary mt-3 max-w-lg mx-auto">
-              Themed nights, karaoke battles, and special events happening
-              across NYC.
-            </p>
-          </div>
-
-          <div className="space-y-4 max-w-3xl mx-auto">
-            {events.map((event, i) => (
-              <div
-                key={event.id}
-                className="reveal glass-card rounded-2xl overflow-hidden hover:border-primary/30 transition-all"
-                style={{ transitionDelay: `${i * 0.1}s` }}
-              >
-                <div className="flex flex-col md:flex-row">
-                  <div className="md:w-72 h-48 md:h-auto relative overflow-hidden flex-shrink-0">
-                    <img
-                      alt={event.title}
-                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
-                      src={event.image}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent to-bg-dark/80 hidden md:block" />
-                  </div>
-                  <div className="p-6 flex flex-col justify-center">
-                    <p className="text-accent text-[11px] font-bold uppercase tracking-widest mb-2 neon-glow-pink">
-                      {event.date}
-                    </p>
-                    <h3 className="text-xl font-extrabold text-white mb-2">
-                      {event.title}
-                    </h3>
-                    <p className="text-sm text-text-secondary mb-4">
-                      {event.venue} &bull; {event.time}
-                    </p>
-                    <button className="inline-flex items-center gap-2 text-primary text-sm font-semibold hover:underline w-fit">
-                      Get Tickets
-                      <span className="material-icons-round text-sm">
-                        arrow_forward
-                      </span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── GALLERY ─── */}
-      <section className="py-16">
-        <div className="max-w-6xl mx-auto px-6 md:px-8">
-          <div className="text-center mb-10">
-            <p
-              className="reveal text-primary text-3xl mb-1"
-              style={{ fontFamily: "var(--font-script)" }}
-            >
-              Karaoke
-            </p>
-            <h2 className="reveal text-3xl md:text-4xl font-extrabold text-white uppercase tracking-tight">
-              Gallery
-            </h2>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[
-              "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=400&q=70",
-              "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&q=70",
-              "https://images.unsplash.com/photo-1574391884720-bbc3740c59d1?w=400&q=70",
-              "https://images.unsplash.com/photo-1543794327-59a91fb815d1?w=400&q=70",
-              "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&q=70",
-              "https://images.unsplash.com/photo-1571266028243-3716f02d2d74?w=400&q=70",
-              "https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?w=400&q=70",
-              "https://images.unsplash.com/photo-1509557965875-b88c97052f0e?w=400&q=70",
-            ].map((src, i) => (
-              <div
-                key={i}
-                className="reveal aspect-square rounded-xl overflow-hidden group cursor-pointer"
-              >
-                <img
-                  src={src}
-                  alt={`Gallery ${i + 1}`}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 brightness-75 group-hover:brightness-100"
-                />
               </div>
             ))}
           </div>

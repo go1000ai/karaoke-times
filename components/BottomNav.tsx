@@ -8,7 +8,7 @@ const navItems = [
   { icon: "search", label: "Search", href: "/search" },
   { icon: "add", label: "", href: "/add-event", isFab: true },
   { icon: "favorite_border", label: "Favorites", href: "/favorites" },
-  { icon: "person_outline", label: "Profile", href: "/profile" },
+  { icon: "login", label: "Login", href: "/signin" },
 ];
 
 export default function BottomNav() {
