@@ -15,7 +15,7 @@ const navLinks = [
 
 export default function TopNav() {
   const pathname = usePathname();
-  const { user, loading, signOut } = useAuth();
+  const { user, loading, hasDashboard, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -66,6 +66,15 @@ export default function TopNav() {
 
             {!loading && user ? (
               <div className="flex items-center gap-3">
+                {hasDashboard && (
+                  <Link
+                    href="/dashboard"
+                    className="flex items-center gap-1.5 bg-accent/10 border border-accent/30 text-accent font-semibold text-sm px-4 py-2 rounded-full hover:bg-accent/20 transition-colors"
+                  >
+                    <span className="material-icons-round text-base">dashboard</span>
+                    Dashboard
+                  </Link>
+                )}
                 <Link
                   href="/profile"
                   className="flex items-center gap-2 border border-primary/40 text-primary font-semibold text-sm px-4 py-2 rounded-full hover:bg-primary/10 transition-colors"
@@ -158,6 +167,16 @@ export default function TopNav() {
 
               {!loading && user ? (
                 <>
+                  {hasDashboard && (
+                    <Link
+                      href="/dashboard"
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium text-accent hover:bg-accent/5 transition-colors"
+                    >
+                      <span className="material-icons-round text-xl">dashboard</span>
+                      Dashboard
+                    </Link>
+                  )}
                   <Link
                     href="/profile"
                     onClick={() => setMenuOpen(false)}
@@ -168,7 +187,7 @@ export default function TopNav() {
                     ) : (
                       <span className="material-icons-round text-xl">person</span>
                     )}
-                    {user.user_metadata?.full_name || "Profile"}
+                    {user.user_metadata?.full_name || "My Profile"}
                   </Link>
                   <button
                     onClick={() => { signOut(); setMenuOpen(false); }}

@@ -1,143 +1,363 @@
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import BottomNav from "@/components/BottomNav";
-import { userProfile } from "@/lib/mock-data";
+import { SignOutProfileButton } from "./SignOutButton";
 
-export default function ProfilePage() {
+export default async function ProfilePage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect("/signin");
+
+  // Fetch profile
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("display_name, avatar_url, role")
+    .eq("id", user.id)
+    .single();
+
+  // Song history — recent songs sung
+  const { data: songHistory, count: totalSongs } = await supabase
+    .from("song_queue")
+    .select("id, song_title, artist, status, requested_at, venue_id", {
+      count: "exact",
+    })
+    .eq("user_id", user.id)
+    .in("status", ["completed", "now_singing", "waiting", "up_next"])
+    .order("requested_at", { ascending: false })
+    .limit(10);
+
+  // Favorites
+  const { data: favorites, count: favCount } = await supabase
+    .from("favorites")
+    .select(
+      "id, venue_id, venues(id, name, neighborhood, city)",
+      { count: "exact" }
+    )
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(6);
+
+  // Upcoming bookings
+  const { data: bookings } = await supabase
+    .from("room_bookings")
+    .select("id, date, start_time, end_time, party_size, status, venues(name)")
+    .eq("user_id", user.id)
+    .in("status", ["pending", "confirmed"])
+    .order("date", { ascending: true })
+    .limit(5);
+
+  // Reviews count
+  const { count: reviewCount } = await supabase
+    .from("reviews")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id);
+
+  const displayName =
+    profile?.display_name ||
+    user.user_metadata?.full_name ||
+    user.email?.split("@")[0] ||
+    "Singer";
+
+  const avatarUrl = profile?.avatar_url || user.user_metadata?.avatar_url;
+
   return (
     <div className="min-h-screen pb-28 md:pb-12 bg-bg-dark">
       <div className="max-w-4xl mx-auto">
-      {/* Profile Header */}
-      <div className="pt-20 pb-6 flex flex-col items-center px-5">
-        <div className="relative mb-3">
-          <div className="w-24 h-24 rounded-full bg-card-dark flex items-center justify-center border-2 border-primary/30">
-            <span className="material-icons-round text-4xl text-primary">person</span>
+        {/* Profile Header */}
+        <div className="pt-20 pb-6 flex flex-col items-center px-5">
+          <div className="relative mb-3">
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={displayName}
+                className="w-24 h-24 rounded-full border-2 border-primary/30 object-cover"
+              />
+            ) : (
+              <div className="w-24 h-24 rounded-full bg-card-dark flex items-center justify-center border-2 border-primary/30">
+                <span className="material-icons-round text-4xl text-primary">
+                  person
+                </span>
+              </div>
+            )}
           </div>
-          <button className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-accent text-white flex items-center justify-center shadow-md">
-            <span className="material-icons-round text-sm">edit</span>
-          </button>
-        </div>
-        <h1 className="text-xl font-extrabold text-white">{userProfile.name}</h1>
-        <p className="text-sm text-text-secondary">{userProfile.username}</p>
-        <div className="flex gap-2 mt-2">
-          {userProfile.isPremium && (
-            <span className="bg-primary/10 text-primary text-[10px] font-bold px-3 py-1 rounded-full flex items-center gap-1">
-              <span className="material-icons-round text-xs">star</span> Premium
+          <h1 className="text-xl font-extrabold text-white">{displayName}</h1>
+          <p className="text-sm text-text-secondary">{user.email}</p>
+          {profile?.role === "venue_owner" && (
+            <span className="mt-2 bg-primary/10 text-primary text-[10px] font-bold px-3 py-1 rounded-full flex items-center gap-1">
+              <span className="material-icons-round text-xs">storefront</span>{" "}
+              Venue Owner
             </span>
           )}
-          {userProfile.isKJVerified && (
-            <span className="bg-accent/10 text-accent text-[10px] font-bold px-3 py-1 rounded-full flex items-center gap-1">
-              <span className="material-icons-round text-xs">verified</span> KJ Verified
-            </span>
-          )}
         </div>
-      </div>
 
-      {/* Stats */}
-      <section className="px-5 mb-6">
-        <div className="grid grid-cols-3 glass-card rounded-2xl overflow-hidden">
-          <div className="py-4 text-center border-r border-border">
-            <p className="text-xl font-extrabold text-primary">{userProfile.venuesVisited}</p>
-            <p className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">
-              Venues
-            </p>
-          </div>
-          <div className="py-4 text-center border-r border-border">
-            <p className="text-xl font-extrabold text-primary">{userProfile.reviewsCount}</p>
-            <p className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">
-              Reviews
-            </p>
-          </div>
-          <div className="py-4 text-center">
-            <p className="text-xl font-extrabold text-primary">{userProfile.followers}</p>
-            <p className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">
-              Followers
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Favorites */}
-      <section className="px-5 mb-6">
-        <div className="flex justify-between items-center mb-3">
-          <h2 className="text-lg font-bold text-white">My Favorites</h2>
-          <button className="text-xs text-primary font-semibold">View All</button>
-        </div>
-        <div className="flex gap-3 overflow-x-auto hide-scrollbar">
-          {userProfile.favorites.map((fav) => (
-            <Link
-              key={fav.id}
-              href={`/venue/${fav.id}`}
-              className="min-w-[160px] rounded-2xl overflow-hidden glass-card hover:border-primary/30 transition-all"
-            >
-              <div className="h-24 relative">
-                <img
-                  src={fav.image}
-                  alt={fav.name}
-                  className="w-full h-full object-cover"
-                />
-                <button className="absolute top-2 right-2">
-                  <span className="material-icons-round text-accent text-lg">favorite</span>
-                </button>
-              </div>
-              <div className="p-3">
-                <p className="text-xs font-bold text-white truncate">{fav.name}</p>
-                <p className="text-[10px] text-text-secondary">{fav.neighborhood}</p>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* Account Settings */}
-      <section className="px-5">
-        <h2 className="text-lg font-bold text-white mb-3">Account Settings</h2>
-        <div className="glass-card rounded-2xl overflow-hidden">
-          {[
-            { icon: "notifications", label: "Email Notifications", sublabel: "New events & venue alerts", hasToggle: true },
-            { icon: "credit_card", label: "Subscription", sublabel: "Premium Plan (Annual)", link: true },
-            { icon: "account_circle", label: "Google Account", sublabel: "Linked", link: true, sublabelColor: "text-primary" },
-            { icon: "flag", label: "Report a Problem", sublabel: "Send feedback or bug report", link: true },
-          ].map((item, i) => (
-            <div
-              key={i}
-              className={`flex items-center gap-3 px-4 py-4 ${
-                i < 3 ? "border-b border-border" : ""
-              }`}
-            >
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <span className="material-icons-round text-primary">{item.icon}</span>
-              </div>
-              <div className="flex-grow">
-                <p className="text-sm font-semibold text-white">{item.label}</p>
-                <p className={`text-xs ${item.sublabelColor || "text-text-secondary"}`}>
-                  {item.sublabel}
-                </p>
-              </div>
-              {item.hasToggle && (
-                <div className="w-12 h-7 rounded-full bg-primary relative">
-                  <div className="w-5 h-5 bg-white rounded-full shadow-sm absolute top-1 translate-x-6" />
-                </div>
-              )}
-              {item.link && (
-                <span className="material-icons-round text-text-muted">chevron_right</span>
-              )}
+        {/* Stats */}
+        <section className="px-5 mb-6">
+          <div className="grid grid-cols-3 glass-card rounded-2xl overflow-hidden">
+            <div className="py-4 text-center border-r border-border">
+              <p className="text-xl font-extrabold text-primary">
+                {totalSongs || 0}
+              </p>
+              <p className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">
+                Songs Sung
+              </p>
             </div>
-          ))}
-        </div>
-      </section>
+            <div className="py-4 text-center border-r border-border">
+              <p className="text-xl font-extrabold text-primary">
+                {favCount || 0}
+              </p>
+              <p className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">
+                Favorites
+              </p>
+            </div>
+            <div className="py-4 text-center">
+              <p className="text-xl font-extrabold text-primary">
+                {reviewCount || 0}
+              </p>
+              <p className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">
+                Reviews
+              </p>
+            </div>
+          </div>
+        </section>
 
-      {/* Sign Out */}
-      <section className="px-5 mt-6">
-        <Link
-          href="/signin"
-          className="w-full border-2 border-accent text-accent font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:bg-accent/5 transition-colors"
-        >
-          Sign Out
-        </Link>
-      </section>
+        {/* Song History */}
+        <section className="px-5 mb-6">
+          <div className="flex justify-between items-center mb-3">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <span className="material-icons-round text-accent text-xl">
+                queue_music
+              </span>
+              My Songs
+            </h2>
+          </div>
 
+          {songHistory && songHistory.length > 0 ? (
+            <div className="glass-card rounded-2xl overflow-hidden">
+              {songHistory.map((song, i) => (
+                <div
+                  key={song.id}
+                  className={`flex items-center gap-3 px-4 py-3.5 ${
+                    i < songHistory.length - 1 ? "border-b border-border" : ""
+                  }`}
+                >
+                  <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
+                    <span className="material-icons-round text-accent">
+                      {song.status === "completed"
+                        ? "check_circle"
+                        : song.status === "now_singing"
+                        ? "mic"
+                        : "hourglass_top"}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white truncate">
+                      {song.song_title}
+                    </p>
+                    <p className="text-xs text-text-secondary truncate">
+                      {song.artist}
+                    </p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    {song.status === "completed" ? (
+                      <span className="text-[10px] text-green-400 font-bold uppercase">
+                        Sang
+                      </span>
+                    ) : song.status === "now_singing" ? (
+                      <span className="text-[10px] text-accent font-bold uppercase animate-pulse">
+                        Live
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-primary font-bold uppercase">
+                        In Queue
+                      </span>
+                    )}
+                    <p className="text-[10px] text-text-muted">
+                      {new Date(song.requested_at).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="glass-card rounded-2xl p-8 text-center">
+              <span className="material-icons-round text-3xl text-text-muted mb-2">
+                mic_off
+              </span>
+              <p className="text-text-secondary text-sm">
+                No songs yet. Find a venue and request your first song!
+              </p>
+              <Link
+                href="/"
+                className="mt-3 inline-flex items-center gap-1 text-primary text-sm font-semibold hover:underline"
+              >
+                Explore Venues
+                <span className="material-icons-round text-sm">
+                  arrow_forward
+                </span>
+              </Link>
+            </div>
+          )}
+        </section>
+
+        {/* Favorites */}
+        <section className="px-5 mb-6">
+          <div className="flex justify-between items-center mb-3">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <span className="material-icons-round text-accent text-xl">
+                favorite
+              </span>
+              Favorite Venues
+            </h2>
+            {(favCount || 0) > 6 && (
+              <Link
+                href="/favorites"
+                className="text-xs text-primary font-semibold"
+              >
+                View All
+              </Link>
+            )}
+          </div>
+
+          {favorites && favorites.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {favorites.map((fav) => {
+                const venue = fav.venues as unknown as {
+                  id: string;
+                  name: string;
+                  neighborhood: string;
+                  city: string;
+                } | null;
+                if (!venue) return null;
+                return (
+                  <Link
+                    key={fav.id}
+                    href={`/venue/${venue.id}`}
+                    className="glass-card rounded-2xl p-4 hover:border-primary/30 transition-all"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-2">
+                      <span className="material-icons-round text-primary">
+                        nightlife
+                      </span>
+                    </div>
+                    <p className="text-sm font-bold text-white truncate">
+                      {venue.name}
+                    </p>
+                    <p className="text-[10px] text-text-secondary truncate">
+                      {venue.neighborhood || venue.city}
+                    </p>
+                  </Link>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="glass-card rounded-2xl p-8 text-center">
+              <span className="material-icons-round text-3xl text-text-muted mb-2">
+                favorite_border
+              </span>
+              <p className="text-text-secondary text-sm">
+                No favorites yet. Tap the heart on any venue to save it!
+              </p>
+            </div>
+          )}
+        </section>
+
+        {/* Upcoming Bookings */}
+        <section className="px-5 mb-6">
+          <div className="flex justify-between items-center mb-3">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <span className="material-icons-round text-accent text-xl">
+                event
+              </span>
+              My Bookings
+            </h2>
+          </div>
+
+          {bookings && bookings.length > 0 ? (
+            <div className="glass-card rounded-2xl overflow-hidden">
+              {bookings.map((booking, i) => {
+                const venue = booking.venues as unknown as {
+                  name: string;
+                } | null;
+                return (
+                  <div
+                    key={booking.id}
+                    className={`flex items-center gap-3 px-4 py-3.5 ${
+                      i < bookings.length - 1 ? "border-b border-border" : ""
+                    }`}
+                  >
+                    <div
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                        booking.status === "confirmed"
+                          ? "bg-green-500/10"
+                          : "bg-primary/10"
+                      }`}
+                    >
+                      <span
+                        className={`material-icons-round ${
+                          booking.status === "confirmed"
+                            ? "text-green-400"
+                            : "text-primary"
+                        }`}
+                      >
+                        {booking.status === "confirmed"
+                          ? "check_circle"
+                          : "schedule"}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-white truncate">
+                        {venue?.name || "Private Room"}
+                      </p>
+                      <p className="text-xs text-text-secondary">
+                        {new Date(booking.date).toLocaleDateString("en-US", {
+                          weekday: "short",
+                          month: "short",
+                          day: "numeric",
+                        })}{" "}
+                        at {booking.start_time}
+                      </p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <span
+                        className={`text-[10px] font-bold uppercase ${
+                          booking.status === "confirmed"
+                            ? "text-green-400"
+                            : "text-primary"
+                        }`}
+                      >
+                        {booking.status}
+                      </span>
+                      <p className="text-[10px] text-text-muted">
+                        {booking.party_size} guests
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="glass-card rounded-2xl p-8 text-center">
+              <span className="material-icons-round text-3xl text-text-muted mb-2">
+                event_busy
+              </span>
+              <p className="text-text-secondary text-sm">
+                No upcoming bookings.
+              </p>
+            </div>
+          )}
+        </section>
+
+        {/* Sign Out */}
+        <section className="px-5 mt-6 pb-8">
+          <SignOutProfileButton />
+        </section>
       </div>
-      <BottomNav />
     </div>
   );
 }
