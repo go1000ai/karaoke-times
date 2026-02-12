@@ -14,7 +14,7 @@ export default function BottomNav() {
     { icon: "add", label: "", href: "/add-event", isFab: true },
     { icon: "favorite_border", label: "Favorites", href: "/favorites" },
     user
-      ? { icon: "person_outline", label: "Profile", href: "/profile" }
+      ? { icon: "notifications_none", label: "Reminders", href: "/notifications" }
       : { icon: "login", label: "Login", href: "/signin" },
   ];
 
@@ -46,7 +46,7 @@ export default function BottomNav() {
                 }`}
               >
                 <span className={`material-icons-round text-2xl ${isActive ? "neon-glow-green" : ""}`}>
-                  {isActive && item.icon === "favorite_border" ? "favorite" : isActive && item.icon === "person_outline" ? "person" : item.icon}
+                  {isActive && item.icon === "favorite_border" ? "favorite" : isActive && item.icon === "notifications_none" ? "notifications_active" : item.icon}
                 </span>
                 <span className="text-[10px] mt-0.5 font-semibold">{item.label}</span>
               </Link>

@@ -6,9 +6,13 @@ import {
   getOutlookCalendarUrl,
   downloadICSFile,
 } from "@/lib/calendar";
+import { useAuth } from "@/components/AuthProvider";
+import { createClient } from "@/lib/supabase/client";
 
 interface AddToCalendarProps {
   title: string;
+  venueId?: string;
+  venueName?: string;
   description?: string;
   location?: string;
   dayOfWeek: string;
@@ -20,6 +24,8 @@ interface AddToCalendarProps {
 
 export function AddToCalendar({
   title,
+  venueId,
+  venueName,
   description,
   location,
   dayOfWeek,
@@ -28,7 +34,12 @@ export function AddToCalendar({
   compact = false,
 }: AddToCalendarProps) {
   const [open, setOpen] = useState(false);
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [email, setEmail] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -42,6 +53,57 @@ export function AddToCalendar({
   }, [open]);
 
   const event = { title, description, location, dayOfWeek, startTime, endTime };
+
+  async function handleSendEmail() {
+    if (!email) return;
+    setSending(true);
+    try {
+      const res = await fetch("/api/send-reminder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          eventTitle: title,
+          venueName,
+          dayOfWeek,
+          startTime,
+          endTime,
+          location,
+        }),
+      });
+      if (res.ok) {
+        // Save reminder to database if user is logged in
+        if (user && venueId) {
+          const supabase = createClient();
+          await supabase.from("event_reminders").upsert(
+            {
+              user_id: user.id,
+              venue_id: venueId,
+              event_name: title,
+              venue_name: venueName || null,
+              day_of_week: dayOfWeek,
+              start_time: startTime,
+              end_time: endTime || null,
+              location: location || null,
+              email,
+            },
+            { onConflict: "user_id,venue_id,day_of_week" }
+          );
+        }
+        setSent(true);
+        setTimeout(() => {
+          setShowEmailForm(false);
+          setSent(false);
+          setEmail("");
+          setOpen(false);
+        }, 2000);
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setSending(false);
+    }
+  }
 
   return (
     <div ref={ref} className="relative inline-block">
@@ -58,7 +120,7 @@ export function AddToCalendar({
       </button>
 
       {open && (
-        <div className="absolute z-50 top-full mt-2 right-0 w-56 bg-card-dark border border-border rounded-xl shadow-2xl shadow-black/50 overflow-hidden animate-[fadeSlideUp_0.15s_ease-out]">
+        <div className="absolute z-50 top-full mt-2 right-0 w-64 bg-card-dark border border-border rounded-xl shadow-2xl shadow-black/50 overflow-hidden animate-[fadeSlideUp_0.15s_ease-out]">
           {/* Google Calendar */}
           <a
             href={getGoogleCalendarUrl(event)}
@@ -109,6 +171,47 @@ export function AddToCalendar({
               Apple / Download .ics
             </span>
           </button>
+
+          {/* Email Reminder */}
+          <div className="border-t border-border/50">
+            {!showEmailForm ? (
+              <button
+                onClick={() => setShowEmailForm(true)}
+                className="flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors w-full text-left"
+              >
+                <span className="material-icons-round text-accent text-xl flex-shrink-0">
+                  email
+                </span>
+                <span className="text-sm text-white font-medium">
+                  Email Reminder
+                </span>
+              </button>
+            ) : sent ? (
+              <div className="flex items-center gap-2 px-4 py-3 text-green-400">
+                <span className="material-icons-round text-lg">check_circle</span>
+                <span className="text-sm font-medium">Reminder sent!</span>
+              </div>
+            ) : (
+              <div className="px-4 py-3 space-y-2">
+                <input
+                  type="email"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSendEmail()}
+                  className="w-full bg-white/5 border border-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-text-muted focus:outline-none focus:border-primary/50"
+                  autoFocus
+                />
+                <button
+                  onClick={handleSendEmail}
+                  disabled={!email || sending}
+                  className="w-full bg-accent text-black font-semibold text-sm py-2 rounded-lg hover:bg-accent/90 transition-colors disabled:opacity-50"
+                >
+                  {sending ? "Sending..." : "Send Reminder"}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

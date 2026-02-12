@@ -134,6 +134,8 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
                 {event.startTime && (
                   <AddToCalendar
                     title={`${event.eventName || "Karaoke Night"} at ${venue.name}`}
+                    venueId={venue.id}
+                    venueName={venue.name}
                     description={`${event.dj && event.dj !== "Open" ? `KJ: ${event.dj}. ` : ""}${event.notes || ""}`}
                     location={`${venue.name}, ${venue.address || ""}, ${venue.neighborhood}`}
                     dayOfWeek={event.dayOfWeek}
