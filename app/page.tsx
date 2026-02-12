@@ -454,7 +454,10 @@ export default function HomePage() {
                   {hasMore && (
                     <div className="text-center mt-6">
                       <button
-                        onClick={() => setActiveDay(day)}
+                        onClick={() => {
+                          setActiveDay(day);
+                          tabBarRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }}
                         className="inline-flex items-center gap-2 text-primary text-sm font-bold hover:text-primary/80 transition-colors glass-card px-6 py-3 rounded-full"
                       >
                         View All {dayEvents.length} {day} Events
