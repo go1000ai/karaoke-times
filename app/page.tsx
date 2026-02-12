@@ -225,80 +225,35 @@ export default function HomePage() {
             </p>
 
             <div className="w-full max-w-lg mb-6 animate-[fadeSlideUp_0.8s_ease-out_0.8s_both] relative z-30">
-              <div className="flex items-center gap-3 glass-card rounded-full px-6 py-3">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (searchQuery.trim()) setSearchOpen(true);
+                }}
+                className="flex items-center gap-3 glass-card rounded-full px-6 py-3"
+              >
                 <span className="material-icons-round text-text-muted">search</span>
                 <input
                   ref={searchInputRef}
                   type="text"
                   value={searchQuery}
-                  onChange={(e) => { setSearchQuery(e.target.value); setSearchOpen(true); }}
-                  onFocus={() => setSearchOpen(true)}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search venues, DJs, neighborhoods..."
                   className="bg-transparent text-white text-sm flex-grow outline-none placeholder:text-text-muted"
                 />
                 {searchQuery ? (
                   <button
-                    onClick={() => { setSearchQuery(""); setSearchOpen(false); }}
-                    className="text-text-muted hover:text-white transition-colors"
+                    type="submit"
+                    className="bg-primary text-black text-xs font-bold px-4 py-1.5 rounded-full cursor-pointer"
                   >
-                    <span className="material-icons-round text-lg">close</span>
+                    Go
                   </button>
                 ) : (
-                  <span className="bg-primary text-black text-xs font-bold px-4 py-1.5 rounded-full">
+                  <span className="bg-primary/40 text-black/60 text-xs font-bold px-4 py-1.5 rounded-full">
                     Go
                   </span>
                 )}
-              </div>
-
-              {/* Search results dropdown */}
-              {searchOpen && searchQuery.trim().length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-2 glass-card rounded-2xl max-h-80 overflow-y-auto shadow-2xl shadow-black/50 border border-border">
-                  {searchResults.length > 0 ? (
-                    <>
-                      <p className="px-4 pt-3 pb-1 text-[10px] uppercase tracking-wider text-text-muted font-bold">
-                        {searchResults.length} result{searchResults.length !== 1 ? "s" : ""}
-                      </p>
-                      {searchResults.map((event) => (
-                        <button
-                          key={event.id}
-                          onClick={() => {
-                            setSearchQuery("");
-                            setSearchOpen(false);
-                            const el = document.getElementById("listings");
-                            if (el) el.scrollIntoView({ behavior: "smooth" });
-                            setActiveDay(event.dayOfWeek);
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors text-left"
-                        >
-                          <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0">
-                            {event.image ? (
-                              <img src={event.image} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full bg-primary/10 flex items-center justify-center">
-                                <span className="material-icons-round text-primary text-sm">mic</span>
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex-grow min-w-0">
-                            <p className="text-sm font-bold text-white truncate">{event.venueName}</p>
-                            <p className="text-[11px] text-text-muted truncate">
-                              {event.dayOfWeek} &bull; {event.dj} &bull; {event.city}
-                            </p>
-                          </div>
-                          <span className="bg-primary/10 text-primary text-[9px] px-2 py-0.5 rounded-full font-bold flex-shrink-0">
-                            {event.dayOfWeek === "Private Room Karaoke" ? "Private" : event.dayOfWeek.slice(0, 3)}
-                          </span>
-                        </button>
-                      ))}
-                    </>
-                  ) : (
-                    <div className="px-4 py-8 text-center">
-                      <span className="material-icons-round text-text-muted text-3xl mb-2 block">search_off</span>
-                      <p className="text-text-muted text-sm">No venues found for &ldquo;{searchQuery}&rdquo;</p>
-                    </div>
-                  )}
-                </div>
-              )}
+              </form>
             </div>
 
             <div className="flex flex-wrap justify-center gap-3 animate-[fadeSlideUp_0.8s_ease-out_1s_both]">
@@ -611,6 +566,105 @@ export default function HomePage() {
         <div className="absolute top-[10%] -left-[20%] w-[60%] h-[40%] bg-primary/5 blur-[120px] rounded-full" />
         <div className="absolute bottom-[20%] -right-[20%] w-[60%] h-[40%] bg-accent/5 blur-[120px] rounded-full" />
       </div>
+
+      {/* Search Results Popup */}
+      {searchOpen && (
+        <div className="fixed inset-0 z-[100] bg-bg-dark/95 backdrop-blur-lg flex flex-col">
+          {/* Popup Header */}
+          <div className="flex items-center gap-3 px-5 pt-5 pb-3 border-b border-border">
+            <button
+              onClick={() => setSearchOpen(false)}
+              className="text-text-muted hover:text-white transition-colors flex-shrink-0"
+            >
+              <span className="material-icons-round text-2xl">arrow_back</span>
+            </button>
+            <div className="flex-grow flex items-center gap-3 glass-card rounded-full px-5 py-2.5">
+              <span className="material-icons-round text-text-muted text-lg">search</span>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                autoFocus
+                placeholder="Search venues, DJs, neighborhoods..."
+                className="bg-transparent text-white text-sm flex-grow outline-none placeholder:text-text-muted"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="text-text-muted hover:text-white transition-colors"
+                >
+                  <span className="material-icons-round text-lg">close</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Results */}
+          <div className="flex-1 overflow-y-auto px-5 py-4">
+            {searchQuery.trim().length === 0 ? (
+              <div className="text-center py-16">
+                <span className="material-icons-round text-text-muted text-5xl mb-3 block">search</span>
+                <p className="text-text-secondary">Type to search all 49 venues</p>
+              </div>
+            ) : searchResults.length > 0 ? (
+              <>
+                <p className="text-xs uppercase tracking-wider text-text-muted font-bold mb-4">
+                  {searchResults.length} result{searchResults.length !== 1 ? "s" : ""} for &ldquo;{searchQuery}&rdquo;
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {searchResults.map((event) => (
+                    <Link
+                      key={event.id}
+                      href={`/venue/${event.id}`}
+                      onClick={() => setSearchOpen(false)}
+                      className="glass-card rounded-2xl overflow-hidden hover:border-primary/30 transition-all group"
+                    >
+                      <div className="flex gap-3 p-3">
+                        <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0">
+                          {event.image ? (
+                            <img src={event.image} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                              <span className="material-icons-round text-primary text-2xl">mic</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-grow min-w-0 py-1">
+                          <p className="font-bold text-white text-sm truncate group-hover:text-primary transition-colors">
+                            {event.venueName}
+                          </p>
+                          <p className="text-xs text-text-secondary mt-0.5 truncate">
+                            {event.eventName}
+                          </p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className="bg-primary/10 text-primary text-[10px] px-2 py-0.5 rounded-full font-bold">
+                              {event.dayOfWeek === "Private Room Karaoke" ? "Private" : event.dayOfWeek}
+                            </span>
+                            {event.dj && (
+                              <span className="text-[10px] text-text-muted truncate">
+                                {event.dj}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-text-muted mt-1 truncate">
+                            {event.neighborhood || event.city} &bull; {event.startTime} - {event.endTime}
+                          </p>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-16">
+                <span className="material-icons-round text-text-muted text-5xl mb-3 block">search_off</span>
+                <p className="text-white font-semibold mb-1">No results</p>
+                <p className="text-text-secondary text-sm">No venues found for &ldquo;{searchQuery}&rdquo;</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <BottomNav />
     </div>

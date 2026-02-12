@@ -40,6 +40,11 @@ body {
   scrollbar-width: none;
 }
 
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* North Star starburst */
 @keyframes starburstSpin {
   from { transform: translate(-50%, -50%) rotate(0deg); }

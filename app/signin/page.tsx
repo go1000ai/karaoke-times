@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -18,7 +18,15 @@ function SignInContent() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const error = searchParams.get("error");
+  const urlError = searchParams.get("error");
+
+  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(urlError ? "Sign in failed. Please try again." : "");
+  const [success, setSuccess] = useState("");
 
   useEffect(() => {
     if (!loading && user) {
@@ -34,6 +42,48 @@ function SignInContent() {
         redirectTo: `${window.location.origin}/auth/callback`,
       },
     });
+  };
+
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) return;
+
+    setSubmitting(true);
+    setError("");
+    setSuccess("");
+    const supabase = createClient();
+
+    if (mode === "signup") {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: displayName || email.split("@")[0],
+          },
+        },
+      });
+
+      setSubmitting(false);
+      if (error) {
+        setError(error.message);
+      } else {
+        setSuccess("Account created! Check your email to confirm, then log in.");
+        setMode("login");
+        setPassword("");
+      }
+    } else {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      setSubmitting(false);
+      if (error) {
+        setError(error.message);
+      }
+      // If successful, the onAuthStateChange in AuthProvider will redirect
+    }
   };
 
   return (
@@ -66,17 +116,23 @@ function SignInContent() {
         <p className="text-xs uppercase tracking-[0.3em] text-primary font-bold mb-2 neon-glow-green">
           New York City Edition
         </p>
-        <p className="text-sm text-text-secondary text-center mb-10">
+        <p className="text-sm text-text-secondary text-center mb-8">
           The ultimate directory for singers, KJs, and nightlife enthusiasts.
         </p>
 
+        {/* Error / Success Messages */}
         {error && (
-          <div className="w-full bg-red-500/10 border border-red-500/30 rounded-2xl p-4 mb-6 text-center">
-            <p className="text-red-400 text-sm">Sign in failed. Please try again.</p>
+          <div className="w-full bg-red-500/10 border border-red-500/30 rounded-2xl p-4 mb-4 text-center">
+            <p className="text-red-400 text-sm">{error}</p>
+          </div>
+        )}
+        {success && (
+          <div className="w-full bg-green-500/10 border border-green-500/30 rounded-2xl p-4 mb-4 text-center">
+            <p className="text-green-400 text-sm">{success}</p>
           </div>
         )}
 
-        {/* Sign In Buttons */}
+        {/* OAuth Buttons */}
         <button
           onClick={() => handleOAuthSignIn("google")}
           className="w-full glass-card text-white font-semibold py-4 rounded-2xl flex items-center justify-center gap-3 mb-3 hover:border-primary/30 transition-all cursor-pointer"
@@ -92,7 +148,7 @@ function SignInContent() {
 
         <button
           onClick={() => handleOAuthSignIn("apple")}
-          className="w-full bg-white text-black font-semibold py-4 rounded-2xl flex items-center justify-center gap-3 mb-6 hover:bg-gray-100 transition-colors cursor-pointer"
+          className="w-full bg-white text-black font-semibold py-4 rounded-2xl flex items-center justify-center gap-3 mb-5 hover:bg-gray-100 transition-colors cursor-pointer"
         >
           <svg className="w-5 h-5" fill="black" viewBox="0 0 24 24">
             <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.32 2.32-2.08 4.48-3.74 4.25z" />
@@ -101,7 +157,82 @@ function SignInContent() {
         </button>
 
         {/* Divider */}
-        <div className="flex items-center gap-3 w-full mb-6">
+        <div className="flex items-center gap-3 w-full mb-5">
+          <div className="flex-1 h-px bg-border" />
+          <span className="text-xs text-text-muted uppercase tracking-widest">or</span>
+          <div className="flex-1 h-px bg-border" />
+        </div>
+
+        {/* Email / Password Form */}
+        <form onSubmit={handleEmailAuth} className="w-full space-y-3 mb-5">
+          {mode === "signup" && (
+            <input
+              type="text"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="Your name"
+              className="w-full bg-card-dark border border-border rounded-2xl py-3.5 px-5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary placeholder:text-text-muted"
+            />
+          )}
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); setError(""); }}
+            placeholder="Email address"
+            required
+            className="w-full bg-card-dark border border-border rounded-2xl py-3.5 px-5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary placeholder:text-text-muted"
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => { setPassword(e.target.value); setError(""); }}
+            placeholder="Password"
+            required
+            minLength={6}
+            className="w-full bg-card-dark border border-border rounded-2xl py-3.5 px-5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary placeholder:text-text-muted"
+          />
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full bg-primary text-black font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-50 cursor-pointer"
+          >
+            {submitting ? (
+              <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+            ) : mode === "login" ? (
+              "Log In"
+            ) : (
+              "Create Account"
+            )}
+          </button>
+        </form>
+
+        {/* Toggle Login / Sign Up */}
+        <p className="text-sm text-text-secondary">
+          {mode === "login" ? (
+            <>
+              Don&apos;t have an account?{" "}
+              <button
+                onClick={() => { setMode("signup"); setError(""); setSuccess(""); }}
+                className="text-primary font-semibold hover:underline"
+              >
+                Sign up
+              </button>
+            </>
+          ) : (
+            <>
+              Already have an account?{" "}
+              <button
+                onClick={() => { setMode("login"); setError(""); setSuccess(""); }}
+                className="text-primary font-semibold hover:underline"
+              >
+                Log in
+              </button>
+            </>
+          )}
+        </p>
+
+        {/* Business Access */}
+        <div className="flex items-center gap-3 w-full mt-6 mb-4">
           <div className="flex-1 h-px bg-border" />
           <span className="text-xs text-text-muted uppercase tracking-widest">Business Access</span>
           <div className="flex-1 h-px bg-border" />
@@ -115,7 +246,7 @@ function SignInContent() {
           KJ & Venue Owner Login
         </button>
 
-        <p className="text-[10px] text-text-muted mt-8 text-center leading-relaxed">
+        <p className="text-[10px] text-text-muted mt-6 text-center leading-relaxed">
           By continuing, you agree to Karaoke Times&apos;{" "}
           <span className="underline">Terms of Service</span> and{" "}
           <span className="underline">Privacy Policy</span>
