@@ -7,7 +7,7 @@ import StarRating from "@/components/StarRating";
 import QueueStatus from "@/components/QueueStatus";
 import SongRequestModal from "@/components/SongRequestModal";
 import { useAuth } from "@/components/AuthProvider";
-import { venues, reviews, karaokeEvents } from "@/lib/mock-data";
+import { venues, karaokeEvents } from "@/lib/mock-data";
 import { createClient } from "@/lib/supabase/client";
 import { AddToCalendar } from "@/components/AddToCalendar";
 
@@ -18,15 +18,26 @@ interface FeaturedSpecial {
   category: string;
 }
 
+interface Review {
+  id: string;
+  rating: number;
+  text: string;
+  is_anonymous: boolean;
+  created_at: string;
+  profiles: { display_name: string | null } | null;
+}
+
 export default function VenueDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const venue = venues.find((v) => v.id === id) || venues[0];
-  const event = karaokeEvents.find((e) => e.id === id);
+  const venueEvents = karaokeEvents.filter((e) => e.venueName === venue.name);
+  const event = karaokeEvents.find((e) => e.id === id) || venueEvents[0];
   const phone = event?.phone || "";
   const { user } = useAuth();
   const [isFavorite, setIsFavorite] = useState(false);
   const [showSongRequest, setShowSongRequest] = useState(false);
   const [specials, setSpecials] = useState<FeaturedSpecial[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
 
   // Fetch featured specials from POS
   useEffect(() => {
@@ -41,19 +52,59 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
       .then(({ data }) => {
         if (data?.length) setSpecials(data as FeaturedSpecial[]);
       });
-  }, [id]);
+
+    // Fetch reviews
+    supabase
+      .from("reviews")
+      .select("id, rating, text, is_anonymous, created_at, profiles(display_name)")
+      .eq("venue_id", id)
+      .order("created_at", { ascending: false })
+      .limit(5)
+      .then(({ data }) => {
+        if (data?.length) setReviews(data as unknown as Review[]);
+      });
+
+    // Check favorite status
+    if (user) {
+      supabase
+        .from("favorites")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("venue_id", id)
+        .single()
+        .then(({ data }) => {
+          if (data) setIsFavorite(true);
+        });
+    }
+  }, [id, user]);
+
+  const toggleFavorite = async () => {
+    if (!user) return;
+    const supabase = createClient();
+    if (isFavorite) {
+      await supabase.from("favorites").delete().eq("user_id", user.id).eq("venue_id", id);
+      setIsFavorite(false);
+    } else {
+      await supabase.from("favorites").insert({ user_id: user.id, venue_id: id });
+      setIsFavorite(true);
+    }
+  };
 
   const handleDirections = () => {
-    const address = encodeURIComponent(`${venue.address}, ${venue.neighborhood}`);
+    const address = encodeURIComponent(`${venue.address}, ${venue.city}, ${venue.state}`);
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${address}`, "_blank");
   };
 
   return (
     <div className="min-h-screen pb-44 md:pb-24 bg-bg-dark">
       <div className="max-w-4xl mx-auto">
-        {/* Hero Image */}
-        <div className="relative h-72 mt-20">
-          <img src={venue.image} alt={venue.name} className="w-full h-full object-cover" />
+        {/* Hero */}
+        <div className="relative h-56 mt-20 bg-gradient-to-br from-primary/20 via-card-dark to-accent/10 flex items-center justify-center">
+          {venue.image ? (
+            <img src={venue.image} alt={venue.name} className="w-full h-full object-cover" />
+          ) : (
+            <span className="material-icons-round text-6xl text-primary/30">mic</span>
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-bg-dark via-bg-dark/30 to-transparent" />
           <div className="absolute top-4 left-4 right-4 flex justify-between">
             <Link
@@ -67,7 +118,7 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
                 <span className="material-icons-round text-white">share</span>
               </button>
               <button
-                onClick={() => setIsFavorite(!isFavorite)}
+                onClick={toggleFavorite}
                 className="w-10 h-10 rounded-full glass-card flex items-center justify-center"
               >
                 <span className={`material-icons-round ${isFavorite ? "text-accent" : "text-white"}`}>
@@ -83,21 +134,17 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
           <h1 className="text-2xl font-extrabold text-white">{venue.name}</h1>
           <p className="text-sm text-text-secondary flex items-center gap-1 mt-1">
             <span className="material-icons-round text-sm">location_on</span>
-            {venue.neighborhood}
+            {venue.neighborhood ? `${venue.neighborhood}, ` : ""}{venue.city}
           </p>
-
-          <div className="flex items-center gap-4 mt-3">
-            <div className="flex items-center gap-1">
-              <span className="material-icons-round text-primary text-lg">star</span>
-              <span className="font-bold text-white">{venue.rating}</span>
-              <span className="text-xs text-text-secondary">{venue.reviewCount} Reviews</span>
-            </div>
-            <span className="text-sm text-text-muted">&bull;</span>
-            <span className="text-sm font-semibold text-primary">{venue.priceRange}</span>
-          </div>
+          {venue.isPrivateRoom && (
+            <span className="inline-flex items-center gap-1 mt-2 bg-purple-500/10 text-purple-400 text-xs px-3 py-1 rounded-full font-bold">
+              <span className="material-icons-round text-sm">meeting_room</span>
+              Private Room
+            </span>
+          )}
         </div>
 
-        {/* Description */}
+        {/* About / Event Info */}
         <section className="px-5 mt-5">
           <div className="glass-card rounded-2xl p-4">
             <div className="flex items-center gap-2 mb-3">
@@ -105,7 +152,7 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
               <h3 className="font-bold text-white">About This Venue</h3>
             </div>
             <p className="text-sm text-text-secondary leading-relaxed">
-              {event?.notes || `${venue.name} is a popular karaoke spot located in ${venue.neighborhood}. Come enjoy live karaoke and great vibes.`}
+              {event?.notes || `${venue.name} is a popular karaoke spot located in ${venue.city}. Come enjoy live karaoke and great vibes.`}
             </p>
             {event && (
               <div className="flex flex-wrap gap-2 mt-3">
@@ -125,19 +172,13 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
                     KJ: {event.dj}
                   </span>
                 )}
-                {event.isPrivateRoom && (
-                  <span className="inline-flex items-center gap-1 bg-purple-500/10 text-purple-400 text-[10px] px-2.5 py-1 rounded-full font-bold">
-                    <span className="material-icons-round text-xs">meeting_room</span>
-                    Private Room
-                  </span>
-                )}
                 {event.startTime && (
                   <AddToCalendar
                     title={`${event.eventName || "Karaoke Night"} at ${venue.name}`}
                     venueId={venue.id}
                     venueName={venue.name}
                     description={`${event.dj && event.dj !== "Open" ? `KJ: ${event.dj}. ` : ""}${event.notes || ""}`}
-                    location={`${venue.name}, ${venue.address || ""}, ${venue.neighborhood}`}
+                    location={`${venue.name}, ${venue.address || ""}, ${venue.city}`}
                     dayOfWeek={event.dayOfWeek}
                     startTime={event.startTime}
                     endTime={event.endTime || event.startTime}
@@ -148,6 +189,29 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
             )}
           </div>
         </section>
+
+        {/* All Event Nights (if venue has multiple) */}
+        {venueEvents.length > 1 && (
+          <section className="px-5 mt-5">
+            <div className="glass-card rounded-2xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="material-icons-round text-primary">calendar_month</span>
+                <h3 className="font-bold text-white">Karaoke Schedule</h3>
+              </div>
+              <div className="space-y-2">
+                {venueEvents.map((ev) => (
+                  <div key={ev.id} className="flex items-center justify-between py-2 border-b border-border/30 last:border-0">
+                    <div>
+                      <p className="text-sm text-white font-semibold">{ev.dayOfWeek}</p>
+                      <p className="text-xs text-text-muted">{ev.eventName}{ev.dj && ev.dj !== "Open" ? ` — KJ: ${ev.dj}` : ""}</p>
+                    </div>
+                    <span className="text-xs text-text-secondary">{ev.startTime}{ev.endTime ? ` - ${ev.endTime}` : ""}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Action Buttons */}
         <section className="px-5 mt-5">
@@ -224,71 +288,6 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
           </section>
         )}
 
-        {/* Open Times */}
-        <section className="px-5 mt-6">
-          <div className="glass-card rounded-2xl p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="material-icons-round text-primary">schedule</span>
-              <h3 className="font-bold text-white">Open Times</h3>
-              {venue.isOpen && (
-                <span className="ml-auto text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                  Open until 4:00 AM
-                </span>
-              )}
-            </div>
-            <div className="space-y-1 text-sm">
-              <div className="flex justify-between">
-                <span className="text-text-secondary">Tonight</span>
-                <span className="font-semibold text-white">{venue.hours.today}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-secondary">Mon - Thu</span>
-                <span className="text-text-secondary">{venue.hours.monThu}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-secondary">Fri - Sat</span>
-                <span className="text-text-secondary">{venue.hours.friSat}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-secondary">Sun</span>
-                <span className="text-text-secondary">{venue.hours.sun}</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Tonight's Specials */}
-        {venue.specials.length > 0 && (
-          <section className="px-5 mt-6">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="material-icons-round text-accent">local_bar</span>
-              <h3 className="font-bold text-white">Tonight&apos;s Specials</h3>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {venue.specials.map((special, i) => (
-                <div
-                  key={i}
-                  className={`rounded-2xl p-4 border ${
-                    special.type === "Happy Hour"
-                      ? "bg-primary/5 border-primary/20"
-                      : "bg-accent/5 border-accent/20"
-                  }`}
-                >
-                  <span
-                    className={`text-[10px] uppercase font-bold tracking-wider ${
-                      special.type === "Happy Hour" ? "text-primary" : "text-accent"
-                    }`}
-                  >
-                    {special.type}
-                  </span>
-                  <p className="font-bold text-white text-sm mt-1">{special.title}</p>
-                  <p className="text-[10px] text-text-secondary mt-0.5">{special.detail}</p>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
         {/* Location & Directions */}
         <section className="px-5 mt-6">
           <div className="flex items-center gap-2 mb-3">
@@ -298,12 +297,17 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
           <div className="glass-card rounded-2xl overflow-hidden">
             <div className="p-4">
               <p className="text-sm text-white font-medium">{venue.address}</p>
-              <p className="text-xs text-text-secondary mt-1">{venue.neighborhood}</p>
+              <p className="text-xs text-text-secondary mt-1">
+                {venue.neighborhood ? `${venue.neighborhood}, ` : ""}{venue.city}, {venue.state}
+              </p>
+              {event?.crossStreet && (
+                <p className="text-xs text-text-muted mt-0.5">Cross: {event.crossStreet}</p>
+              )}
             </div>
             <div className="border-t border-border grid grid-cols-3 divide-x divide-border">
               <button
                 onClick={() => {
-                  const addr = encodeURIComponent(`${venue.address}, ${venue.neighborhood}`);
+                  const addr = encodeURIComponent(`${venue.address}, ${venue.city}, ${venue.state}`);
                   window.open(`https://www.google.com/maps/dir/?api=1&destination=${addr}&travelmode=driving`, "_blank");
                 }}
                 className="py-3 flex flex-col items-center gap-1 hover:bg-white/5 transition-colors"
@@ -313,7 +317,7 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
               </button>
               <button
                 onClick={() => {
-                  const addr = encodeURIComponent(`${venue.address}, ${venue.neighborhood}`);
+                  const addr = encodeURIComponent(`${venue.address}, ${venue.city}, ${venue.state}`);
                   window.open(`https://www.google.com/maps/dir/?api=1&destination=${addr}&travelmode=transit`, "_blank");
                 }}
                 className="py-3 flex flex-col items-center gap-1 hover:bg-white/5 transition-colors"
@@ -323,7 +327,7 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
               </button>
               <button
                 onClick={() => {
-                  const addr = encodeURIComponent(`${venue.address}, ${venue.neighborhood}`);
+                  const addr = encodeURIComponent(`${venue.address}, ${venue.city}, ${venue.state}`);
                   window.open(`https://www.google.com/maps/dir/?api=1&destination=${addr}&travelmode=walking`, "_blank");
                 }}
                 className="py-3 flex flex-col items-center gap-1 hover:bg-white/5 transition-colors"
@@ -340,7 +344,7 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <span className="material-icons-round text-primary">rate_review</span>
-              <h3 className="font-bold text-white">User Reviews</h3>
+              <h3 className="font-bold text-white">Reviews</h3>
             </div>
             {user ? (
               <Link href={`/review/${venue.id}`} className="text-xs text-primary font-semibold">
@@ -352,25 +356,36 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
               </Link>
             )}
           </div>
-          <div className="space-y-4">
-            {reviews.map((review) => (
-              <div key={review.id} className="glass-card rounded-2xl p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                      <span className="material-icons-round text-primary text-sm">person</span>
+          {reviews.length > 0 ? (
+            <div className="space-y-4">
+              {reviews.map((review) => (
+                <div key={review.id} className="glass-card rounded-2xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                        <span className="material-icons-round text-primary text-sm">person</span>
+                      </div>
+                      <span className="font-semibold text-sm text-white">
+                        {review.is_anonymous ? "Anonymous" : review.profiles?.display_name || "User"}
+                      </span>
                     </div>
-                    <span className="font-semibold text-sm text-white">{review.author}</span>
+                    <span className="text-[10px] text-text-muted">
+                      {new Date(review.created_at).toLocaleDateString()}
+                    </span>
                   </div>
-                  <span className="text-[10px] text-text-muted">{review.timeAgo}</span>
+                  <StarRating rating={review.rating} size="sm" />
+                  <p className="text-sm text-text-secondary mt-2 leading-relaxed">
+                    &ldquo;{review.text}&rdquo;
+                  </p>
                 </div>
-                <StarRating rating={review.rating} size="sm" />
-                <p className="text-sm text-text-secondary mt-2 leading-relaxed">
-                  &ldquo;{review.text}&rdquo;
-                </p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="glass-card rounded-2xl p-6 text-center">
+              <span className="material-icons-round text-3xl text-text-muted mb-2">rate_review</span>
+              <p className="text-text-secondary text-sm">No reviews yet. Be the first!</p>
+            </div>
+          )}
         </section>
 
         {/* Report */}

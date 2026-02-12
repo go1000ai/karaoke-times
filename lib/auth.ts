@@ -55,6 +55,23 @@ export async function requireAuth() {
   return user;
 }
 
+export async function requireAdmin() {
+  const user = await requireAuth();
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  const profile = data as { role: string } | null;
+  if (profile?.role !== "admin") {
+    redirect("/");
+  }
+  return user;
+}
+
 export async function requireVenueOwner() {
   const user = await requireAuth();
   const supabase = await createClient();

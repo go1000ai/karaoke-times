@@ -427,10 +427,12 @@ export default function HomePage() {
 
           {/* Listings Grid */}
           {activeDay === "All" ? (
-            // Show grouped by day
+            // Show grouped by day — first 6 per day with "View More"
             DAY_ORDER.map((day) => {
               const dayEvents = eventsByDay[day];
               if (!dayEvents || dayEvents.length === 0) return null;
+              const previewEvents = dayEvents.slice(0, 6);
+              const hasMore = dayEvents.length > 6;
               return (
                 <div key={day} className="mb-16">
                   <div className="flex items-center gap-3 mb-6">
@@ -445,10 +447,21 @@ export default function HomePage() {
                     </span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {dayEvents.map((event) => (
+                    {previewEvents.map((event) => (
                       <VenueCard key={event.id} event={event} onClick={() => setSelectedEvent(event)} />
                     ))}
                   </div>
+                  {hasMore && (
+                    <div className="text-center mt-6">
+                      <button
+                        onClick={() => setActiveDay(day)}
+                        className="inline-flex items-center gap-2 text-primary text-sm font-bold hover:text-primary/80 transition-colors glass-card px-6 py-3 rounded-full"
+                      >
+                        View All {dayEvents.length} {day} Events
+                        <span className="material-icons-round text-lg">arrow_forward</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })
