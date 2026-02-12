@@ -10,6 +10,27 @@ import * as path from "path";
 const SHEET_ID = "1Hjvo1uMhxtvTcnHNzHaCH9Qq-lbIqRV3Kag5vzSukFk";
 const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
 
+// Map event IDs or venue slugs to local images in /public/venues/
+const VENUE_IMAGES: Record<string, string> = {
+  "fusion-east-monday": "/venues/fusion-east-monday.jpg",
+  "footprints-cafe-monday": "/venues/footprints-cafe.png",
+  "native-monday": "/venues/native-bk.png",
+  "pitch-tuesday": "/venues/skinny-bar.png",
+  "metropolitan-bar-tuesday": "/venues/metropolitan-bar.png",
+  "waterfall-lounge-tuesday": "/venues/sunset-bar.jpg",
+  "patrick-steakhouse-wednesday": "/venues/patrick-steakhouse.jpg",
+  "poseidon-wednesday": "/venues/mos-bar.jpg",
+  "buck-it-sports-latin-grill-wednesday": "/venues/oval-sports-lounge.png",
+  "gt-kingston-wednesday": "/venues/ocho-rios.jpg",
+  "ocean-prime-thursday": "/venues/blu-seafood.jpg",
+  "fusion-east-thursday": "/venues/fusion-east-thursday.png",
+  "deja-vu-haitian-restaurant-thursday": "/venues/harlem-nights.jpg",
+  "it-s-about-time-cocktail-lounge-friday": "/venues/c-list-cocktail-bar.png",
+  "essence-bar-grill-friday": "/venues/essence-bar.png",
+  "la-cocina-boriqua-saturday": "/venues/island-grill.png",
+  "333-lounge-and-restaurant-sunday": "/venues/1683-bar.jpg",
+};
+
 interface RawRow {
   dayOfWeek: string;
   eventName: string;
@@ -197,7 +218,7 @@ export const karaokeEvents: KaraokeEvent[] = [
     startTime: "${escapeString(event.startTime)}",
     endTime: "${escapeString(event.endTime)}",
     notes: "${escapeString(event.notes)}",
-    image: null,
+    image: ${VENUE_IMAGES[id] ? `"${VENUE_IMAGES[id]}"` : "null"},
     isPrivateRoom: ${isPrivateRoom},
     bookingUrl: null,
     website: ${event.website ? `"${escapeString(event.website)}"` : "null"},

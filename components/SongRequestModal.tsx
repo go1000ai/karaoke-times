@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
 
@@ -27,8 +27,22 @@ export default function SongRequestModal({ venueId, venueName, onClose }: SongRe
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
   const [mode, setMode] = useState<"search" | "manual">("search");
+  const [queuePaused, setQueuePaused] = useState<boolean | null>(null);
+  const [duplicateWarning, setDuplicateWarning] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const supabase = createClient();
+
+  // Check if queue is paused on mount
+  useEffect(() => {
+    supabase
+      .from("venues")
+      .select("queue_paused")
+      .eq("id", venueId)
+      .single()
+      .then(({ data }) => {
+        setQueuePaused(data?.queue_paused ?? false);
+      });
+  }, [venueId, supabase]);
 
   const searchSongs = useCallback(async (term: string) => {
     if (term.length < 2) {
@@ -59,6 +73,19 @@ export default function SongRequestModal({ venueId, venueName, onClose }: SongRe
     setArtist(song.artistName);
     setQuery("");
     setResults([]);
+    setDuplicateWarning(false);
+  };
+
+  const checkDuplicate = async (title: string): Promise<boolean> => {
+    const { data } = await supabase
+      .from("song_queue")
+      .select("id")
+      .eq("venue_id", venueId)
+      .in("status", ["waiting", "up_next", "now_singing"])
+      .ilike("song_title", title.trim())
+      .limit(1);
+
+    return (data?.length ?? 0) > 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,6 +94,16 @@ export default function SongRequestModal({ venueId, venueName, onClose }: SongRe
 
     setSubmitting(true);
     setError("");
+
+    // Check for duplicates (unless user already dismissed the warning)
+    if (!duplicateWarning) {
+      const isDupe = await checkDuplicate(songTitle);
+      if (isDupe) {
+        setDuplicateWarning(true);
+        setSubmitting(false);
+        return;
+      }
+    }
 
     const { data: lastInQueue } = await supabase
       .from("song_queue")
@@ -96,6 +133,42 @@ export default function SongRequestModal({ venueId, venueName, onClose }: SongRe
       setSubmitted(true);
     }
   };
+
+  // Loading state while checking pause status
+  if (queuePaused === null) {
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+        <div className="relative glass-card rounded-3xl p-8 max-w-md w-full flex items-center justify-center">
+          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      </div>
+    );
+  }
+
+  // Queue is paused
+  if (queuePaused) {
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+        <div className="relative glass-card rounded-3xl p-8 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="material-icons-round text-amber-400 text-3xl">pause_circle</span>
+          </div>
+          <h2 className="text-xl font-extrabold text-white mb-2">Queue is Paused</h2>
+          <p className="text-text-secondary text-sm mb-6">
+            The KJ has temporarily paused song requests. Check back in a few minutes!
+          </p>
+          <button
+            onClick={onClose}
+            className="bg-white/10 text-white font-bold px-8 py-3 rounded-xl hover:bg-white/20 transition-colors"
+          >
+            Got it
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (submitted) {
     return (
@@ -237,6 +310,7 @@ export default function SongRequestModal({ venueId, venueName, onClose }: SongRe
                   onClick={() => {
                     setSongTitle("");
                     setArtist("");
+                    setDuplicateWarning(false);
                   }}
                   className="text-text-muted hover:text-white transition-colors"
                 >
@@ -253,7 +327,10 @@ export default function SongRequestModal({ venueId, venueName, onClose }: SongRe
                   </label>
                   <input
                     value={songTitle}
-                    onChange={(e) => setSongTitle(e.target.value)}
+                    onChange={(e) => {
+                      setSongTitle(e.target.value);
+                      setDuplicateWarning(false);
+                    }}
                     placeholder="Enter song name..."
                     required
                     className="w-full bg-card-dark border border-border rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary placeholder:text-text-muted"
@@ -273,6 +350,19 @@ export default function SongRequestModal({ venueId, venueName, onClose }: SongRe
               </>
             )}
 
+            {/* Duplicate Warning */}
+            {duplicateWarning && (
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex items-start gap-3">
+                <span className="material-icons-round text-amber-400 text-lg mt-0.5 flex-shrink-0">warning</span>
+                <div>
+                  <p className="text-amber-400 text-sm font-bold">Already in Queue</p>
+                  <p className="text-text-secondary text-xs mt-0.5">
+                    This song is already in the queue. Submit anyway?
+                  </p>
+                </div>
+              </div>
+            )}
+
             {error && (
               <p className="text-red-400 text-sm text-center">{error}</p>
             )}
@@ -287,7 +377,7 @@ export default function SongRequestModal({ venueId, venueName, onClose }: SongRe
               ) : (
                 <>
                   <span className="material-icons-round text-xl">queue_music</span>
-                  Submit Request
+                  {duplicateWarning ? "Submit Anyway" : "Submit Request"}
                 </>
               )}
             </button>

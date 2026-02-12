@@ -14,7 +14,7 @@ export default async function ProfilePage() {
   // Fetch profile
   const { data: profile } = await supabase
     .from("profiles")
-    .select("display_name, avatar_url, role")
+    .select("display_name, avatar_url, role, website, address, social_links")
     .eq("id", user.id)
     .single();
 
@@ -63,6 +63,8 @@ export default async function ProfilePage() {
 
   const avatarUrl = profile?.avatar_url || user.user_metadata?.avatar_url;
 
+  const socialLinks = (profile?.social_links as { instagram?: string; twitter?: string; tiktok?: string; facebook?: string }) || {};
+
   return (
     <div className="min-h-screen pb-28 md:pb-12 bg-bg-dark">
       <div className="max-w-4xl mx-auto">
@@ -91,6 +93,76 @@ export default async function ProfilePage() {
               Venue Owner
             </span>
           )}
+
+          {/* Social links & website */}
+          {(profile?.website || Object.values(socialLinks).some(Boolean)) && (
+            <div className="flex items-center gap-3 mt-3">
+              {profile?.website && (
+                <a
+                  href={profile.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-text-muted hover:text-primary transition-colors"
+                  title="Website"
+                >
+                  <span className="material-icons-round text-xl">language</span>
+                </a>
+              )}
+              {socialLinks.instagram && (
+                <a
+                  href={socialLinks.instagram.startsWith("http") ? socialLinks.instagram : `https://instagram.com/${socialLinks.instagram.replace("@", "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-text-muted hover:text-primary transition-colors"
+                  title="Instagram"
+                >
+                  <span className="material-icons-round text-xl">photo_camera</span>
+                </a>
+              )}
+              {socialLinks.twitter && (
+                <a
+                  href={socialLinks.twitter.startsWith("http") ? socialLinks.twitter : `https://x.com/${socialLinks.twitter.replace("@", "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-text-muted hover:text-primary transition-colors"
+                  title="Twitter / X"
+                >
+                  <span className="material-icons-round text-xl">tag</span>
+                </a>
+              )}
+              {socialLinks.tiktok && (
+                <a
+                  href={socialLinks.tiktok.startsWith("http") ? socialLinks.tiktok : `https://tiktok.com/@${socialLinks.tiktok.replace("@", "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-text-muted hover:text-primary transition-colors"
+                  title="TikTok"
+                >
+                  <span className="material-icons-round text-xl">music_note</span>
+                </a>
+              )}
+              {socialLinks.facebook && (
+                <a
+                  href={socialLinks.facebook.startsWith("http") ? socialLinks.facebook : `https://facebook.com/${socialLinks.facebook}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-text-muted hover:text-primary transition-colors"
+                  title="Facebook"
+                >
+                  <span className="material-icons-round text-xl">people</span>
+                </a>
+              )}
+            </div>
+          )}
+
+          {/* Edit Profile button */}
+          <Link
+            href="/profile/edit"
+            className="mt-3 flex items-center gap-1.5 bg-card-dark border border-border text-text-secondary text-sm font-semibold px-4 py-2 rounded-full hover:border-primary/30 hover:text-white transition-colors"
+          >
+            <span className="material-icons-round text-base">edit</span>
+            Edit Profile
+          </Link>
         </div>
 
         {/* Stats */}

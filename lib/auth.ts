@@ -22,7 +22,12 @@ interface Profile {
   role: string;
   display_name: string | null;
   avatar_url: string | null;
+  address: string | null;
+  phone: string | null;
+  website: string | null;
+  social_links: { instagram?: string; twitter?: string; tiktok?: string; facebook?: string };
   created_at: string;
+  updated_at: string;
 }
 
 export async function getUserProfile() {

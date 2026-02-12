@@ -6,7 +6,14 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
-export type UserRole = "user" | "venue_owner";
+export type UserRole = "user" | "venue_owner" | "admin";
+
+export interface SocialLinks {
+  instagram?: string;
+  twitter?: string;
+  tiktok?: string;
+  facebook?: string;
+}
 export type MediaType = "image" | "video";
 export type SongStatus = "waiting" | "up_next" | "now_singing" | "completed" | "skipped";
 export type BookingStatus = "pending" | "confirmed" | "cancelled";
@@ -20,21 +27,36 @@ export interface Database {
           role: UserRole;
           display_name: string | null;
           avatar_url: string | null;
+          address: string | null;
+          phone: string | null;
+          website: string | null;
+          social_links: SocialLinks;
           created_at: string;
+          updated_at: string;
         };
         Insert: {
           id: string;
           role?: UserRole;
           display_name?: string | null;
           avatar_url?: string | null;
+          address?: string | null;
+          phone?: string | null;
+          website?: string | null;
+          social_links?: SocialLinks;
           created_at?: string;
+          updated_at?: string;
         };
         Update: {
           id?: string;
           role?: UserRole;
           display_name?: string | null;
           avatar_url?: string | null;
+          address?: string | null;
+          phone?: string | null;
+          website?: string | null;
+          social_links?: SocialLinks;
           created_at?: string;
+          updated_at?: string;
         };
       };
       venues: {
@@ -53,6 +75,7 @@ export interface Database {
           booking_url: string | null;
           latitude: number | null;
           longitude: number | null;
+          queue_paused: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -71,6 +94,7 @@ export interface Database {
           booking_url?: string | null;
           latitude?: number | null;
           longitude?: number | null;
+          queue_paused?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -89,6 +113,7 @@ export interface Database {
           booking_url?: string | null;
           latitude?: number | null;
           longitude?: number | null;
+          queue_paused?: boolean;
           created_at?: string;
           updated_at?: string;
         };
