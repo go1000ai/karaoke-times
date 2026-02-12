@@ -37,21 +37,6 @@ export default function BottomNav() {
             );
           }
 
-          const isComingSoon = item.href === "/notifications";
-
-          if (isComingSoon) {
-            return (
-              <li key={item.href}>
-                <div className="flex flex-col items-center py-2 px-3 opacity-30 cursor-not-allowed relative">
-                  <span className="material-icons-round text-2xl">
-                    {item.icon}
-                  </span>
-                  <span className="text-[10px] mt-0.5 font-semibold">Soon</span>
-                </div>
-              </li>
-            );
-          }
-
           return (
             <li key={item.href}>
               <Link

@@ -54,6 +54,25 @@ export function AddToCalendar({
 
   const event = { title, description, location, dayOfWeek, startTime, endTime };
 
+  async function saveReminder() {
+    if (!user || !venueId) return;
+    const supabase = createClient();
+    await supabase.from("event_reminders").upsert(
+      {
+        user_id: user.id,
+        venue_id: venueId,
+        event_name: title,
+        venue_name: venueName || null,
+        day_of_week: dayOfWeek,
+        start_time: startTime,
+        end_time: endTime || null,
+        location: location || null,
+        email: user.email || "",
+      },
+      { onConflict: "user_id,venue_id,day_of_week" }
+    );
+  }
+
   async function handleSendEmail() {
     if (!email) return;
     setSending(true);
@@ -126,7 +145,7 @@ export function AddToCalendar({
             href={getGoogleCalendarUrl(event)}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => setOpen(false)}
+            onClick={() => { saveReminder(); setOpen(false); }}
             className="flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors"
           >
             <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
@@ -143,7 +162,7 @@ export function AddToCalendar({
             href={getOutlookCalendarUrl(event)}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => setOpen(false)}
+            onClick={() => { saveReminder(); setOpen(false); }}
             className="flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors border-t border-border/50"
           >
             <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24">
@@ -160,6 +179,7 @@ export function AddToCalendar({
           <button
             onClick={() => {
               downloadICSFile(event);
+              saveReminder();
               setOpen(false);
             }}
             className="flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors border-t border-border/50 w-full text-left"
