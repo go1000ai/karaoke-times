@@ -970,6 +970,111 @@ export const venues = karaokeEvents.reduce<
   return acc;
 }, []);
 
+// ─── KJ DIRECTORY ───
+
+// Generic DJ names that shouldn't get their own profile
+const GENERIC_DJ_NAMES = new Set([
+  "various kj's",
+  "rotating dj's",
+  "rotating djs",
+  "open",
+  "",
+]);
+
+function generateKJSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+export interface KJProfile {
+  slug: string;
+  name: string;
+  events: Array<{
+    venueName: string;
+    venueId: string;
+    dayOfWeek: string;
+    startTime: string;
+    endTime: string;
+    eventName: string;
+    image: string | null;
+    neighborhood: string;
+    city: string;
+  }>;
+  venueCount: number;
+}
+
+// Unique KJs derived from events (filter out generic names)
+export const kjs: KJProfile[] = (() => {
+  const map = new Map<string, KJProfile>();
+
+  for (const event of karaokeEvents) {
+    const djName = event.dj.trim();
+    if (GENERIC_DJ_NAMES.has(djName.toLowerCase())) continue;
+
+    const slug = generateKJSlug(djName);
+    if (!slug) continue;
+
+    const existing = map.get(slug);
+    if (existing) {
+      existing.events.push({
+        venueName: event.venueName,
+        venueId: event.id,
+        dayOfWeek: event.dayOfWeek,
+        startTime: event.startTime,
+        endTime: event.endTime,
+        eventName: event.eventName,
+        image: event.image,
+        neighborhood: event.neighborhood,
+        city: event.city,
+      });
+      // Update venue count (unique venues)
+      existing.venueCount = new Set(existing.events.map((e) => e.venueName)).size;
+    } else {
+      map.set(slug, {
+        slug,
+        name: djName,
+        events: [
+          {
+            venueName: event.venueName,
+            venueId: event.id,
+            dayOfWeek: event.dayOfWeek,
+            startTime: event.startTime,
+            endTime: event.endTime,
+            eventName: event.eventName,
+            image: event.image,
+            neighborhood: event.neighborhood,
+            city: event.city,
+          },
+        ],
+        venueCount: 1,
+      });
+    }
+  }
+
+  return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+})();
+
+export function getKJBySlug(slug: string): KJProfile | undefined {
+  return kjs.find((kj) => kj.slug === slug);
+}
+
+export function searchKJs(query: string): KJProfile[] {
+  const q = query.toLowerCase().trim();
+  if (q.length < 2) return [];
+  return kjs.filter((kj) => kj.name.toLowerCase().includes(q));
+}
+
+export function getKJSlugForName(djName: string): string | null {
+  const name = djName.trim();
+  if (GENERIC_DJ_NAMES.has(name.toLowerCase())) return null;
+  const slug = generateKJSlug(name);
+  return slug || null;
+}
+
 // Placeholder reviews (to be replaced by Supabase)
 export const reviews: Array<{
   id: string;

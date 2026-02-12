@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
 import StarRating from "@/components/StarRating";
 import QueueStatus from "@/components/QueueStatus";
@@ -34,6 +35,7 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
   const event = karaokeEvents.find((e) => e.id === id) || venueEvents[0];
   const phone = event?.phone || "";
   const { user } = useAuth();
+  const router = useRouter();
   const [isFavorite, setIsFavorite] = useState(false);
   const [showSongRequest, setShowSongRequest] = useState(false);
   const [specials, setSpecials] = useState<FeaturedSpecial[]>([]);
@@ -107,12 +109,12 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-bg-dark via-bg-dark/30 to-transparent" />
           <div className="absolute top-4 left-4 right-4 flex justify-between">
-            <Link
-              href="/"
+            <button
+              onClick={() => router.back()}
               className="w-10 h-10 rounded-full glass-card flex items-center justify-center"
             >
               <span className="material-icons-round text-white">arrow_back</span>
-            </Link>
+            </button>
             <div className="flex gap-2">
               <button className="w-10 h-10 rounded-full glass-card flex items-center justify-center">
                 <span className="material-icons-round text-white">share</span>

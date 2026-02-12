@@ -302,9 +302,9 @@ function MapPageContent() {
 
         <section className="px-5 space-y-2.5 pb-4">
           {filteredVenues.map((venue) => (
-            <button
+            <Link
               key={venue.id}
-              onClick={() => handleVenueClick(venue)}
+              href={`/venue/${venue.id}`}
               className="block w-full text-left glass-card rounded-2xl p-4 hover:border-primary/30 transition-all"
             >
               <div className="flex gap-3 items-center">
@@ -328,16 +328,12 @@ function MapPageContent() {
                         : `${venue.distance.toFixed(1)} mi`}
                     </span>
                   )}
-                  <Link
-                    href={`/venue/${venue.id}`}
-                    onClick={(e) => e.stopPropagation()}
-                    className="text-text-muted hover:text-primary transition-colors"
-                  >
+                  <span className="text-text-muted">
                     <span className="material-icons-round text-lg">chevron_right</span>
-                  </Link>
+                  </span>
                 </div>
               </div>
-            </button>
+            </Link>
           ))}
 
           {filteredVenues.length === 0 && (

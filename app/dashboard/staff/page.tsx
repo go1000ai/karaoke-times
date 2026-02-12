@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
 
@@ -8,6 +8,7 @@ interface StaffMember {
   id: string;
   user_id: string;
   role: string;
+  invited_by: string;
   invited_at: string;
   accepted_at: string | null;
   profiles: { display_name: string | null; id: string } | null;
@@ -20,9 +21,19 @@ export default function StaffPage() {
   const [loading, setLoading] = useState(true);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviting, setInviting] = useState(false);
+  const [responding, setResponding] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const supabase = createClient();
+
+  const fetchStaff = useCallback(async (vid: string) => {
+    const { data: staffData } = await supabase
+      .from("venue_staff")
+      .select("*, profiles(display_name, id)")
+      .eq("venue_id", vid)
+      .order("invited_at");
+    setStaff((staffData as unknown as StaffMember[]) || []);
+  }, [supabase]);
 
   useEffect(() => {
     if (!user) return;
@@ -36,19 +47,12 @@ export default function StaffPage() {
 
       if (!venue) { setLoading(false); return; }
       setVenueId(venue.id);
-
-      const { data: staffData } = await supabase
-        .from("venue_staff")
-        .select("*, profiles(display_name, id)")
-        .eq("venue_id", venue.id)
-        .order("invited_at");
-
-      setStaff((staffData as unknown as StaffMember[]) || []);
+      await fetchStaff(venue.id);
       setLoading(false);
     };
 
     fetchData();
-  }, [user, supabase]);
+  }, [user, supabase, fetchStaff]);
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,23 +62,6 @@ export default function StaffPage() {
     setError("");
     setMessage("");
 
-    // Look up user by email
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, display_name");
-
-    // We need to find user by email — check auth.users via a different approach
-    // Since we can't query auth.users from client, we'll look for a profile
-    // that matches. For now, search by checking if the email exists as a user.
-
-    // Use the admin lookup — but we're on client side. Let's try signing in check.
-    // Actually the simplest approach: try to find the user in profiles by checking
-    // if an account with that email exists. We'll use a server action for this.
-
-    // For now, let's create the invite even if the user hasn't signed up yet.
-    // We'll store the email and when they sign up, they'll see the invite.
-
-    // Check if email already has an account
     const response = await fetch("/api/invite-kj", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -89,13 +76,7 @@ export default function StaffPage() {
     } else {
       setMessage(result.message || "Invite sent!");
       setInviteEmail("");
-      // Refresh staff list
-      const { data: staffData } = await supabase
-        .from("venue_staff")
-        .select("*, profiles(display_name, id)")
-        .eq("venue_id", venueId)
-        .order("invited_at");
-      setStaff((staffData as unknown as StaffMember[]) || []);
+      fetchStaff(venueId);
     }
   };
 
@@ -103,6 +84,30 @@ export default function StaffPage() {
     await supabase.from("venue_staff").delete().eq("id", staffId);
     setStaff((prev) => prev.filter((s) => s.id !== staffId));
   };
+
+  // Accept or reject a KJ's connection request
+  const handleRespond = async (staffId: string, action: "accept" | "reject") => {
+    setResponding(staffId);
+    const res = await fetch("/api/respond-connection", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ staffId, action }),
+    });
+    const result = await res.json();
+    setResponding(null);
+    setMessage(result.message || result.error);
+    setTimeout(() => setMessage(""), 4000);
+    if (venueId) fetchStaff(venueId);
+  };
+
+  // Derived lists
+  const pendingKJRequests = staff.filter(
+    (s) => !s.accepted_at && s.invited_by === s.user_id
+  );
+  const pendingOwnerInvites = staff.filter(
+    (s) => !s.accepted_at && s.invited_by !== s.user_id
+  );
+  const activeStaff = staff.filter((s) => s.accepted_at);
 
   if (loading) {
     return (
@@ -119,11 +124,18 @@ export default function StaffPage() {
         Connect a KJ to your venue. They&apos;ll get access to the song queue, TV display, and bar specials.
       </p>
 
+      {/* Status message */}
+      {message && (
+        <div className="mb-6 glass-card rounded-xl p-3 text-center">
+          <p className="text-sm font-semibold text-primary">{message}</p>
+        </div>
+      )}
+
       {/* Invite Form */}
       <div className="glass-card rounded-2xl p-5 mb-8">
         <div className="flex items-center gap-2 mb-4">
           <span className="material-icons-round text-accent">person_add</span>
-          <h2 className="font-bold text-white">Connect a KJ</h2>
+          <h2 className="font-bold text-white">Invite a KJ</h2>
         </div>
         <form onSubmit={handleInvite} className="flex gap-3">
           <input
@@ -147,57 +159,137 @@ export default function StaffPage() {
           </button>
         </form>
         {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
-        {message && <p className="text-green-400 text-sm mt-2">{message}</p>}
         <p className="text-text-muted text-xs mt-3">
-          The KJ needs to have a Karaoke Times account. They&apos;ll get access to manage your queue and TV display.
+          The KJ needs to have a Karaoke Times account. They&apos;ll receive an email and can accept from their dashboard.
         </p>
       </div>
 
-      {/* Staff List */}
+      {/* Pending KJ Requests (KJ-initiated, waiting for owner to accept) */}
+      {pendingKJRequests.length > 0 && (
+        <div className="mb-8">
+          <h2 className="font-bold text-white mb-3 flex items-center gap-2">
+            <span className="material-icons-round text-accent text-lg">person_add</span>
+            KJ Requests
+            <span className="text-xs font-bold bg-accent/10 text-accent px-2 py-0.5 rounded-full">{pendingKJRequests.length}</span>
+          </h2>
+          <div className="space-y-3">
+            {pendingKJRequests.map((req) => (
+              <div key={req.id} className="glass-card rounded-xl p-4 border-accent/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
+                      <span className="material-icons-round text-accent">person</span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-white font-semibold text-sm truncate">
+                        {req.profiles?.display_name || "KJ"}
+                      </p>
+                      <p className="text-text-muted text-xs">Wants to connect as your KJ</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => handleRespond(req.id, "accept")}
+                      disabled={responding === req.id}
+                      className="bg-primary text-black font-bold text-xs px-4 py-2 rounded-lg disabled:opacity-50"
+                    >
+                      Accept
+                    </button>
+                    <button
+                      onClick={() => handleRespond(req.id, "reject")}
+                      disabled={responding === req.id}
+                      className="bg-white/5 text-text-muted font-bold text-xs px-3 py-2 rounded-lg hover:bg-white/10 disabled:opacity-50"
+                    >
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Pending Invites (owner-initiated, waiting for KJ to accept) */}
+      {pendingOwnerInvites.length > 0 && (
+        <div className="mb-8">
+          <h2 className="font-bold text-white mb-3 flex items-center gap-2">
+            <span className="material-icons-round text-amber-400 text-lg">schedule</span>
+            Pending Invites
+          </h2>
+          <div className="space-y-3">
+            {pendingOwnerInvites.map((invite) => (
+              <div key={invite.id} className="glass-card rounded-xl p-4 opacity-70">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-10 h-10 rounded-full bg-amber-400/10 flex items-center justify-center flex-shrink-0">
+                      <span className="material-icons-round text-amber-400">person</span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-white font-semibold text-sm truncate">
+                        {invite.profiles?.display_name || "Invited KJ"}
+                      </p>
+                      <p className="text-text-muted text-xs">Waiting for them to accept</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleRemove(invite.id)}
+                    className="text-text-muted text-xs font-bold px-3 py-2 rounded-lg hover:bg-white/5 hover:text-red-400 transition-colors flex-shrink-0"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Active Staff */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-bold text-white">Connected Staff</h2>
+          <h2 className="font-bold text-white flex items-center gap-2">
+            <span className="material-icons-round text-green-400 text-lg">check_circle</span>
+            Connected Staff
+          </h2>
           <span className="text-xs text-text-muted font-bold bg-white/5 px-2.5 py-1 rounded-full">
-            {staff.length}
+            {activeStaff.length}
           </span>
         </div>
 
-        {staff.length === 0 ? (
+        {activeStaff.length === 0 ? (
           <div className="glass-card rounded-xl p-8 text-center">
             <span className="material-icons-round text-4xl text-text-muted mb-2">group</span>
-            <p className="text-text-muted text-sm">No KJs connected yet. Invite one above!</p>
+            <p className="text-text-muted text-sm">No KJs connected yet. Invite one above or wait for a KJ to request access.</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {staff.map((member) => (
+            {activeStaff.map((member) => (
               <div key={member.id} className="glass-card rounded-xl p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
-                    <span className="material-icons-round text-accent">person</span>
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <span className="material-icons-round text-primary">person</span>
                   </div>
                   <div>
                     <p className="text-white font-semibold text-sm">
-                      {member.profiles?.display_name || "Invited KJ"}
+                      {member.profiles?.display_name || "KJ"}
                     </p>
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-accent font-bold uppercase">{member.role}</span>
-                      {member.accepted_at ? (
-                        <span className="text-xs text-green-400 flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 bg-green-400 rounded-full" />
-                          Active
-                        </span>
-                      ) : (
-                        <span className="text-xs text-yellow-400 flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full" />
-                          Pending
-                        </span>
-                      )}
+                      <span className="text-xs text-green-400 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 bg-green-400 rounded-full" />
+                        Active
+                      </span>
                     </div>
+                    <p className="text-[11px] text-text-muted mt-0.5">
+                      Connected {new Date(member.accepted_at!).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    </p>
                   </div>
                 </div>
                 <button
                   onClick={() => handleRemove(member.id)}
                   className="text-text-muted hover:text-red-400 transition-colors"
+                  title="Remove"
                 >
                   <span className="material-icons-round">close</span>
                 </button>

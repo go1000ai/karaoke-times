@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
 import { TubesBackground } from "@/components/ui/neon-flow";
-import { karaokeEvents, DAY_ORDER, getEventsByDay, type KaraokeEvent } from "@/lib/mock-data";
+import { karaokeEvents, DAY_ORDER, getEventsByDay, searchKJs, getKJSlugForName, type KaraokeEvent, type KJProfile } from "@/lib/mock-data";
 
 const DAY_ICONS: Record<string, string> = {
   Monday: "looks_one",
@@ -102,12 +102,24 @@ function VenueCard({ event, onClick }: { event: KaraokeEvent; onClick: () => voi
               {event.startTime}{event.endTime ? ` - ${event.endTime}` : ""}
             </span>
           )}
-          {event.dj && event.dj !== "Open" && (
-            <span className="inline-flex items-center gap-1 bg-accent/10 text-accent text-[10px] px-2.5 py-1 rounded-full font-bold">
-              <span className="material-icons-round text-xs">headphones</span>
-              {event.dj}
-            </span>
-          )}
+          {event.dj && event.dj !== "Open" && (() => {
+            const kjSlug = getKJSlugForName(event.dj);
+            return kjSlug ? (
+              <Link
+                href={`/kj/${kjSlug}`}
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 bg-accent/10 text-accent text-[10px] px-2.5 py-1 rounded-full font-bold hover:bg-accent/20 transition-colors"
+              >
+                <span className="material-icons-round text-xs">headphones</span>
+                {event.dj}
+              </Link>
+            ) : (
+              <span className="inline-flex items-center gap-1 bg-accent/10 text-accent text-[10px] px-2.5 py-1 rounded-full font-bold">
+                <span className="material-icons-round text-xs">headphones</span>
+                {event.dj}
+              </span>
+            );
+          })()}
         </div>
 
         {/* Notes */}
@@ -162,6 +174,7 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<KaraokeEvent | null>(null);
+  const [searchFilter, setSearchFilter] = useState<"all" | "kjs" | "venues">("all");
   const searchInputRef = useRef<HTMLInputElement>(null);
   const eventsByDay = getEventsByDay();
   const tabBarRef = useRef<HTMLDivElement>(null);
@@ -181,6 +194,11 @@ export default function HomePage() {
           e.notes.toLowerCase().includes(q)
         );
       })
+    : [];
+
+  // KJ search results
+  const kjResults: KJProfile[] = searchQuery.trim().length >= 2
+    ? searchKJs(searchQuery)
     : [];
 
   const filteredEvents =
@@ -249,7 +267,7 @@ export default function HomePage() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search venues, DJs, or enter a zip code..."
+                  placeholder="Search venues, KJs, or enter a zip code..."
                   className="bg-transparent text-white text-sm flex-grow outline-none placeholder:text-text-muted"
                 />
                 {searchQuery ? (
@@ -360,7 +378,7 @@ export default function HomePage() {
               <div className="reveal space-y-4 mb-8">
                 {[
                   { icon: "mic", text: "49+ karaoke nights listed every week" },
-                  { icon: "headphones", text: "Top DJs and KJs across all boroughs" },
+                  { icon: "headphones", text: "Top KJs across all boroughs" },
                   { icon: "local_bar", text: "Drink specials, happy hours & free shots" },
                   { icon: "meeting_room", text: "Private rooms available for groups" },
                 ].map((item, i) => (
@@ -649,12 +667,23 @@ export default function HomePage() {
                     {selectedEvent.startTime}{selectedEvent.endTime ? ` - ${selectedEvent.endTime}` : ""}
                   </span>
                 )}
-                {selectedEvent.dj && selectedEvent.dj !== "Open" && (
-                  <span className="inline-flex items-center gap-1 bg-accent/10 text-accent text-xs px-3 py-1.5 rounded-full font-bold">
-                    <span className="material-icons-round text-sm">headphones</span>
-                    {selectedEvent.dj}
-                  </span>
-                )}
+                {selectedEvent.dj && selectedEvent.dj !== "Open" && (() => {
+                  const kjSlug = getKJSlugForName(selectedEvent.dj);
+                  return kjSlug ? (
+                    <Link
+                      href={`/kj/${kjSlug}`}
+                      className="inline-flex items-center gap-1 bg-accent/10 text-accent text-xs px-3 py-1.5 rounded-full font-bold hover:bg-accent/20 transition-colors"
+                    >
+                      <span className="material-icons-round text-sm">headphones</span>
+                      {selectedEvent.dj}
+                    </Link>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 bg-accent/10 text-accent text-xs px-3 py-1.5 rounded-full font-bold">
+                      <span className="material-icons-round text-sm">headphones</span>
+                      {selectedEvent.dj}
+                    </span>
+                  );
+                })()}
                 {selectedEvent.isPrivateRoom && (
                   <span className="inline-flex items-center gap-1 bg-purple-500/10 text-purple-400 text-xs px-3 py-1.5 rounded-full font-bold">
                     <span className="material-icons-round text-sm">meeting_room</span>
@@ -786,7 +815,7 @@ export default function HomePage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 autoFocus
-                placeholder="Search venues, DJs, neighborhoods..."
+                placeholder="Search venues, KJs, neighborhoods..."
                 className="bg-transparent text-white text-sm flex-grow outline-none placeholder:text-text-muted"
               />
               {searchQuery && (
@@ -800,67 +829,142 @@ export default function HomePage() {
             </div>
           </div>
 
+          {/* Filter Tabs */}
+          {searchQuery.trim().length > 0 && (searchResults.length > 0 || kjResults.length > 0) && (
+            <div className="flex gap-1 px-5 pt-3 pb-1">
+              {([
+                { key: "all" as const, label: "All", count: searchResults.length + kjResults.length },
+                { key: "kjs" as const, label: "KJs", count: kjResults.length },
+                { key: "venues" as const, label: "Venues", count: searchResults.length },
+              ]).map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setSearchFilter(tab.key)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                    searchFilter === tab.key
+                      ? "bg-primary text-black"
+                      : "glass-card text-text-secondary hover:text-white"
+                  }`}
+                >
+                  {tab.label} ({tab.count})
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Results */}
           <div className="flex-1 overflow-y-auto px-5 py-4">
             {searchQuery.trim().length === 0 ? (
               <div className="text-center py-16">
                 <span className="material-icons-round text-text-muted text-5xl mb-3 block">search</span>
-                <p className="text-text-secondary">Type to search all 49 venues</p>
+                <p className="text-text-secondary">Search venues, KJs, and neighborhoods</p>
               </div>
-            ) : searchResults.length > 0 ? (
+            ) : searchResults.length > 0 || kjResults.length > 0 ? (
               <>
-                <p className="text-xs uppercase tracking-wider text-text-muted font-bold mb-4">
-                  {searchResults.length} result{searchResults.length !== 1 ? "s" : ""} for &ldquo;{searchQuery}&rdquo;
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {searchResults.map((event) => (
-                    <Link
-                      key={event.id}
-                      href={`/venue/${event.id}`}
-                      onClick={() => setSearchOpen(false)}
-                      className="glass-card rounded-2xl overflow-hidden hover:border-primary/30 transition-all group"
-                    >
-                      <div className="flex gap-3 p-3">
-                        <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0">
-                          {event.image ? (
-                            <img src={event.image} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-                              <span className="material-icons-round text-primary text-2xl">mic</span>
+                {/* KJ Results */}
+                {kjResults.length > 0 && searchFilter !== "venues" && (
+                  <div className="mb-6">
+                    {searchFilter === "all" && (
+                      <p className="text-xs uppercase tracking-wider text-accent font-bold mb-3 flex items-center gap-1.5">
+                        <span className="material-icons-round text-sm">headphones</span>
+                        KJs ({kjResults.length})
+                      </p>
+                    )}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {kjResults.map((kj) => (
+                        <Link
+                          key={kj.slug}
+                          href={`/kj/${kj.slug}`}
+                          onClick={() => setSearchOpen(false)}
+                          className="glass-card rounded-2xl overflow-hidden hover:border-accent/30 transition-all group"
+                        >
+                          <div className="flex gap-3 p-3">
+                            <div className="w-14 h-14 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
+                              <span className="material-icons-round text-accent text-2xl">headphones</span>
                             </div>
-                          )}
-                        </div>
-                        <div className="flex-grow min-w-0 py-1">
-                          <p className="font-bold text-white text-sm truncate group-hover:text-primary transition-colors">
-                            {event.venueName}
-                          </p>
-                          <p className="text-xs text-text-secondary mt-0.5 truncate">
-                            {event.eventName}
-                          </p>
-                          <div className="flex items-center gap-2 mt-2">
-                            <span className="bg-primary/10 text-primary text-[10px] px-2 py-0.5 rounded-full font-bold">
-                              {event.dayOfWeek === "Private Room Karaoke" ? "Private" : event.dayOfWeek}
-                            </span>
-                            {event.dj && (
-                              <span className="text-[10px] text-text-muted truncate">
-                                {event.dj}
-                              </span>
-                            )}
+                            <div className="flex-grow min-w-0 py-1">
+                              <p className="font-bold text-white text-sm truncate group-hover:text-accent transition-colors">
+                                {kj.name}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="bg-accent/10 text-accent text-[10px] px-2 py-0.5 rounded-full font-bold">
+                                  {kj.venueCount} {kj.venueCount === 1 ? "venue" : "venues"}
+                                </span>
+                                <span className="text-[10px] text-text-muted">
+                                  {kj.events.length} {kj.events.length === 1 ? "night" : "nights"}/week
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-text-muted mt-1 truncate">
+                                {kj.events.map((e) => e.venueName).filter((v, i, a) => a.indexOf(v) === i).join(", ")}
+                              </p>
+                            </div>
                           </div>
-                          <p className="text-[10px] text-text-muted mt-1 truncate">
-                            {event.neighborhood || event.city} &bull; {event.startTime} - {event.endTime}
-                          </p>
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Venue Results */}
+                {searchResults.length > 0 && searchFilter !== "kjs" && (
+                  <div>
+                    {searchFilter === "all" && (
+                      <p className="text-xs uppercase tracking-wider text-primary font-bold mb-3 flex items-center gap-1.5">
+                        <span className="material-icons-round text-sm">storefront</span>
+                        Venues ({searchResults.length})
+                      </p>
+                    )}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {searchResults.map((event) => (
+                        <Link
+                          key={event.id}
+                          href={`/venue/${event.id}`}
+                          onClick={() => setSearchOpen(false)}
+                          className="glass-card rounded-2xl overflow-hidden hover:border-primary/30 transition-all group"
+                        >
+                          <div className="flex gap-3 p-3">
+                            <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0">
+                              {event.image ? (
+                                <img src={event.image} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                                  <span className="material-icons-round text-primary text-2xl">mic</span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-grow min-w-0 py-1">
+                              <p className="font-bold text-white text-sm truncate group-hover:text-primary transition-colors">
+                                {event.venueName}
+                              </p>
+                              <p className="text-xs text-text-secondary mt-0.5 truncate">
+                                {event.eventName}
+                              </p>
+                              <div className="flex items-center gap-2 mt-2">
+                                <span className="bg-primary/10 text-primary text-[10px] px-2 py-0.5 rounded-full font-bold">
+                                  {event.dayOfWeek === "Private Room Karaoke" ? "Private" : event.dayOfWeek}
+                                </span>
+                                {event.dj && (
+                                  <span className="text-[10px] text-text-muted truncate">
+                                    {event.dj}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-text-muted mt-1 truncate">
+                                {event.neighborhood || event.city} &bull; {event.startTime} - {event.endTime}
+                              </p>
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </>
             ) : (
               <div className="text-center py-16">
                 <span className="material-icons-round text-text-muted text-5xl mb-3 block">search_off</span>
                 <p className="text-white font-semibold mb-1">No results</p>
-                <p className="text-text-secondary text-sm">No venues found for &ldquo;{searchQuery}&rdquo;</p>
+                <p className="text-text-secondary text-sm">Nothing found for &ldquo;{searchQuery}&rdquo;</p>
               </div>
             )}
           </div>

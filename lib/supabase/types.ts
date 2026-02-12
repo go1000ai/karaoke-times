@@ -281,6 +281,35 @@ export interface Database {
           created_at?: string;
         };
       };
+      kj_reviews: {
+        Row: {
+          id: string;
+          kj_slug: string;
+          user_id: string;
+          rating: number;
+          text: string;
+          is_anonymous: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          kj_slug: string;
+          user_id: string;
+          rating: number;
+          text?: string;
+          is_anonymous?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          kj_slug?: string;
+          user_id?: string;
+          rating?: number;
+          text?: string;
+          is_anonymous?: boolean;
+          created_at?: string;
+        };
+      };
       review_photos: {
         Row: {
           id: string;
