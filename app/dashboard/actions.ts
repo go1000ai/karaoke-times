@@ -67,6 +67,25 @@ export async function createPromo(formData: FormData) {
   return { success: true };
 }
 
+export async function updatePromo(promoId: string, formData: FormData) {
+  await requireVenueOwner();
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("venue_promos")
+    .update({
+      title: formData.get("title") as string,
+      description: (formData.get("description") as string) || null,
+      start_date: (formData.get("start_date") as string) || null,
+      end_date: (formData.get("end_date") as string) || null,
+    })
+    .eq("id", promoId);
+
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard/promos");
+  return { success: true };
+}
+
 export async function togglePromo(promoId: string, isActive: boolean) {
   await requireVenueOwner();
   const supabase = await createClient();

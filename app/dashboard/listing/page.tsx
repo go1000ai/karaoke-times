@@ -38,6 +38,7 @@ export default function ListingPage() {
         neighborhood: form.get("neighborhood"),
         cross_street: form.get("cross_street"),
         phone: form.get("phone"),
+        website: (form.get("website") as string) || null,
         description: form.get("description"),
       })
       .eq("id", venue.id);
@@ -63,6 +64,7 @@ export default function ListingPage() {
     { name: "neighborhood", label: "Neighborhood", type: "text" },
     { name: "cross_street", label: "Cross Street", type: "text" },
     { name: "phone", label: "Phone", type: "tel" },
+    { name: "website", label: "Website", type: "url" },
   ];
 
   return (
