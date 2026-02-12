@@ -9,6 +9,7 @@ import SongRequestModal from "@/components/SongRequestModal";
 import { useAuth } from "@/components/AuthProvider";
 import { venues, reviews, karaokeEvents } from "@/lib/mock-data";
 import { createClient } from "@/lib/supabase/client";
+import { AddToCalendar } from "@/components/AddToCalendar";
 
 interface FeaturedSpecial {
   id: string;
@@ -129,6 +130,17 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
                     <span className="material-icons-round text-xs">meeting_room</span>
                     Private Room
                   </span>
+                )}
+                {event.startTime && (
+                  <AddToCalendar
+                    title={`${event.eventName || "Karaoke Night"} at ${venue.name}`}
+                    description={`${event.dj && event.dj !== "Open" ? `KJ: ${event.dj}. ` : ""}${event.notes || ""}`}
+                    location={`${venue.name}, ${venue.address || ""}, ${venue.neighborhood}`}
+                    dayOfWeek={event.dayOfWeek}
+                    startTime={event.startTime}
+                    endTime={event.endTime || event.startTime}
+                    compact
+                  />
                 )}
               </div>
             )}
