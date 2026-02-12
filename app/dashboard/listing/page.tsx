@@ -39,6 +39,7 @@ export default function ListingPage() {
         cross_street: form.get("cross_street"),
         phone: form.get("phone"),
         website: (form.get("website") as string) || null,
+        hours_open: (form.get("hours_open") as string) || null,
         description: form.get("description"),
       })
       .eq("id", venue.id);
@@ -86,6 +87,19 @@ export default function ListingPage() {
             />
           </div>
         ))}
+
+        <div>
+          <label className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1.5 block">
+            Hours Open
+          </label>
+          <textarea
+            name="hours_open"
+            rows={3}
+            defaultValue={(venue.hours_open as string) || ""}
+            placeholder={"Mon–Thu: 4 PM – 12 AM\nFri–Sat: 4 PM – 2 AM\nSun: 2 PM – 10 PM"}
+            className="w-full bg-card-dark border border-border rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none"
+          />
+        </div>
 
         <div>
           <label className="text-xs font-bold text-text-muted uppercase tracking-wider mb-1.5 block">
