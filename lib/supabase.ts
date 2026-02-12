@@ -1,6 +1,13 @@
-import { createClient } from "@supabase/supabase-js";
+// Re-export the SSR-compatible clients
+// Use createClient from ./supabase/server for Server Components/Actions
+// Use createClient from ./supabase/client for Client Components
+export { createClient as createBrowserClient } from "./supabase/client";
+export type { Database } from "./supabase/types";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+// Legacy export for backward compatibility — browser client
+import { createBrowserClient } from "@supabase/ssr";
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createBrowserClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);

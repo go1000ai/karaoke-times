@@ -154,8 +154,28 @@ function VenueCard({ event }: { event: KaraokeEvent }) {
 export default function HomePage() {
   const scrollRef = useScrollReveal();
   const [activeDay, setActiveDay] = useState<string>("All");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const eventsByDay = getEventsByDay();
   const tabBarRef = useRef<HTMLDivElement>(null);
+
+  // Search logic — filters across all fields
+  const searchResults = searchQuery.trim().length > 0
+    ? karaokeEvents.filter((e) => {
+        const q = searchQuery.toLowerCase();
+        return (
+          e.venueName.toLowerCase().includes(q) ||
+          e.eventName.toLowerCase().includes(q) ||
+          e.neighborhood.toLowerCase().includes(q) ||
+          e.city.toLowerCase().includes(q) ||
+          e.dj.toLowerCase().includes(q) ||
+          e.address.toLowerCase().includes(q) ||
+          e.dayOfWeek.toLowerCase().includes(q) ||
+          e.notes.toLowerCase().includes(q)
+        );
+      })
+    : [];
 
   const filteredEvents =
     activeDay === "All"
@@ -204,21 +224,81 @@ export default function HomePage() {
               York City.
             </p>
 
-            <div className="w-full max-w-lg mb-6 animate-[fadeSlideUp_0.8s_ease-out_0.8s_both]">
-              <Link
-                href="/search"
-                className="flex items-center gap-3 glass-card rounded-full px-6 py-4 hover:border-primary/30 transition-all group cursor-pointer"
-              >
-                <span className="material-icons-round text-text-muted group-hover:text-primary transition-colors">
-                  search
-                </span>
-                <span className="text-text-muted text-sm flex-grow text-left">
-                  Search venues, songs, or KJs...
-                </span>
-                <span className="bg-primary text-black text-xs font-bold px-4 py-1.5 rounded-full">
-                  Go
-                </span>
-              </Link>
+            <div className="w-full max-w-lg mb-6 animate-[fadeSlideUp_0.8s_ease-out_0.8s_both] relative z-30">
+              <div className="flex items-center gap-3 glass-card rounded-full px-6 py-3">
+                <span className="material-icons-round text-text-muted">search</span>
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => { setSearchQuery(e.target.value); setSearchOpen(true); }}
+                  onFocus={() => setSearchOpen(true)}
+                  placeholder="Search venues, DJs, neighborhoods..."
+                  className="bg-transparent text-white text-sm flex-grow outline-none placeholder:text-text-muted"
+                />
+                {searchQuery ? (
+                  <button
+                    onClick={() => { setSearchQuery(""); setSearchOpen(false); }}
+                    className="text-text-muted hover:text-white transition-colors"
+                  >
+                    <span className="material-icons-round text-lg">close</span>
+                  </button>
+                ) : (
+                  <span className="bg-primary text-black text-xs font-bold px-4 py-1.5 rounded-full">
+                    Go
+                  </span>
+                )}
+              </div>
+
+              {/* Search results dropdown */}
+              {searchOpen && searchQuery.trim().length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 glass-card rounded-2xl max-h-80 overflow-y-auto shadow-2xl shadow-black/50 border border-border">
+                  {searchResults.length > 0 ? (
+                    <>
+                      <p className="px-4 pt-3 pb-1 text-[10px] uppercase tracking-wider text-text-muted font-bold">
+                        {searchResults.length} result{searchResults.length !== 1 ? "s" : ""}
+                      </p>
+                      {searchResults.map((event) => (
+                        <button
+                          key={event.id}
+                          onClick={() => {
+                            setSearchQuery("");
+                            setSearchOpen(false);
+                            const el = document.getElementById("listings");
+                            if (el) el.scrollIntoView({ behavior: "smooth" });
+                            setActiveDay(event.dayOfWeek);
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors text-left"
+                        >
+                          <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0">
+                            {event.image ? (
+                              <img src={event.image} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full bg-primary/10 flex items-center justify-center">
+                                <span className="material-icons-round text-primary text-sm">mic</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-grow min-w-0">
+                            <p className="text-sm font-bold text-white truncate">{event.venueName}</p>
+                            <p className="text-[11px] text-text-muted truncate">
+                              {event.dayOfWeek} &bull; {event.dj} &bull; {event.city}
+                            </p>
+                          </div>
+                          <span className="bg-primary/10 text-primary text-[9px] px-2 py-0.5 rounded-full font-bold flex-shrink-0">
+                            {event.dayOfWeek === "Private Room Karaoke" ? "Private" : event.dayOfWeek.slice(0, 3)}
+                          </span>
+                        </button>
+                      ))}
+                    </>
+                  ) : (
+                    <div className="px-4 py-8 text-center">
+                      <span className="material-icons-round text-text-muted text-3xl mb-2 block">search_off</span>
+                      <p className="text-text-muted text-sm">No venues found for &ldquo;{searchQuery}&rdquo;</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="flex flex-wrap justify-center gap-3 animate-[fadeSlideUp_0.8s_ease-out_1s_both]">
@@ -268,54 +348,74 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ─── VIDEO HIGHLIGHT SECTION ─── */}
-      <section className="py-16 md:py-20 bg-bg-dark">
-        <div className="max-w-4xl mx-auto px-6 md:px-8">
-          <div className="text-center mb-8">
-            <p
-              className="reveal text-accent text-2xl mb-2 neon-glow-pink"
-              style={{ fontFamily: "var(--font-script)" }}
-            >
-              See The Vibes
-            </p>
-            <h2 className="reveal text-3xl md:text-4xl font-extrabold text-white uppercase tracking-tight">
-              Karaoke Highlights
-            </h2>
-          </div>
-          <div className="reveal relative rounded-3xl overflow-hidden shadow-2xl shadow-accent/10">
-            <video
-              className="w-full h-auto rounded-3xl"
-              autoPlay
-              muted
-              loop
-              playsInline
-              poster="/karaoke-hero-2.png"
-            >
-              <source src="/karaoke-highlight.mp4" type="video/mp4" />
-              Your browser does not support the video tag.
-            </video>
-          </div>
-        </div>
-      </section>
+      {/* ─── VIDEO + ABOUT SECTION ─── */}
+      <section className="py-16 md:py-24 bg-bg-dark">
+        <div className="max-w-6xl mx-auto px-6 md:px-8">
+          <div className="flex flex-col md:flex-row items-center gap-8 md:gap-14">
+            {/* Video — left side on desktop, top on mobile */}
+            <div className="w-full md:w-1/2 reveal">
+              <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-accent/10 aspect-[9/16] max-h-[420px] md:max-h-[480px] mx-auto md:mx-0">
+                <video
+                  className="w-full h-full object-cover rounded-2xl"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  poster="/karaoke-hero-2.png"
+                >
+                  <source src="/karaoke-highlight.mp4" type="video/mp4" />
+                </video>
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 bg-accent rounded-full animate-pulse" />
+                    <span className="text-white/80 text-xs font-semibold">Karaoke Highlights</span>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-      {/* ─── ABOUT SECTION ─── */}
-      <section className="py-16 md:py-20">
-        <div className="max-w-4xl mx-auto px-6 md:px-8 text-center">
-          <p
-            className="reveal text-primary text-2xl mb-2 neon-glow-green"
-            style={{ fontFamily: "var(--font-script)" }}
-          >
-            NYC&apos;s #1 Directory
-          </p>
-          <h2 className="reveal text-3xl md:text-4xl font-extrabold text-white mb-6 uppercase tracking-tight">
-            About Karaoke Times
-          </h2>
-          <p className="reveal text-text-secondary leading-relaxed max-w-2xl mx-auto mb-8">
-            Your ultimate guide to the karaoke scene in New York City. Discover
-            live venues, find your favorite songs, connect with KJs, and never
-            miss a karaoke night again. From Brooklyn to Manhattan, the Bronx to
-            Queens — we&apos;ve got every mic in the city covered.
-          </p>
+            {/* Text — right side on desktop, bottom on mobile */}
+            <div className="w-full md:w-1/2 text-center md:text-left">
+              <p
+                className="reveal text-primary text-2xl mb-2 neon-glow-green"
+                style={{ fontFamily: "var(--font-script)" }}
+              >
+                NYC&apos;s #1 Directory
+              </p>
+              <h2 className="reveal text-3xl md:text-4xl font-extrabold text-white mb-6 uppercase tracking-tight">
+                Your Night Starts Here
+              </h2>
+              <p className="reveal text-text-secondary leading-relaxed mb-6">
+                From Brooklyn to Manhattan, the Bronx to Queens — Karaoke Times
+                is your ultimate guide to the karaoke scene. Find live venues,
+                discover amazing KJs, and never miss a karaoke night again.
+              </p>
+
+              <div className="reveal space-y-4 mb-8">
+                {[
+                  { icon: "mic", text: "49+ karaoke nights listed every week" },
+                  { icon: "headphones", text: "Top DJs and KJs across all boroughs" },
+                  { icon: "local_bar", text: "Drink specials, happy hours & free shots" },
+                  { icon: "meeting_room", text: "Private rooms available for groups" },
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center gap-3 justify-center md:justify-start">
+                    <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <span className="material-icons-round text-primary text-lg">{item.icon}</span>
+                    </div>
+                    <p className="text-white/80 text-sm font-medium">{item.text}</p>
+                  </div>
+                ))}
+              </div>
+
+              <a
+                href="#listings"
+                className="reveal inline-flex items-center gap-2 bg-primary text-black font-bold px-8 py-3.5 rounded-full hover:shadow-lg hover:shadow-primary/40 transition-all"
+              >
+                Browse All Listings
+                <span className="material-icons-round">arrow_downward</span>
+              </a>
+            </div>
+          </div>
         </div>
       </section>
 
