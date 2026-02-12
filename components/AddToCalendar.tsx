@@ -172,45 +172,19 @@ export function AddToCalendar({
             </span>
           </button>
 
-          {/* Email Reminder */}
+          {/* Email Reminder — Coming Soon */}
           <div className="border-t border-border/50">
-            {!showEmailForm ? (
-              <button
-                onClick={() => setShowEmailForm(true)}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors w-full text-left"
-              >
-                <span className="material-icons-round text-accent text-xl flex-shrink-0">
-                  email
-                </span>
-                <span className="text-sm text-white font-medium">
-                  Email Reminder
-                </span>
-              </button>
-            ) : sent ? (
-              <div className="flex items-center gap-2 px-4 py-3 text-green-400">
-                <span className="material-icons-round text-lg">check_circle</span>
-                <span className="text-sm font-medium">Reminder sent!</span>
-              </div>
-            ) : (
-              <div className="px-4 py-3 space-y-2">
-                <input
-                  type="email"
-                  placeholder="your@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSendEmail()}
-                  className="w-full bg-white/5 border border-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-text-muted focus:outline-none focus:border-primary/50"
-                  autoFocus
-                />
-                <button
-                  onClick={handleSendEmail}
-                  disabled={!email || sending}
-                  className="w-full bg-accent text-black font-semibold text-sm py-2 rounded-lg hover:bg-accent/90 transition-colors disabled:opacity-50"
-                >
-                  {sending ? "Sending..." : "Send Reminder"}
-                </button>
-              </div>
-            )}
+            <div className="flex items-center gap-3 px-4 py-3 opacity-30 cursor-not-allowed w-full">
+              <span className="material-icons-round text-xl flex-shrink-0">
+                email
+              </span>
+              <span className="text-sm font-medium">
+                Email Reminder
+              </span>
+              <span className="ml-auto text-[10px] bg-white/10 px-2 py-0.5 rounded-full">
+                Soon
+              </span>
+            </div>
           </div>
         </div>
       )}
