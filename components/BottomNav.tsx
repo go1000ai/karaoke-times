@@ -2,17 +2,21 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-const navItems = [
-  { icon: "home", label: "Explore", href: "/" },
-  { icon: "search", label: "Search", href: "/search" },
-  { icon: "add", label: "", href: "/add-event", isFab: true },
-  { icon: "favorite_border", label: "Favorites", href: "/favorites" },
-  { icon: "login", label: "Login", href: "/signin" },
-];
+import { useAuth } from "@/components/AuthProvider";
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const { user } = useAuth();
+
+  const navItems = [
+    { icon: "home", label: "Explore", href: "/" },
+    { icon: "search", label: "Search", href: "/search" },
+    { icon: "add", label: "", href: "/add-event", isFab: true },
+    { icon: "favorite_border", label: "Favorites", href: "/favorites" },
+    user
+      ? { icon: "person_outline", label: "Profile", href: "/profile" }
+      : { icon: "login", label: "Login", href: "/signin" },
+  ];
 
   return (
     <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[92%] max-w-[400px] glass-card rounded-[2rem] py-2 px-2 z-50 shadow-2xl shadow-primary/10 md:hidden">

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/components/AuthProvider";
 
 const navLinks = [
   { label: "Explore", href: "/" },
@@ -13,6 +14,7 @@ const navLinks = [
 
 export default function TopNav() {
   const pathname = usePathname();
+  const { user, loading, signOut } = useAuth();
 
   return (
     <header className="fixed top-0 w-full z-50 bg-bg-dark/80 backdrop-blur-md border-b border-border">
@@ -58,13 +60,43 @@ export default function TopNav() {
           >
             Add Karaoke Event
           </Link>
-          <Link
-            href="/signin"
-            className="flex items-center gap-1.5 border border-primary/40 text-primary font-semibold text-sm px-5 py-2 rounded-full hover:bg-primary/10 transition-colors"
-          >
-            <span className="material-icons-round text-base">login</span>
-            Login
-          </Link>
+
+          {!loading && user ? (
+            <div className="flex items-center gap-3">
+              <Link
+                href="/profile"
+                className="flex items-center gap-2 border border-primary/40 text-primary font-semibold text-sm px-4 py-2 rounded-full hover:bg-primary/10 transition-colors"
+              >
+                {user.user_metadata?.avatar_url ? (
+                  <img
+                    src={user.user_metadata.avatar_url}
+                    alt=""
+                    className="w-6 h-6 rounded-full"
+                  />
+                ) : (
+                  <span className="material-icons-round text-base">person</span>
+                )}
+                <span className="hidden sm:inline">
+                  {user.user_metadata?.full_name?.split(" ")[0] || "Profile"}
+                </span>
+              </Link>
+              <button
+                onClick={signOut}
+                className="text-text-muted hover:text-white transition-colors"
+                title="Sign out"
+              >
+                <span className="material-icons-round text-xl">logout</span>
+              </button>
+            </div>
+          ) : !loading ? (
+            <Link
+              href="/signin"
+              className="flex items-center gap-1.5 border border-primary/40 text-primary font-semibold text-sm px-5 py-2 rounded-full hover:bg-primary/10 transition-colors"
+            >
+              <span className="material-icons-round text-base">login</span>
+              Login
+            </Link>
+          ) : null}
         </div>
       </div>
     </header>
