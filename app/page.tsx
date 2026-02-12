@@ -303,14 +303,14 @@ export default function HomePage() {
       </section>
 
       {/* ─── VIDEO + ABOUT SECTION ─── */}
-      <section className="py-16 md:py-24 bg-bg-dark">
-        <div className="max-w-6xl mx-auto px-6 md:px-8">
-          <div className="flex flex-col md:flex-row items-center gap-6 md:gap-8">
-            {/* Video — left side on desktop, top on mobile */}
-            <div className="w-full md:w-[280px] lg:w-[320px] flex-shrink-0 reveal">
-              <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-accent/10 aspect-[9/16] max-h-[380px] mx-auto">
+      <section className="py-16 md:py-20 bg-bg-dark">
+        <div className="max-w-4xl mx-auto px-6 md:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-5 md:gap-6 items-center">
+            {/* Video — compact */}
+            <div className="reveal mx-auto md:mx-0">
+              <div className="relative w-[180px] md:w-[200px] rounded-2xl overflow-hidden shadow-2xl shadow-accent/10 aspect-[9/16]">
                 <video
-                  className="w-full h-full object-cover rounded-2xl"
+                  className="w-full h-full object-cover"
                   autoPlay
                   muted
                   loop
@@ -319,42 +319,42 @@ export default function HomePage() {
                 >
                   <source src="/karaoke-highlight.mp4" type="video/mp4" />
                 </video>
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 bg-accent rounded-full animate-pulse" />
-                    <span className="text-white/80 text-xs font-semibold">Karaoke Highlights</span>
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 bg-accent rounded-full animate-pulse" />
+                    <span className="text-white/80 text-[10px] font-semibold">Karaoke Highlights</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Text — right side on desktop, bottom on mobile */}
-            <div className="flex-1 text-center md:text-left">
+            {/* Text — right next to the video */}
+            <div className="text-center md:text-left">
               <p
-                className="reveal text-primary text-2xl mb-2 neon-glow-green"
+                className="reveal text-primary text-xl mb-1 neon-glow-green"
                 style={{ fontFamily: "var(--font-script)" }}
               >
                 NYC&apos;s #1 Directory
               </p>
-              <h2 className="reveal text-3xl md:text-4xl font-extrabold text-white mb-6 uppercase tracking-tight">
+              <h2 className="reveal text-2xl md:text-3xl font-extrabold text-white mb-4 uppercase tracking-tight">
                 Your Night Starts Here
               </h2>
-              <p className="reveal text-text-secondary leading-relaxed mb-6">
+              <p className="reveal text-text-secondary text-sm leading-relaxed mb-5">
                 From Brooklyn to Manhattan, the Bronx to Queens — Karaoke Times
                 is your ultimate guide to the karaoke scene. Find live venues,
                 discover amazing KJs, and never miss a karaoke night again.
               </p>
 
-              <div className="reveal space-y-4 mb-8">
+              <div className="reveal space-y-3 mb-6">
                 {[
                   { icon: "mic", text: "49+ karaoke nights listed every week" },
                   { icon: "headphones", text: "Top DJs and KJs across all boroughs" },
                   { icon: "local_bar", text: "Drink specials, happy hours & free shots" },
                   { icon: "meeting_room", text: "Private rooms available for groups" },
                 ].map((item, i) => (
-                  <div key={i} className="flex items-center gap-3 justify-center md:justify-start">
-                    <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <span className="material-icons-round text-primary text-lg">{item.icon}</span>
+                  <div key={i} className="flex items-center gap-2.5 justify-center md:justify-start">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <span className="material-icons-round text-primary text-base">{item.icon}</span>
                     </div>
                     <p className="text-white/80 text-sm font-medium">{item.text}</p>
                   </div>
@@ -363,10 +363,10 @@ export default function HomePage() {
 
               <a
                 href="#listings"
-                className="reveal inline-flex items-center gap-2 bg-primary text-black font-bold px-8 py-3.5 rounded-full hover:shadow-lg hover:shadow-primary/40 transition-all"
+                className="reveal inline-flex items-center gap-2 bg-primary text-black font-bold px-7 py-3 rounded-full hover:shadow-lg hover:shadow-primary/40 transition-all text-sm"
               >
                 Browse All Listings
-                <span className="material-icons-round">arrow_downward</span>
+                <span className="material-icons-round text-lg">arrow_downward</span>
               </a>
             </div>
           </div>
