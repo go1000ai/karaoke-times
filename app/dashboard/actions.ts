@@ -3,6 +3,18 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireVenueOwner } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
+
+export async function selectVenue(venueId: string) {
+  const cookieStore = await cookies();
+  cookieStore.set("active_venue_id", venueId, {
+    path: "/dashboard",
+    maxAge: 60 * 60 * 24 * 30, // 30 days
+    httpOnly: true,
+    sameSite: "lax",
+  });
+  revalidatePath("/dashboard");
+}
 
 export async function updateVenue(formData: FormData) {
   const user = await requireVenueOwner();

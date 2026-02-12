@@ -44,6 +44,12 @@ export default function BookingModal({ venueId, venueName, onClose }: BookingMod
       setError("Failed to submit booking. Please try again.");
     } else {
       setSubmitted(true);
+      // Notify venue owner and connected KJs
+      fetch("/api/notify-booking", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ venueId, venueName, date, startTime, partySize }),
+      }).catch(() => {}); // Fire and forget
     }
   };
 

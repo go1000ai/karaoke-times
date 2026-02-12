@@ -1,15 +1,12 @@
 import { requireVenueOwner } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { getDashboardVenue } from "@/lib/get-dashboard-venue";
 
 export default async function BookingsPage() {
   const user = await requireVenueOwner();
   const supabase = await createClient();
 
-  const { data: venue } = await supabase
-    .from("venues")
-    .select("id")
-    .eq("owner_id", user.id)
-    .single();
+  const { venue } = await getDashboardVenue(user.id);
 
   const { data: bookings } = await supabase
     .from("room_bookings")

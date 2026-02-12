@@ -6,8 +6,8 @@ import TopNav from "@/components/TopNav";
 export default function GlobalNav() {
   const pathname = usePathname();
 
-  // Hide TopNav on dashboard (sidebar layout) and signin (centered layout)
-  if (pathname.startsWith("/dashboard") || pathname.startsWith("/signin")) return null;
+  // Hide TopNav on dashboard (sidebar layout), TV display (fullscreen), and owner setup
+  if (pathname.startsWith("/dashboard") || pathname.endsWith("/tv") || pathname.startsWith("/signin/owner/setup")) return null;
 
   return <TopNav />;
 }

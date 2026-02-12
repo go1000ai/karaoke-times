@@ -1,0 +1,257 @@
+"use client";
+
+import { use, useEffect, useState } from "react";
+import { useQueueSubscription, type QueueEntry } from "@/hooks/useQueueSubscription";
+import { karaokeEvents } from "@/lib/mock-data";
+import { createClient } from "@/lib/supabase/client";
+
+interface FeaturedSpecial {
+  id: string;
+  name: string;
+  price: number | null;
+  category: string;
+}
+
+export default function TVDisplayPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const { queue, loading } = useQueueSubscription(id);
+  const event = karaokeEvents.find((e) => e.id === id);
+  const [clock, setClock] = useState("");
+  const [promoIndex, setPromoIndex] = useState(0);
+  const [specials, setSpecials] = useState<FeaturedSpecial[]>([]);
+
+  // Live clock
+  useEffect(() => {
+    const tick = () => {
+      const now = new Date();
+      setClock(
+        now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })
+      );
+    };
+    tick();
+    const interval = setInterval(tick, 10_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fetch featured specials from POS
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from("pos_menu_items")
+      .select("id, name, price, category")
+      .eq("venue_id", id)
+      .eq("is_featured", true)
+      .eq("is_available", true)
+      .order("category")
+      .then(({ data }) => {
+        if (data) setSpecials(data as FeaturedSpecial[]);
+      });
+  }, [id]);
+
+  // Rotate promos every 8 seconds
+  const promos = [
+    event?.notes || null,
+    event?.dj && event.dj !== "Open" ? `Tonight's KJ: ${event.dj}` : null,
+    "Request songs at karaoke-times.vercel.app",
+    "Scan the QR code to join the queue!",
+  ].filter(Boolean) as string[];
+
+  useEffect(() => {
+    if (promos.length <= 1) return;
+    const interval = setInterval(() => {
+      setPromoIndex((prev) => (prev + 1) % promos.length);
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [promos.length]);
+
+  const nowSinging = queue.find((q) => q.status === "now_singing");
+  const upNext = queue.find((q) => q.status === "up_next");
+  const waiting = queue.filter((q) => q.status === "waiting");
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-black text-white overflow-hidden select-none">
+      {/* Top Bar — Logo + KJ + Clock */}
+      <div className="flex items-center justify-between px-8 py-4 bg-gradient-to-r from-bg-dark via-black to-bg-dark border-b border-border/30">
+        <div className="flex items-center gap-4">
+          <img
+            src="/logo.png"
+            alt="Karaoke Times"
+            className="h-14 w-auto"
+            style={{
+              filter:
+                "drop-shadow(0 0 4px rgba(212,160,23,0.8)) drop-shadow(0 0 12px rgba(212,160,23,0.4))",
+            }}
+          />
+          <div>
+            <h1 className="text-xl font-extrabold text-white leading-tight">
+              {event?.venueName || "Karaoke Night"}
+            </h1>
+            {event?.dj && event.dj !== "Open" && (
+              <p className="text-primary text-sm font-bold neon-glow-green">
+                KJ {event.dj}
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-3xl font-extrabold text-white tabular-nums">{clock}</p>
+          <p className="text-xs text-text-muted uppercase tracking-widest">
+            {event?.dayOfWeek || "Tonight"}
+          </p>
+        </div>
+      </div>
+
+      {/* Main Content — 2 Column Layout */}
+      <div className="flex h-[calc(100vh-88px)]">
+        {/* Left — Now Singing (large) */}
+        <div className="flex-1 flex flex-col items-center justify-center p-8 relative">
+          {/* Ambient glow */}
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute top-[20%] left-[10%] w-[60%] h-[40%] bg-accent/8 blur-[100px] rounded-full" />
+            <div className="absolute bottom-[20%] right-[10%] w-[50%] h-[30%] bg-primary/8 blur-[80px] rounded-full" />
+          </div>
+
+          {nowSinging ? (
+            <div className="relative z-10 text-center animate-[fadeSlideUp_0.6s_ease-out]">
+              <div className="flex items-center justify-center gap-3 mb-6">
+                <span className="material-icons-round text-accent text-4xl animate-pulse">mic</span>
+                <p className="text-accent text-lg font-extrabold uppercase tracking-[0.2em] neon-glow-pink">
+                  Now Singing
+                </p>
+              </div>
+              <h2 className="text-5xl md:text-6xl font-extrabold text-white mb-4 leading-tight">
+                {nowSinging.song_title}
+              </h2>
+              <p className="text-2xl text-text-secondary font-medium mb-6">{nowSinging.artist}</p>
+              <div className="inline-flex items-center gap-3 bg-white/5 rounded-full px-6 py-3 border border-white/10">
+                <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center">
+                  <span className="material-icons-round text-accent">person</span>
+                </div>
+                <span className="text-xl font-bold text-white">
+                  {nowSinging.profiles?.display_name || "Singer"}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="relative z-10 text-center">
+              <span className="material-icons-round text-primary/20 text-[120px] mb-4">mic</span>
+              <p className="text-2xl font-bold text-white/40">Stage is Open</p>
+              <p className="text-text-muted mt-2">Request a song to get started!</p>
+            </div>
+          )}
+        </div>
+
+        {/* Right — Queue List */}
+        <div className="w-[380px] bg-white/[0.02] border-l border-border/20 flex flex-col">
+          {/* Up Next */}
+          {upNext && (
+            <div className="p-5 border-b border-border/20 bg-primary/5">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+                <p className="text-primary text-xs font-extrabold uppercase tracking-[0.15em]">
+                  Up Next
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <span className="material-icons-round text-primary text-2xl">music_note</span>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-white font-bold text-lg truncate">{upNext.song_title}</p>
+                  <p className="text-text-secondary text-sm truncate">{upNext.artist}</p>
+                  <p className="text-primary text-xs font-semibold mt-0.5">
+                    {upNext.profiles?.display_name || "Singer"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Queue Header */}
+          <div className="px-5 py-3 flex items-center justify-between border-b border-border/10">
+            <p className="text-xs font-extrabold text-text-muted uppercase tracking-widest">
+              In Line
+            </p>
+            <span className="text-xs text-text-muted font-bold bg-white/5 px-2.5 py-1 rounded-full">
+              {waiting.length}
+            </span>
+          </div>
+
+          {/* Queue List */}
+          <div className="flex-1 overflow-y-auto">
+            {waiting.length === 0 && !upNext && !nowSinging ? (
+              <div className="flex flex-col items-center justify-center h-full opacity-40">
+                <span className="material-icons-round text-4xl text-text-muted mb-2">queue_music</span>
+                <p className="text-text-muted text-sm">No songs in queue</p>
+              </div>
+            ) : (
+              <div className="p-3 space-y-1.5">
+                {waiting.map((entry, index) => (
+                  <QueueRow key={entry.id} entry={entry} position={index + 1} />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Featured Specials from POS */}
+          {specials.length > 0 && (
+            <div className="p-4 border-t border-border/20 bg-gradient-to-r from-orange-500/5 to-amber-500/5">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="material-icons-round text-orange-400 text-sm">local_bar</span>
+                <p className="text-[10px] font-extrabold text-orange-400 uppercase tracking-[0.15em]">
+                  Specials
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {specials.slice(0, 6).map((s) => (
+                  <div key={s.id} className="bg-white/5 rounded-lg px-2.5 py-1.5 flex items-center gap-2">
+                    <span className="text-white text-xs font-semibold">{s.name}</span>
+                    {s.price && (
+                      <span className="text-orange-400 text-xs font-bold">${s.price.toFixed(2)}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Promo Banner — rotates */}
+          {promos.length > 0 && (
+            <div className="p-4 border-t border-border/20 bg-gradient-to-r from-primary/5 to-accent/5">
+              <p
+                className="text-sm text-white/70 text-center font-medium leading-relaxed transition-opacity duration-500"
+                key={promoIndex}
+              >
+                {promos[promoIndex]}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function QueueRow({ entry, position }: { entry: QueueEntry; position: number }) {
+  return (
+    <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.05] transition-colors">
+      <span className="text-text-muted font-bold text-sm w-7 text-center flex-shrink-0">
+        {position}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-white font-semibold text-sm truncate">{entry.song_title}</p>
+        <p className="text-text-muted text-xs truncate">
+          {entry.artist} — {entry.profiles?.display_name || "Singer"}
+        </p>
+      </div>
+    </div>
+  );
+}

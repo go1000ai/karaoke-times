@@ -21,17 +21,45 @@ export default function QueuePage() {
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
-  // Get venue ID
+  // Get venue ID — check owned venue first, then staff venue (via cookie)
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from("venues")
-      .select("id")
-      .eq("owner_id", user.id)
-      .single()
-      .then(({ data }) => {
-        if (data) setVenueId(data.id);
-      });
+
+    const findVenue = async () => {
+      // Check if user owns a venue
+      const { data: owned } = await supabase
+        .from("venues")
+        .select("id")
+        .eq("owner_id", user.id)
+        .single();
+
+      if (owned) {
+        setVenueId(owned.id);
+        return;
+      }
+
+      // KJ: get the active venue from cookie via API
+      const res = await fetch("/api/active-venue");
+      const { venueId: activeId } = await res.json();
+      if (activeId) {
+        setVenueId(activeId);
+        return;
+      }
+
+      // Fallback: first connected venue
+      const { data: staffRecords } = await supabase
+        .from("venue_staff")
+        .select("venue_id")
+        .eq("user_id", user.id)
+        .not("accepted_at", "is", null)
+        .limit(1);
+
+      if (staffRecords?.[0]) {
+        setVenueId(staffRecords[0].venue_id);
+      }
+    };
+
+    findVenue();
   }, [user, supabase]);
 
   // Fetch and subscribe to queue
@@ -87,14 +115,29 @@ export default function QueuePage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-extrabold text-white mb-1">Song Queue</h1>
-      <p className="text-text-secondary text-sm mb-8">
-        Manage your live song queue. Updates in real-time.
-        <span className="inline-flex items-center gap-1 ml-2 text-primary">
-          <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-          Live
-        </span>
-      </p>
+      <div className="flex items-start justify-between mb-8">
+        <div>
+          <h1 className="text-2xl font-extrabold text-white mb-1">Song Queue</h1>
+          <p className="text-text-secondary text-sm">
+            Manage your live song queue. Updates in real-time.
+            <span className="inline-flex items-center gap-1 ml-2 text-primary">
+              <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+              Live
+            </span>
+          </p>
+        </div>
+        {venueId && (
+          <a
+            href={`/venue/${venueId}/tv`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 bg-accent/10 text-accent font-bold text-xs px-4 py-2.5 rounded-xl border border-accent/20 hover:bg-accent/20 transition-colors flex-shrink-0"
+          >
+            <span className="material-icons-round text-base">tv</span>
+            Open TV Display
+          </a>
+        )}
+      </div>
 
       {/* Now Singing */}
       {nowSinging && (

@@ -51,9 +51,9 @@ function useScrollReveal() {
   return ref;
 }
 
-function VenueCard({ event }: { event: KaraokeEvent }) {
+function VenueCard({ event, onClick }: { event: KaraokeEvent; onClick: () => void }) {
   return (
-    <div className="glass-card rounded-2xl overflow-hidden hover:border-primary/30 transition-all group">
+    <div onClick={onClick} className="glass-card rounded-2xl overflow-hidden hover:border-primary/30 transition-all group cursor-pointer">
       {/* Image or Placeholder */}
       <div className="h-52 relative overflow-hidden">
         {event.image ? (
@@ -155,6 +155,7 @@ export default function HomePage() {
   const [activeDay, setActiveDay] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<KaraokeEvent | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const eventsByDay = getEventsByDay();
   const tabBarRef = useRef<HTMLDivElement>(null);
@@ -304,10 +305,10 @@ export default function HomePage() {
       {/* ─── VIDEO + ABOUT SECTION ─── */}
       <section className="py-16 md:py-24 bg-bg-dark">
         <div className="max-w-6xl mx-auto px-6 md:px-8">
-          <div className="flex flex-col md:flex-row items-center gap-8 md:gap-14">
+          <div className="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-12">
             {/* Video — left side on desktop, top on mobile */}
-            <div className="w-full md:w-1/2 reveal">
-              <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-accent/10 aspect-[9/16] max-h-[420px] md:max-h-[480px] mx-auto md:mx-0">
+            <div className="w-full md:w-5/12 reveal">
+              <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-accent/10 aspect-[9/16] max-h-[420px] md:max-h-[480px] mx-auto">
                 <video
                   className="w-full h-full object-cover rounded-2xl"
                   autoPlay
@@ -328,7 +329,7 @@ export default function HomePage() {
             </div>
 
             {/* Text — right side on desktop, bottom on mobile */}
-            <div className="w-full md:w-1/2 text-center md:text-left">
+            <div className="w-full md:w-5/12 text-center md:text-left">
               <p
                 className="reveal text-primary text-2xl mb-2 neon-glow-green"
                 style={{ fontFamily: "var(--font-script)" }}
@@ -445,7 +446,7 @@ export default function HomePage() {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {dayEvents.map((event) => (
-                      <VenueCard key={event.id} event={event} />
+                      <VenueCard key={event.id} event={event} onClick={() => setSelectedEvent(event)} />
                     ))}
                   </div>
                 </div>
@@ -455,7 +456,7 @@ export default function HomePage() {
             // Show filtered day
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredEvents.map((event) => (
-                <VenueCard key={event.id} event={event} />
+                <VenueCard key={event.id} event={event} onClick={() => setSelectedEvent(event)} />
               ))}
             </div>
           )}
@@ -564,6 +565,180 @@ export default function HomePage() {
         <div className="absolute top-[10%] -left-[20%] w-[60%] h-[40%] bg-primary/5 blur-[120px] rounded-full" />
         <div className="absolute bottom-[20%] -right-[20%] w-[60%] h-[40%] bg-accent/5 blur-[120px] rounded-full" />
       </div>
+
+      {/* Venue Detail Popup */}
+      {selectedEvent && (
+        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setSelectedEvent(null)}
+          />
+
+          {/* Modal */}
+          <div className="relative w-full max-w-lg mx-auto bg-bg-dark border border-border rounded-t-3xl md:rounded-3xl max-h-[90vh] overflow-y-auto shadow-2xl animate-[slideUp_0.25s_ease-out]">
+            {/* Hero image */}
+            <div className="relative h-56">
+              {selectedEvent.image ? (
+                <img
+                  src={selectedEvent.image}
+                  alt={selectedEvent.venueName}
+                  className="w-full h-full object-cover rounded-t-3xl md:rounded-t-3xl"
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-navy via-card-dark to-bg-dark flex flex-col items-center justify-center rounded-t-3xl">
+                  <span className="material-icons-round text-primary/30 text-7xl mb-2">mic</span>
+                  <p className="text-white/60 font-bold">{selectedEvent.venueName}</p>
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-bg-dark via-bg-dark/30 to-transparent rounded-t-3xl" />
+
+              {/* Close button */}
+              <button
+                onClick={() => setSelectedEvent(null)}
+                className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center hover:bg-black/70 transition-colors"
+              >
+                <span className="material-icons-round text-white text-xl">close</span>
+              </button>
+
+              {/* Day badge */}
+              <div className="absolute top-4 left-4 bg-primary text-black text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                {selectedEvent.dayOfWeek === "Private Room Karaoke" ? "Private Room" : selectedEvent.dayOfWeek}
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="px-5 pb-6 -mt-4 relative z-10">
+              {/* Venue name + event */}
+              <h2 className="text-xl font-extrabold text-white mb-1">{selectedEvent.venueName}</h2>
+              <p className="text-accent text-xs font-bold uppercase tracking-wider mb-3">{selectedEvent.eventName}</p>
+
+              {/* Info pills */}
+              <div className="flex flex-wrap gap-2 mb-4">
+                {selectedEvent.startTime && (
+                  <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs px-3 py-1.5 rounded-full font-bold">
+                    <span className="material-icons-round text-sm">schedule</span>
+                    {selectedEvent.startTime}{selectedEvent.endTime ? ` - ${selectedEvent.endTime}` : ""}
+                  </span>
+                )}
+                {selectedEvent.dj && selectedEvent.dj !== "Open" && (
+                  <span className="inline-flex items-center gap-1 bg-accent/10 text-accent text-xs px-3 py-1.5 rounded-full font-bold">
+                    <span className="material-icons-round text-sm">headphones</span>
+                    {selectedEvent.dj}
+                  </span>
+                )}
+                {selectedEvent.isPrivateRoom && (
+                  <span className="inline-flex items-center gap-1 bg-purple-500/10 text-purple-400 text-xs px-3 py-1.5 rounded-full font-bold">
+                    <span className="material-icons-round text-sm">meeting_room</span>
+                    Private Room
+                  </span>
+                )}
+              </div>
+
+              {/* Address */}
+              <div className="glass-card rounded-xl p-4 mb-4">
+                <div className="flex items-start gap-3">
+                  <span className="material-icons-round text-primary text-lg mt-0.5">location_on</span>
+                  <div>
+                    <p className="text-sm text-white font-medium">{selectedEvent.address}</p>
+                    <p className="text-xs text-text-secondary mt-0.5">
+                      {selectedEvent.city}, {selectedEvent.state}
+                      {selectedEvent.neighborhood ? ` — ${selectedEvent.neighborhood}` : ""}
+                    </p>
+                    {selectedEvent.crossStreet && (
+                      <p className="text-[10px] text-text-muted mt-1">Near {selectedEvent.crossStreet}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Notes */}
+              {selectedEvent.notes && (
+                <div className="glass-card rounded-xl p-4 mb-4">
+                  <div className="flex items-start gap-3">
+                    <span className="material-icons-round text-accent text-lg mt-0.5">info</span>
+                    <p className="text-sm text-text-secondary leading-relaxed">{selectedEvent.notes}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Action buttons row */}
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                <button
+                  onClick={() => {
+                    const addr = encodeURIComponent(`${selectedEvent.address}, ${selectedEvent.neighborhood || selectedEvent.city}`);
+                    window.open(`https://www.google.com/maps/dir/?api=1&destination=${addr}`, "_blank");
+                  }}
+                  className="glass-card rounded-xl p-3 flex flex-col items-center gap-1.5 hover:border-primary/30 transition-all"
+                >
+                  <span className="material-icons-round text-primary text-xl">directions</span>
+                  <span className="text-[10px] text-text-secondary font-semibold">Directions</span>
+                </button>
+
+                {selectedEvent.phone ? (
+                  <a
+                    href={`tel:${selectedEvent.phone}`}
+                    className="glass-card rounded-xl p-3 flex flex-col items-center gap-1.5 hover:border-primary/30 transition-all"
+                  >
+                    <span className="material-icons-round text-primary text-xl">call</span>
+                    <span className="text-[10px] text-text-secondary font-semibold">Call</span>
+                  </a>
+                ) : (
+                  <div className="glass-card rounded-xl p-3 flex flex-col items-center gap-1.5 opacity-40">
+                    <span className="material-icons-round text-text-muted text-xl">call</span>
+                    <span className="text-[10px] text-text-muted font-semibold">No Phone</span>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => {
+                    if (navigator.share) {
+                      navigator.share({ title: selectedEvent.venueName, text: `${selectedEvent.eventName} at ${selectedEvent.venueName}`, url: `${window.location.origin}/venue/${selectedEvent.id}` });
+                    }
+                  }}
+                  className="glass-card rounded-xl p-3 flex flex-col items-center gap-1.5 hover:border-primary/30 transition-all"
+                >
+                  <span className="material-icons-round text-primary text-xl">share</span>
+                  <span className="text-[10px] text-text-secondary font-semibold">Share</span>
+                </button>
+              </div>
+
+              {/* Direction modes */}
+              <div className="glass-card rounded-xl overflow-hidden mb-4">
+                <div className="grid grid-cols-3 divide-x divide-border">
+                  {[
+                    { icon: "directions_car", label: "Drive", mode: "driving" },
+                    { icon: "directions_transit", label: "Transit", mode: "transit" },
+                    { icon: "directions_walk", label: "Walk", mode: "walking" },
+                  ].map((t) => (
+                    <button
+                      key={t.mode}
+                      onClick={() => {
+                        const addr = encodeURIComponent(`${selectedEvent.address}, ${selectedEvent.neighborhood || selectedEvent.city}`);
+                        window.open(`https://www.google.com/maps/dir/?api=1&destination=${addr}&travelmode=${t.mode}`, "_blank");
+                      }}
+                      className="py-3 flex flex-col items-center gap-1 hover:bg-white/5 transition-colors"
+                    >
+                      <span className="material-icons-round text-primary text-lg">{t.icon}</span>
+                      <span className="text-[10px] text-text-muted">{t.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Full listing link */}
+              <Link
+                href={`/venue/${selectedEvent.id}`}
+                onClick={() => setSelectedEvent(null)}
+                className="w-full bg-primary text-black font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-primary/30 transition-all"
+              >
+                <span className="material-icons-round text-xl">open_in_new</span>
+                View Full Listing
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search Results Popup */}
       {searchOpen && (

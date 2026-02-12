@@ -66,9 +66,20 @@ export async function requireVenueOwner() {
     .single();
 
   const profile = data as { role: string } | null;
-  if (!profile || profile.role !== "venue_owner") {
-    redirect("/");
-  }
 
-  return user;
+  // Allow venue owners
+  if (profile?.role === "venue_owner") return user;
+
+  // Allow KJs who are connected staff at any venue
+  const { data: staffRecord } = await supabase
+    .from("venue_staff")
+    .select("id")
+    .eq("user_id", user.id)
+    .not("accepted_at", "is", null)
+    .limit(1)
+    .single();
+
+  if (staffRecord) return user;
+
+  redirect("/");
 }

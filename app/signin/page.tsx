@@ -20,18 +20,34 @@ function SignInContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const urlError = searchParams.get("error");
+  const defaultRole = searchParams.get("role"); // ?role=owner pre-selects owner toggle
 
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [isOwner, setIsOwner] = useState(defaultRole === "owner");
+  const [venueName, setVenueName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(urlError ? "Sign in failed. Please try again." : "");
   const [success, setSuccess] = useState("");
 
+  // After login, check role and redirect accordingly
   useEffect(() => {
     if (!loading && user) {
-      router.push("/");
+      const supabase = createClient();
+      supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single()
+        .then(({ data }) => {
+          if (data?.role === "venue_owner") {
+            router.push("/dashboard");
+          } else {
+            router.push("/");
+          }
+        });
     }
   }, [user, loading, router]);
 
@@ -55,35 +71,82 @@ function SignInContent() {
     const supabase = createClient();
 
     if (mode === "signup") {
-      const { error } = await supabase.auth.signUp({
+      const { error: signUpError, data } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             full_name: displayName || email.split("@")[0],
+            role: isOwner ? "venue_owner" : "user",
           },
         },
       });
 
-      setSubmitting(false);
-      if (error) {
-        setError(error.message);
+      if (signUpError) {
+        setSubmitting(false);
+        setError(signUpError.message);
+        return;
+      }
+
+      // If email confirmation is disabled, user is immediately available
+      if (data.user && data.session) {
+        // Set role and display name
+        await supabase
+          .from("profiles")
+          .update({
+            role: isOwner ? "venue_owner" : "user",
+            display_name: displayName || email.split("@")[0],
+          })
+          .eq("id", data.user.id);
+
+        // Create venue for owners
+        if (isOwner && venueName.trim()) {
+          await supabase.from("venues").insert({
+            owner_id: data.user.id,
+            name: venueName.trim(),
+            city: "New York",
+            state: "New York",
+          });
+        }
+
+        setSubmitting(false);
+        router.push(isOwner ? "/dashboard" : "/");
       } else {
+        setSubmitting(false);
         setSuccess("Account created! Check your email to confirm, then log in.");
         setMode("login");
         setPassword("");
       }
     } else {
-      const { error } = await supabase.auth.signInWithPassword({
+      // Login
+      const { error: loginError, data } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      setSubmitting(false);
-      if (error) {
-        setError(error.message);
+      if (loginError) {
+        setSubmitting(false);
+        setError(loginError.message);
+        return;
       }
-      // If successful, the onAuthStateChange in AuthProvider will redirect
+
+      // Check role and redirect
+      if (data.user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", data.user.id)
+          .single();
+
+        setSubmitting(false);
+        if (profile?.role === "venue_owner") {
+          router.push("/dashboard");
+        } else {
+          router.push("/");
+        }
+      } else {
+        setSubmitting(false);
+      }
     }
   };
 
@@ -135,6 +198,102 @@ function SignInContent() {
           </div>
         )}
 
+        {/* Email / Password Form */}
+        <form onSubmit={handleEmailAuth} className="w-full space-y-3 mb-5">
+          {mode === "signup" && (
+            <>
+              <input
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="Your name"
+                className="w-full bg-card-dark border border-border rounded-2xl py-3.5 px-5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary placeholder:text-text-muted"
+              />
+
+              {/* Owner toggle */}
+              <button
+                type="button"
+                onClick={() => setIsOwner(!isOwner)}
+                className={`w-full flex items-center gap-3 rounded-2xl py-3.5 px-5 text-sm font-semibold transition-all border ${
+                  isOwner
+                    ? "bg-accent/10 border-accent/30 text-accent"
+                    : "bg-card-dark border-border text-text-muted hover:text-white hover:border-white/20"
+                }`}
+              >
+                <span className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                  isOwner ? "bg-accent border-accent" : "border-text-muted"
+                }`}>
+                  {isOwner && (
+                    <span className="material-icons-round text-white text-sm">check</span>
+                  )}
+                </span>
+                <span className="material-icons-round text-lg">
+                  {isOwner ? "star" : "star_border"}
+                </span>
+                I&apos;m a KJ or Venue Owner
+              </button>
+
+              {/* Venue name — shows when owner is checked */}
+              {isOwner && (
+                <input
+                  type="text"
+                  value={venueName}
+                  onChange={(e) => setVenueName(e.target.value)}
+                  placeholder="Venue / Bar name"
+                  className="w-full bg-card-dark border border-accent/20 rounded-2xl py-3.5 px-5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent placeholder:text-text-muted"
+                />
+              )}
+            </>
+          )}
+
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); setError(""); }}
+            placeholder="Email address"
+            required
+            className="w-full bg-card-dark border border-border rounded-2xl py-3.5 px-5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary placeholder:text-text-muted"
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => { setPassword(e.target.value); setError(""); }}
+            placeholder="Password"
+            required
+            minLength={6}
+            className="w-full bg-card-dark border border-border rounded-2xl py-3.5 px-5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary placeholder:text-text-muted"
+          />
+          <button
+            type="submit"
+            disabled={submitting}
+            className={`w-full font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:shadow-lg transition-all disabled:opacity-50 cursor-pointer ${
+              mode === "signup" && isOwner
+                ? "bg-accent text-white hover:shadow-accent/30"
+                : "bg-primary text-black hover:shadow-primary/30"
+            }`}
+          >
+            {submitting ? (
+              <div className={`w-5 h-5 border-2 ${mode === "signup" && isOwner ? "border-white" : "border-black"} border-t-transparent rounded-full animate-spin`} />
+            ) : mode === "login" ? (
+              "Log In"
+            ) : isOwner ? (
+              <>
+                <span className="material-icons-round text-xl">rocket_launch</span>
+                Create Business Account
+              </>
+            ) : (
+              "Create Account"
+            )}
+          </button>
+        </form>
+
+        {/* Divider */}
+        <div className="flex items-center gap-3 w-full mb-5">
+          <div className="flex-1 h-px bg-border" />
+          <span className="text-xs text-text-muted uppercase tracking-widest">or</span>
+          <div className="flex-1 h-px bg-border" />
+        </div>
+
         {/* OAuth Buttons */}
         <button
           onClick={() => handleOAuthSignIn("google")}
@@ -158,56 +317,6 @@ function SignInContent() {
           </svg>
           Continue with Apple
         </button>
-
-        {/* Divider */}
-        <div className="flex items-center gap-3 w-full mb-5">
-          <div className="flex-1 h-px bg-border" />
-          <span className="text-xs text-text-muted uppercase tracking-widest">or</span>
-          <div className="flex-1 h-px bg-border" />
-        </div>
-
-        {/* Email / Password Form */}
-        <form onSubmit={handleEmailAuth} className="w-full space-y-3 mb-5">
-          {mode === "signup" && (
-            <input
-              type="text"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Your name"
-              className="w-full bg-card-dark border border-border rounded-2xl py-3.5 px-5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary placeholder:text-text-muted"
-            />
-          )}
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => { setEmail(e.target.value); setError(""); }}
-            placeholder="Email address"
-            required
-            className="w-full bg-card-dark border border-border rounded-2xl py-3.5 px-5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary placeholder:text-text-muted"
-          />
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => { setPassword(e.target.value); setError(""); }}
-            placeholder="Password"
-            required
-            minLength={6}
-            className="w-full bg-card-dark border border-border rounded-2xl py-3.5 px-5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary placeholder:text-text-muted"
-          />
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full bg-primary text-black font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-50 cursor-pointer"
-          >
-            {submitting ? (
-              <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
-            ) : mode === "login" ? (
-              "Log In"
-            ) : (
-              "Create Account"
-            )}
-          </button>
-        </form>
 
         {/* Toggle Login / Sign Up */}
         <p className="text-sm text-text-secondary">
@@ -233,21 +342,6 @@ function SignInContent() {
             </>
           )}
         </p>
-
-        {/* Business Access */}
-        <div className="flex items-center gap-3 w-full mt-6 mb-4">
-          <div className="flex-1 h-px bg-border" />
-          <span className="text-xs text-text-muted uppercase tracking-widest">Business Access</span>
-          <div className="flex-1 h-px bg-border" />
-        </div>
-
-        <button
-          onClick={() => handleOAuthSignIn("google")}
-          className="text-primary text-sm font-semibold flex items-center gap-2 hover:underline neon-glow-green cursor-pointer"
-        >
-          <span className="material-icons-round text-lg">star</span>
-          KJ & Venue Owner Login
-        </button>
 
         <p className="text-[10px] text-text-muted mt-6 text-center leading-relaxed">
           By continuing, you agree to Karaoke Times&apos;{" "}

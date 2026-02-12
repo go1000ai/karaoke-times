@@ -10,6 +10,23 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      // Check user role and redirect accordingly
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+
+        if (profile?.role === "venue_owner") {
+          return NextResponse.redirect(`${origin}/dashboard`);
+        }
+      }
+
       return NextResponse.redirect(`${origin}${next}`);
     }
   }

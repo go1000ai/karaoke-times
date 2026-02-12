@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
 import StarRating from "@/components/StarRating";
@@ -8,6 +8,14 @@ import QueueStatus from "@/components/QueueStatus";
 import SongRequestModal from "@/components/SongRequestModal";
 import { useAuth } from "@/components/AuthProvider";
 import { venues, reviews, karaokeEvents } from "@/lib/mock-data";
+import { createClient } from "@/lib/supabase/client";
+
+interface FeaturedSpecial {
+  id: string;
+  name: string;
+  price: number | null;
+  category: string;
+}
 
 export default function VenueDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -17,6 +25,22 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
   const { user } = useAuth();
   const [isFavorite, setIsFavorite] = useState(false);
   const [showSongRequest, setShowSongRequest] = useState(false);
+  const [specials, setSpecials] = useState<FeaturedSpecial[]>([]);
+
+  // Fetch featured specials from POS
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from("pos_menu_items")
+      .select("id, name, price, category")
+      .eq("venue_id", id)
+      .eq("is_featured", true)
+      .eq("is_available", true)
+      .order("category")
+      .then(({ data }) => {
+        if (data?.length) setSpecials(data as FeaturedSpecial[]);
+      });
+  }, [id]);
 
   const handleDirections = () => {
     const address = encodeURIComponent(`${venue.address}, ${venue.neighborhood}`);
@@ -24,13 +48,13 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
   };
 
   return (
-    <div className="min-h-screen pb-28 md:pb-12 bg-bg-dark">
+    <div className="min-h-screen pb-44 md:pb-24 bg-bg-dark">
       <div className="max-w-4xl mx-auto">
         {/* Hero Image */}
-        <div className="relative h-72">
+        <div className="relative h-72 mt-20">
           <img src={venue.image} alt={venue.name} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-bg-dark via-bg-dark/30 to-transparent" />
-          <div className="absolute top-12 left-4 right-4 flex justify-between">
+          <div className="absolute top-4 left-4 right-4 flex justify-between">
             <Link
               href="/"
               className="w-10 h-10 rounded-full glass-card flex items-center justify-center"
@@ -72,6 +96,45 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
+        {/* Description */}
+        <section className="px-5 mt-5">
+          <div className="glass-card rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="material-icons-round text-primary">info</span>
+              <h3 className="font-bold text-white">About This Venue</h3>
+            </div>
+            <p className="text-sm text-text-secondary leading-relaxed">
+              {event?.notes || `${venue.name} is a popular karaoke spot located in ${venue.neighborhood}. Come enjoy live karaoke and great vibes.`}
+            </p>
+            {event && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-[10px] px-2.5 py-1 rounded-full font-bold">
+                  <span className="material-icons-round text-xs">event</span>
+                  {event.dayOfWeek}
+                </span>
+                {event.startTime && (
+                  <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-[10px] px-2.5 py-1 rounded-full font-bold">
+                    <span className="material-icons-round text-xs">schedule</span>
+                    {event.startTime}{event.endTime ? ` - ${event.endTime}` : ""}
+                  </span>
+                )}
+                {event.dj && event.dj !== "Open" && (
+                  <span className="inline-flex items-center gap-1 bg-accent/10 text-accent text-[10px] px-2.5 py-1 rounded-full font-bold">
+                    <span className="material-icons-round text-xs">headphones</span>
+                    KJ: {event.dj}
+                  </span>
+                )}
+                {event.isPrivateRoom && (
+                  <span className="inline-flex items-center gap-1 bg-purple-500/10 text-purple-400 text-[10px] px-2.5 py-1 rounded-full font-bold">
+                    <span className="material-icons-round text-xs">meeting_room</span>
+                    Private Room
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        </section>
+
         {/* Action Buttons */}
         <section className="px-5 mt-5">
           <div className="grid grid-cols-3 gap-3">
@@ -112,7 +175,40 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
         {/* Live Queue Status */}
         <section className="px-5 mt-5">
           <QueueStatus venueId={id} />
+          <Link
+            href={`/venue/${id}/queue`}
+            className="mt-3 flex items-center justify-center gap-2 text-primary text-sm font-bold py-3 glass-card rounded-xl hover:bg-primary/5 transition-colors"
+          >
+            <span className="material-icons-round text-lg">queue_music</span>
+            View Full Queue
+            <span className="material-icons-round text-base">arrow_forward</span>
+          </Link>
         </section>
+
+        {/* Drink & Food Specials from POS */}
+        {specials.length > 0 && (
+          <section className="px-5 mt-5">
+            <div className="glass-card rounded-2xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="material-icons-round text-orange-400">local_bar</span>
+                <h3 className="font-bold text-white">Specials</h3>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {specials.map((s) => (
+                  <div key={s.id} className="bg-orange-500/5 border border-orange-500/10 rounded-xl p-3">
+                    <p className="text-white text-sm font-semibold">{s.name}</p>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-text-muted text-xs">{s.category}</span>
+                      {s.price && (
+                        <span className="text-orange-400 font-bold text-sm">${s.price.toFixed(2)}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Open Times */}
         <section className="px-5 mt-6">
