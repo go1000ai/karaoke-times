@@ -392,14 +392,14 @@ export default function HomePage() {
           </div>
 
           {/* Day filter tabs */}
-          <div className="reveal mb-10 relative">
+          <div className="reveal mb-10">
             <div
               ref={tabBarRef}
-              className="flex gap-2 overflow-x-auto hide-scrollbar pb-2 px-1"
+              className="flex flex-wrap gap-2 justify-center"
             >
               <button
                 onClick={() => setActiveDay("All")}
-                className={`flex-shrink-0 px-5 py-2.5 rounded-full text-sm font-bold transition-all ${
+                className={`px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition-all ${
                   activeDay === "All"
                     ? "bg-primary text-black shadow-lg shadow-primary/30"
                     : "glass-card text-text-secondary hover:text-white hover:border-primary/30"
@@ -411,14 +411,14 @@ export default function HomePage() {
                 <button
                   key={day}
                   onClick={() => setActiveDay(day)}
-                  className={`flex-shrink-0 px-5 py-2.5 rounded-full text-sm font-bold transition-all ${
+                  className={`px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition-all ${
                     activeDay === day
                       ? "bg-primary text-black shadow-lg shadow-primary/30"
                       : "glass-card text-text-secondary hover:text-white hover:border-primary/30"
                   }`}
                 >
                   <span className="hidden sm:inline">{day}</span>
-                  <span className="sm:hidden">{DAY_SHORT[day]}</span>
+                  <span className="sm:hidden">{DAY_SHORT[day] || day}</span>
                   {" "}({countByDay[day]})
                 </button>
               ))}
