@@ -10,12 +10,12 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      // Check user role and redirect accordingly
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
       if (user) {
+        // Check if venue owner
         const { data: profile } = await supabase
           .from("profiles")
           .select("role")
@@ -25,6 +25,21 @@ export async function GET(request: Request) {
         if (profile?.role === "venue_owner") {
           return NextResponse.redirect(`${origin}/dashboard`);
         }
+
+        // Check if connected KJ
+        const { data: staff } = await supabase
+          .from("venue_staff")
+          .select("id")
+          .eq("user_id", user.id)
+          .not("accepted_at", "is", null)
+          .limit(1);
+
+        if (staff && staff.length > 0) {
+          return NextResponse.redirect(`${origin}/dashboard`);
+        }
+
+        // Regular singer → profile
+        return NextResponse.redirect(`${origin}/profile`);
       }
 
       return NextResponse.redirect(`${origin}${next}`);
