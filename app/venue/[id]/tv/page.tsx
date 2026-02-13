@@ -162,7 +162,7 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
       {/* Main Content — 2 Column Layout */}
       <div className="flex flex-1 min-h-0">
         {/* Left — Now Singing + Lyrics */}
-        <div className="flex-1 flex flex-col items-center justify-center p-8 relative overflow-hidden">
+        <div className="flex-1 flex flex-col relative overflow-hidden">
           {/* Ambient glow */}
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute top-[20%] left-[10%] w-[60%] h-[40%] bg-accent/8 blur-[100px] rounded-full" />
@@ -170,68 +170,67 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
           </div>
 
           {nowSinging ? (
-            <div className="relative z-10 w-full flex flex-col items-center animate-[fadeSlideUp_0.6s_ease-out]">
-              {/* Song info header */}
-              <div className="text-center mb-4">
-                <div className="flex items-center justify-center gap-3 mb-3">
-                  <span className="material-icons-round text-accent text-3xl animate-pulse">mic</span>
-                  <p className="text-accent text-sm font-extrabold uppercase tracking-[0.2em] neon-glow-pink">
+            <div className="relative z-10 w-full flex flex-col h-full">
+              {/* Song info — pinned to top, compact */}
+              <div className="flex-shrink-0 text-center pt-5 pb-3 px-8">
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <span className="material-icons-round text-accent text-xl animate-pulse">mic</span>
+                  <p className="text-accent text-xs font-extrabold uppercase tracking-[0.2em] neon-glow-pink">
                     Now Singing
                   </p>
                 </div>
-                <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-2 leading-tight">
+                <h2 className="text-2xl md:text-3xl font-extrabold text-white leading-tight">
                   {nowSinging.song_title}
                 </h2>
-                <p className="text-lg text-text-secondary font-medium mb-3">{nowSinging.artist}</p>
-                <div className="inline-flex items-center gap-2 bg-white/5 rounded-full px-4 py-2 border border-white/10">
-                  <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center">
-                    <span className="material-icons-round text-accent text-sm">person</span>
-                  </div>
-                  <span className="text-base font-bold text-white">
-                    {nowSinging.profiles?.display_name || "Singer"}
-                  </span>
-                </div>
-              </div>
-
-              {/* YouTube Player (hidden — audio only, or visible if desired) */}
-              {nowSinging.youtube_video_id && (
-                <div className="w-full max-w-md mb-4">
-                  <YouTubePlayer
-                    videoId={nowSinging.youtube_video_id}
-                    onTimeUpdate={handleYTTimeUpdate}
-                    onStateChange={handleYTStateChange}
-                    hidden
-                  />
-                  <div className="flex items-center justify-center gap-2 text-xs text-text-muted">
+                <p className="text-sm text-text-secondary font-medium">
+                  {nowSinging.artist}
+                  <span className="text-white/30 mx-2">—</span>
+                  <span className="text-white/70">{nowSinging.profiles?.display_name || "Singer"}</span>
+                </p>
+                {/* YouTube status */}
+                {nowSinging.youtube_video_id && (
+                  <div className="flex items-center justify-center gap-1.5 mt-1 text-xs text-text-muted">
                     <span className="material-icons-round text-red-500 text-sm">play_circle</span>
                     <span>{ytPlaying ? "Karaoke track playing" : "Loading karaoke track..."}</span>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
-              {/* Lyrics — synced to YouTube if available, fallback to wall-clock */}
-              {showLyrics && singStartedAt && (
-                <LyricsDisplay
-                  songTitle={nowSinging.song_title}
-                  artist={nowSinging.artist}
-                  startedAt={singStartedAt}
-                  currentTime={nowSinging.youtube_video_id ? ytCurrentTime : undefined}
+              {/* Hidden YouTube Player */}
+              {nowSinging.youtube_video_id && (
+                <YouTubePlayer
+                  videoId={nowSinging.youtube_video_id}
+                  onTimeUpdate={handleYTTimeUpdate}
+                  onStateChange={handleYTStateChange}
+                  hidden
                 />
               )}
 
-              {/* Lyrics toggle */}
-              <button
-                onClick={() => setShowLyrics(!showLyrics)}
-                className="mt-2 text-xs text-text-muted hover:text-white transition-colors flex items-center gap-1 opacity-30 hover:opacity-100"
-              >
-                <span className="material-icons-round text-sm">
-                  {showLyrics ? "lyrics" : "lyrics"}
-                </span>
-                {showLyrics ? "Hide Lyrics" : "Show Lyrics"}
-              </button>
+              {/* Lyrics — fills remaining space */}
+              {showLyrics && singStartedAt && (
+                <div className="flex-1 min-h-0 flex items-center">
+                  <LyricsDisplay
+                    songTitle={nowSinging.song_title}
+                    artist={nowSinging.artist}
+                    startedAt={singStartedAt}
+                    currentTime={nowSinging.youtube_video_id ? ytCurrentTime : undefined}
+                  />
+                </div>
+              )}
+
+              {/* Lyrics toggle — pinned bottom */}
+              <div className="flex-shrink-0 flex justify-center pb-3">
+                <button
+                  onClick={() => setShowLyrics(!showLyrics)}
+                  className="text-xs text-text-muted hover:text-white transition-colors flex items-center gap-1 opacity-30 hover:opacity-100"
+                >
+                  <span className="material-icons-round text-sm">lyrics</span>
+                  {showLyrics ? "Hide Lyrics" : "Show Lyrics"}
+                </button>
+              </div>
             </div>
           ) : (
-            <div className="relative z-10 text-center">
+            <div className="relative z-10 text-center flex-1 flex flex-col items-center justify-center">
               <span className="material-icons-round text-primary/20 text-[120px] mb-4">mic</span>
               <p className="text-2xl font-bold text-white/40">Stage is Open</p>
               <p className="text-text-muted mt-2">Request a song to get started!</p>
