@@ -196,24 +196,24 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
                 )}
               </div>
 
-              {/* Hidden YouTube Player */}
+              {/* YouTube Karaoke Player */}
               {nowSinging.youtube_video_id && (
-                <YouTubePlayer
-                  videoId={nowSinging.youtube_video_id}
-                  onTimeUpdate={handleYTTimeUpdate}
-                  onStateChange={handleYTStateChange}
-                  hidden
-                />
+                <div className="flex-shrink-0 w-full max-w-2xl mx-auto px-8">
+                  <YouTubePlayer
+                    videoId={nowSinging.youtube_video_id}
+                    onTimeUpdate={handleYTTimeUpdate}
+                    onStateChange={handleYTStateChange}
+                  />
+                </div>
               )}
 
-              {/* Lyrics — fills remaining space */}
-              {showLyrics && singStartedAt && (
+              {/* Lyrics — fills remaining space (only when no YouTube video) */}
+              {!nowSinging.youtube_video_id && showLyrics && singStartedAt && (
                 <div className="flex-1 min-h-0 flex items-center">
                   <LyricsDisplay
                     songTitle={nowSinging.song_title}
                     artist={nowSinging.artist}
                     startedAt={singStartedAt}
-                    currentTime={nowSinging.youtube_video_id ? ytCurrentTime : undefined}
                   />
                 </div>
               )}
