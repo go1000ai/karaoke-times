@@ -207,13 +207,14 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
               )}
 
               {/* Lyrics — fills remaining space, synced to YouTube when available */}
+              {/* Offset lyrics ahead by 2s so they appear before the singer needs them */}
               {showLyrics && singStartedAt && (
                 <div className="flex-1 min-h-0 flex items-center">
                   <LyricsDisplay
                     songTitle={nowSinging.song_title}
                     artist={nowSinging.artist}
                     startedAt={singStartedAt}
-                    currentTime={nowSinging.youtube_video_id ? ytCurrentTime : undefined}
+                    currentTime={nowSinging.youtube_video_id && ytCurrentTime !== undefined ? ytCurrentTime + 2 : undefined}
                   />
                 </div>
               )}
