@@ -32,10 +32,18 @@ function SignInContent() {
   const [error, setError] = useState(urlError ? "Sign in failed. Please try again." : "");
   const [success, setSuccess] = useState("");
 
-  // After login, redirect all users to their dashboard
+  // After login, redirect based on role
   useEffect(() => {
     if (!loading && user) {
-      router.push("/dashboard");
+      const supabase = createClient();
+      supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single()
+        .then(({ data }) => {
+          router.push(data?.role === "admin" ? "/admin" : "/dashboard");
+        });
     }
   }, [user, loading, router]);
 
@@ -98,7 +106,12 @@ function SignInContent() {
         }
 
         setSubmitting(false);
-        router.push("/dashboard");
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", data.user.id)
+          .single();
+        router.push(profileData?.role === "admin" ? "/admin" : "/dashboard");
       } else {
         setSubmitting(false);
         setSuccess("Account created! Check your email to confirm, then log in.");
@@ -120,7 +133,12 @@ function SignInContent() {
 
       setSubmitting(false);
       if (data.user) {
-        router.push("/dashboard");
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", data.user.id)
+          .single();
+        router.push(profile?.role === "admin" ? "/admin" : "/dashboard");
       }
     }
   };

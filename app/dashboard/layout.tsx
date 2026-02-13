@@ -70,6 +70,7 @@ async function getUserRole(userId: string, supabase: any): Promise<UserRole> {
 function getLinksForRole(role: UserRole) {
   switch (role) {
     case "venue_owner":
+      return ownerLinks;
     case "admin":
       return ownerLinks;
     case "kj":

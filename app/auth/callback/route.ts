@@ -7,9 +7,19 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = await createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { error, data } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      // All users go to their dashboard after OAuth sign-in
+      // Check if admin to redirect to admin panel
+      if (data.user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", data.user.id)
+          .single();
+        if (profile?.role === "admin") {
+          return NextResponse.redirect(`${origin}/admin`);
+        }
+      }
       return NextResponse.redirect(`${origin}/dashboard`);
     }
   }
