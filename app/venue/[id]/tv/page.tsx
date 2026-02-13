@@ -87,11 +87,9 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
       });
   }, [id]);
 
-  // Rotate promos every 8 seconds
+  // Rotate promos every 8 seconds (QR section handles the scan/URL text)
   const promos = [
     venueInfo?.dj ? `Tonight's KJ: ${venueInfo.dj}` : null,
-    "Request songs at karaoke-times.vercel.app",
-    "Scan the QR code to join the queue!",
   ].filter(Boolean) as string[];
 
   useEffect(() => {
@@ -314,45 +312,40 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
               </div>
             </div>
           )}
-        </div>
-      </div>
 
-      {/* Bottom Bar — QR Code + Promo (full width) */}
-      <div className="flex-shrink-0 border-t border-border/30 bg-gradient-to-r from-primary/5 via-black to-accent/5">
-        <div className="flex items-center gap-6 px-8 py-4">
-          {/* QR Code */}
-          <div className="flex-shrink-0 bg-white rounded-xl p-2.5">
-            <QRCodeSVG
-              value={queueUrl}
-              size={120}
-              bgColor="#ffffff"
-              fgColor="#000000"
-              level="M"
-            />
-          </div>
-
-          {/* Text */}
-          <div className="flex-1 min-w-0">
-            <p className="text-white font-bold text-base leading-snug">
-              Scan to request a song
-            </p>
-            <p className="text-text-muted text-sm leading-snug mt-0.5 break-words">
-              Join the queue at{" "}
-              <span className="text-primary font-semibold">karaoke-times.vercel.app</span>
-            </p>
-          </div>
-
-          {/* Rotating promo */}
-          {promos.length > 0 && (
-            <div className="flex-shrink-0 text-right max-w-[300px]">
-              <p
-                className="text-sm text-white/70 font-medium leading-snug transition-opacity duration-500 break-words"
-                key={promoIndex}
-              >
-                {promos[promoIndex]}
-              </p>
+          {/* QR Code + Promo */}
+          <div className="flex-shrink-0 border-t border-border/20 bg-gradient-to-r from-primary/5 to-accent/5 p-4">
+            <div className="flex items-center gap-4">
+              <div className="flex-shrink-0 bg-white rounded-xl p-2.5">
+                <QRCodeSVG
+                  value={queueUrl}
+                  size={120}
+                  bgColor="#ffffff"
+                  fgColor="#000000"
+                  level="M"
+                />
+              </div>
+              <div className="min-w-0">
+                <p className="text-white font-bold text-sm leading-snug">
+                  Scan to request a song
+                </p>
+                <p className="text-text-muted text-xs leading-snug mt-1 break-words">
+                  Join the queue at{" "}
+                  <span className="text-primary font-semibold">
+                    karaoke-times.vercel.app
+                  </span>
+                </p>
+                {promos.length > 0 && (
+                  <p
+                    className="text-xs text-white/50 font-medium leading-snug mt-2 break-words transition-opacity duration-500"
+                    key={promoIndex}
+                  >
+                    {promos[promoIndex]}
+                  </p>
+                )}
+              </div>
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>
