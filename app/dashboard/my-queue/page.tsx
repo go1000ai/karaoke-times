@@ -30,6 +30,7 @@ export default function MyQueuePage() {
   // Track when each entry first became "next" (entry.id → timestamp)
   const nextSinceRef = useRef<Record<string, number>>({});
   const [countdowns, setCountdowns] = useState<Record<string, number>>({});
+  const [timedOut, setTimedOut] = useState<Record<string, boolean>>({});
   const supabase = createClient();
 
   useEffect(() => {
@@ -141,9 +142,9 @@ export default function MyQueuePage() {
         const remaining = Math.max(0, CONFIRM_TIMEOUT_SEC - elapsed);
         updated[id] = remaining;
 
-        // Auto-cancel when timer hits 0
+        // Mark as timed out when timer hits 0 (don't auto-skip)
         if (remaining === 0) {
-          updateSongStatus(id, "skipped");
+          setTimedOut((prev) => ({ ...prev, [id]: true }));
         }
       }
       setCountdowns(updated);
@@ -157,12 +158,27 @@ export default function MyQueuePage() {
   const handleConfirm = async (entryId: string) => {
     setActingOn(entryId);
     await updateSongStatus(entryId, "up_next");
+    setTimedOut((prev) => { const n = { ...prev }; delete n[entryId]; return n; });
     setActingOn(null);
   };
 
   const handleCancel = async (entryId: string) => {
     setActingOn(entryId);
     await updateSongStatus(entryId, "skipped");
+    setTimedOut((prev) => { const n = { ...prev }; delete n[entryId]; return n; });
+    setActingOn(null);
+  };
+
+  const handleGetBackInLine = async (entryId: string, venueId: string) => {
+    setActingOn(entryId);
+    // Move to end of queue for this venue
+    const vQueue = venueQueues[venueId] || [];
+    const maxPos = Math.max(0, ...vQueue.map((q) => q.position));
+    const supabaseClient = createClient();
+    await supabaseClient.from("song_queue").update({ position: maxPos + 1 }).eq("id", entryId);
+    setTimedOut((prev) => { const n = { ...prev }; delete n[entryId]; return n; });
+    // Reset the timer ref so they get a fresh countdown when they're next again
+    delete nextSinceRef.current[entryId];
     setActingOn(null);
   };
 
@@ -319,11 +335,43 @@ export default function MyQueuePage() {
 
                       {/* Confirm / Cancel when you're next */}
                       {ahead === 0 && (() => {
+                        const isTimedOut = timedOut[entry.id];
                         const remaining = countdowns[entry.id] ?? CONFIRM_TIMEOUT_SEC;
                         const mins = Math.floor(remaining / 60);
                         const secs = remaining % 60;
                         const urgent = remaining <= 60;
 
+                        if (isTimedOut) {
+                          // Timer expired — show SKIPPED state with options
+                          return (
+                            <div className="mt-3 border-t border-white/5 pt-3">
+                              <div className="flex items-center gap-2 mb-3">
+                                <span className="material-icons-round text-red-400 text-lg">timer_off</span>
+                                <p className="text-red-400 text-xs font-extrabold uppercase tracking-wider">Skipped — Time Expired</p>
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleGetBackInLine(entry.id, entry.venue_id)}
+                                  disabled={actingOn === entry.id}
+                                  className="flex-1 flex items-center justify-center gap-1.5 bg-blue-500 text-white font-bold py-2.5 rounded-xl text-sm hover:shadow-lg hover:shadow-blue-500/20 transition-all disabled:opacity-50"
+                                >
+                                  <span className="material-icons-round text-base">undo</span>
+                                  {actingOn === entry.id ? "Moving..." : "Get Back in Line"}
+                                </button>
+                                <button
+                                  onClick={() => handleCancel(entry.id)}
+                                  disabled={actingOn === entry.id}
+                                  className="flex-1 flex items-center justify-center gap-1.5 bg-white/5 text-text-muted font-bold py-2.5 rounded-xl text-sm hover:bg-white/10 transition-all disabled:opacity-50"
+                                >
+                                  <span className="material-icons-round text-base">cancel</span>
+                                  {actingOn === entry.id ? "Cancelling..." : "Cancel Request"}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        // Timer still running — show countdown with Confirm / Cancel
                         return (
                           <div className="mt-3 border-t border-white/5 pt-3">
                             <div className="flex items-center justify-between mb-3">

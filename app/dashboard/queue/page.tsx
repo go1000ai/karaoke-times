@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
+
+const CONFIRM_TIMEOUT_SEC = 5 * 60; // 5 minutes
 
 interface QueueEntry {
   id: string;
@@ -25,6 +27,10 @@ export default function QueuePage() {
   const [paused, setPaused] = useState(false);
   const [togglingPause, setTogglingPause] = useState(false);
   const [showSkipped, setShowSkipped] = useState(false);
+  // Timer for the next-up singer waiting for confirmation
+  const nextUpSinceRef = useRef<{ id: string; since: number } | null>(null);
+  const [nextUpCountdown, setNextUpCountdown] = useState<number | null>(null);
+  const [nextUpTimedOut, setNextUpTimedOut] = useState(false);
   const supabase = createClient();
 
   // Get venue ID — check owned venue first, then staff venue (via cookie)
@@ -165,6 +171,15 @@ export default function QueuePage() {
     setTogglingPause(false);
   };
 
+  // Move a singer back to the end of the queue
+  const getBackInLine = async (id: string) => {
+    const maxPos = Math.max(0, ...queue.map((q) => q.position));
+    await supabase.from("song_queue").update({ position: maxPos + 1 }).eq("id", id);
+    // Reset timer for when they come up again
+    nextUpSinceRef.current = null;
+    setNextUpTimedOut(false);
+  };
+
   const nowSinging = queue.find((q) => q.status === "now_singing");
   const upNext = queue.find((q) => q.status === "up_next");
   const waiting = queue.filter((q) => q.status === "waiting");
@@ -180,6 +195,40 @@ export default function QueuePage() {
         (e.profiles?.display_name || "").toLowerCase().includes(term)
     );
   }, [waiting, searchTerm]);
+
+  // Countdown timer for the first person in the waiting list (they're "next")
+  const nextInLine = waiting[0] ?? null;
+
+  useEffect(() => {
+    if (!nextInLine) {
+      nextUpSinceRef.current = null;
+      setNextUpCountdown(null);
+      return;
+    }
+
+    // If new singer became next, reset the timer and timed-out flag
+    if (!nextUpSinceRef.current || nextUpSinceRef.current.id !== nextInLine.id) {
+      nextUpSinceRef.current = { id: nextInLine.id, since: Date.now() };
+      setNextUpTimedOut(false);
+    }
+
+    const tick = () => {
+      if (!nextUpSinceRef.current) return;
+      const elapsed = Math.floor((Date.now() - nextUpSinceRef.current.since) / 1000);
+      const remaining = Math.max(0, CONFIRM_TIMEOUT_SEC - elapsed);
+      setNextUpCountdown(remaining);
+
+      // Mark as timed out (don't auto-skip — let KJ decide)
+      if (remaining === 0) {
+        setNextUpTimedOut(true);
+      }
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nextInLine?.id]);
 
   if (loading) {
     return (
@@ -350,51 +399,131 @@ export default function QueuePage() {
               const actualIndex = waiting.findIndex((w) => w.id === entry.id);
               const isFirst = actualIndex === 0;
               const isLast = actualIndex === waiting.length - 1;
+              const isNextUp = actualIndex === 0 && !searchTerm;
+
+              // Timer values for the next-up singer
+              const remaining = isNextUp ? (nextUpCountdown ?? CONFIRM_TIMEOUT_SEC) : 0;
+              const mins = Math.floor(remaining / 60);
+              const secs = remaining % 60;
+              const urgent = remaining <= 60;
 
               return (
-                <div key={entry.id} className="glass-card rounded-xl p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <span className="text-text-muted font-bold text-sm w-6 flex-shrink-0">#{actualIndex + 1}</span>
-                    <div className="min-w-0">
-                      <p className="text-white font-semibold text-sm truncate">{entry.song_title}</p>
-                      <p className="text-text-muted text-xs truncate">{entry.artist} — {entry.profiles?.display_name || "Anonymous"}</p>
+                <div key={entry.id} className={`glass-card rounded-xl p-4 ${isNextUp ? (nextUpTimedOut ? "border-red-400/30" : "border-primary/30") : ""}`}>
+                  {/* Next-up banner — timer or timed-out state */}
+                  {isNextUp && !nextUpTimedOut && (
+                    <div className="flex items-center justify-between mb-3 pb-3 border-b border-white/5">
+                      <div className="flex items-center gap-2">
+                        <span className="material-icons-round text-primary text-lg">front_hand</span>
+                        <p className="text-primary text-xs font-extrabold uppercase tracking-wider">Next Up — Awaiting Confirmation</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-bold ${urgent ? "text-red-400" : "text-primary"}`}>
+                          {mins}:{secs.toString().padStart(2, "0")}
+                        </span>
+                        <div className="w-20 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-1000 ${urgent ? "bg-red-400" : "bg-primary"}`}
+                            style={{ width: `${(remaining / CONFIRM_TIMEOUT_SEC) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {isNextUp && nextUpTimedOut && (
+                    <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/5">
+                      <span className="material-icons-round text-red-400 text-lg">timer_off</span>
+                      <p className="text-red-400 text-xs font-extrabold uppercase tracking-wider">Skipped — No Response</p>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <span className="text-text-muted font-bold text-sm w-6 flex-shrink-0">#{actualIndex + 1}</span>
+                      <div className="min-w-0">
+                        <p className="text-white font-semibold text-sm truncate">{entry.song_title}</p>
+                        <p className="text-text-muted text-xs truncate">{entry.artist} — {entry.profiles?.display_name || "Anonymous"}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {/* Reorder buttons */}
+                      {!searchTerm && (
+                        <>
+                          <button
+                            onClick={() => swapPositions(entry, waiting[actualIndex - 1])}
+                            disabled={isFirst}
+                            className="p-1 rounded-lg text-text-muted hover:text-white hover:bg-white/5 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+                            title="Move up"
+                          >
+                            <span className="material-icons-round text-lg">keyboard_arrow_up</span>
+                          </button>
+                          <button
+                            onClick={() => swapPositions(entry, waiting[actualIndex + 1])}
+                            disabled={isLast}
+                            className="p-1 rounded-lg text-text-muted hover:text-white hover:bg-white/5 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+                            title="Move down"
+                          >
+                            <span className="material-icons-round text-lg">keyboard_arrow_down</span>
+                          </button>
+                        </>
+                      )}
+                      {!isNextUp && (
+                        <>
+                          <button
+                            onClick={() => updateStatus(entry.id, "up_next")}
+                            className="text-primary text-xs font-bold px-2 py-1 rounded hover:bg-primary/10 transition-colors"
+                          >
+                            Up Next
+                          </button>
+                          <button
+                            onClick={() => updateStatus(entry.id, "skipped")}
+                            className="text-text-muted text-xs font-bold px-2 py-1 rounded hover:bg-white/5 transition-colors"
+                          >
+                            Skip
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    {/* Reorder buttons */}
-                    {!searchTerm && (
-                      <>
-                        <button
-                          onClick={() => swapPositions(entry, waiting[actualIndex - 1])}
-                          disabled={isFirst}
-                          className="p-1 rounded-lg text-text-muted hover:text-white hover:bg-white/5 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
-                          title="Move up"
-                        >
-                          <span className="material-icons-round text-lg">keyboard_arrow_up</span>
-                        </button>
-                        <button
-                          onClick={() => swapPositions(entry, waiting[actualIndex + 1])}
-                          disabled={isLast}
-                          className="p-1 rounded-lg text-text-muted hover:text-white hover:bg-white/5 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
-                          title="Move down"
-                        >
-                          <span className="material-icons-round text-lg">keyboard_arrow_down</span>
-                        </button>
-                      </>
-                    )}
-                    <button
-                      onClick={() => updateStatus(entry.id, "up_next")}
-                      className="text-primary text-xs font-bold px-2 py-1 rounded hover:bg-primary/10 transition-colors"
-                    >
-                      Up Next
-                    </button>
-                    <button
-                      onClick={() => updateStatus(entry.id, "skipped")}
-                      className="text-text-muted text-xs font-bold px-2 py-1 rounded hover:bg-white/5 transition-colors"
-                    >
-                      Skip
-                    </button>
-                  </div>
+
+                  {/* Confirm / Skip buttons for next-up singer (timer still running) */}
+                  {isNextUp && !nextUpTimedOut && (
+                    <div className="flex gap-2 mt-3 pt-3 border-t border-white/5">
+                      <button
+                        onClick={() => updateStatus(entry.id, "up_next")}
+                        className="flex-1 flex items-center justify-center gap-1.5 bg-primary text-white font-bold py-2.5 rounded-xl text-sm hover:shadow-lg hover:shadow-primary/20 transition-all"
+                      >
+                        <span className="material-icons-round text-base">check_circle</span>
+                        Confirm Singer
+                      </button>
+                      <button
+                        onClick={() => updateStatus(entry.id, "skipped")}
+                        className="flex-1 flex items-center justify-center gap-1.5 bg-white/5 text-text-muted font-bold py-2.5 rounded-xl text-sm hover:bg-white/10 transition-all"
+                      >
+                        <span className="material-icons-round text-base">cancel</span>
+                        Skip
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Timed out — Get Back in Line or Cancel */}
+                  {isNextUp && nextUpTimedOut && (
+                    <div className="flex gap-2 mt-3 pt-3 border-t border-white/5">
+                      <button
+                        onClick={() => getBackInLine(entry.id)}
+                        className="flex-1 flex items-center justify-center gap-1.5 bg-blue-500 text-white font-bold py-2.5 rounded-xl text-sm hover:shadow-lg hover:shadow-blue-500/20 transition-all"
+                      >
+                        <span className="material-icons-round text-base">undo</span>
+                        Get Back in Line
+                      </button>
+                      <button
+                        onClick={() => updateStatus(entry.id, "skipped")}
+                        className="flex-1 flex items-center justify-center gap-1.5 bg-red-500/10 text-red-400 font-bold py-2.5 rounded-xl text-sm hover:bg-red-500/20 transition-all"
+                      >
+                        <span className="material-icons-round text-base">cancel</span>
+                        Cancel Request
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}
