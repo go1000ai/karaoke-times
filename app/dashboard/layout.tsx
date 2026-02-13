@@ -4,6 +4,7 @@ import { getDashboardVenue } from "@/lib/get-dashboard-venue";
 import Link from "next/link";
 import { SignOutButton } from "./SignOutButton";
 import { DashboardNav, MobileDrawer } from "./DashboardNav";
+import VenueSwitcher from "@/components/VenueSwitcher";
 
 const ownerLinks = [
   { href: "/dashboard", icon: "dashboard", label: "Overview" },
@@ -129,17 +130,22 @@ export default async function DashboardLayout({
             <img src="/logo.png" alt="Karaoke Times" className="w-10 h-10 object-contain" />
             <span className="text-sm font-bold text-white">Karaoke Times</span>
           </Link>
-          <div className="glass-card rounded-xl p-3">
-            <p className="text-xs text-text-muted uppercase tracking-wider">
-              {headerLabel}
-            </p>
-            <p className="text-sm font-bold text-white truncate">
-              {headerValue}
-            </p>
-            {!isOwner && allVenues.length > 1 && (
-              <p className="text-[10px] text-accent mt-1">{allVenues.length} venues connected</p>
-            )}
-          </div>
+          {isVenueRole && allVenues.length > 0 ? (
+            <VenueSwitcher
+              venues={allVenues}
+              activeVenueId={venue?.id || null}
+              label={headerLabel}
+            />
+          ) : (
+            <div className="glass-card rounded-xl p-3">
+              <p className="text-xs text-text-muted uppercase tracking-wider">
+                {headerLabel}
+              </p>
+              <p className="text-sm font-bold text-white truncate">
+                {headerValue}
+              </p>
+            </div>
+          )}
         </div>
 
         <DashboardNav links={sidebarLinks} />
@@ -165,6 +171,9 @@ export default async function DashboardLayout({
         links={sidebarLinks}
         venueName={headerValue}
         venueLabel={headerLabel}
+        venues={isVenueRole ? allVenues : []}
+        activeVenueId={venue?.id || null}
+        isVenueRole={isVenueRole}
       />
 
       {/* Main Content */}

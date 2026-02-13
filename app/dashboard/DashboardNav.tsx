@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import VenueSwitcher from "@/components/VenueSwitcher";
 
 type NavLink = {
   href: string;
@@ -49,10 +50,16 @@ export function MobileDrawer({
   links,
   venueName,
   venueLabel,
+  venues = [],
+  activeVenueId = null,
+  isVenueRole = false,
 }: {
   links: NavLink[];
   venueName: string;
   venueLabel: string;
+  venues?: { id: string; name: string }[];
+  activeVenueId?: string | null;
+  isVenueRole?: boolean;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -112,14 +119,22 @@ export function MobileDrawer({
 
             {/* Venue Info */}
             <div className="px-5 py-4">
-              <div className="glass-card rounded-xl p-3">
-                <p className="text-xs text-text-muted uppercase tracking-wider">
-                  {venueLabel}
-                </p>
-                <p className="text-sm font-bold text-white truncate">
-                  {venueName}
-                </p>
-              </div>
+              {isVenueRole && venues.length > 0 ? (
+                <VenueSwitcher
+                  venues={venues}
+                  activeVenueId={activeVenueId}
+                  label={venueLabel}
+                />
+              ) : (
+                <div className="glass-card rounded-xl p-3">
+                  <p className="text-xs text-text-muted uppercase tracking-wider">
+                    {venueLabel}
+                  </p>
+                  <p className="text-sm font-bold text-white truncate">
+                    {venueName}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Nav Links */}

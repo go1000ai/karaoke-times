@@ -4,6 +4,7 @@ import { use, useEffect, useState } from "react";
 import { useQueueSubscription, type QueueEntry } from "@/hooks/useQueueSubscription";
 import { karaokeEvents } from "@/lib/mock-data";
 import { createClient } from "@/lib/supabase/client";
+import LyricsDisplay from "@/components/LyricsDisplay";
 
 interface FeaturedSpecial {
   id: string;
@@ -19,6 +20,8 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
   const [clock, setClock] = useState("");
   const [promoIndex, setPromoIndex] = useState(0);
   const [specials, setSpecials] = useState<FeaturedSpecial[]>([]);
+  const [singStartedAt, setSingStartedAt] = useState<number | null>(null);
+  const [showLyrics, setShowLyrics] = useState(true);
 
   // Live clock
   useEffect(() => {
@@ -68,6 +71,16 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
   const upNext = queue.find((q) => q.status === "up_next");
   const waiting = queue.filter((q) => q.status === "waiting");
 
+  // Reset lyrics timer when singer changes
+  useEffect(() => {
+    if (nowSinging) {
+      setSingStartedAt(Date.now());
+    } else {
+      setSingStartedAt(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nowSinging?.id]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -111,8 +124,8 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
 
       {/* Main Content — 2 Column Layout */}
       <div className="flex h-[calc(100vh-88px)]">
-        {/* Left — Now Singing (large) */}
-        <div className="flex-1 flex flex-col items-center justify-center p-8 relative">
+        {/* Left — Now Singing + Lyrics */}
+        <div className="flex-1 flex flex-col items-center justify-center p-8 relative overflow-hidden">
           {/* Ambient glow */}
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute top-[20%] left-[10%] w-[60%] h-[40%] bg-accent/8 blur-[100px] rounded-full" />
@@ -120,25 +133,48 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
           </div>
 
           {nowSinging ? (
-            <div className="relative z-10 text-center animate-[fadeSlideUp_0.6s_ease-out]">
-              <div className="flex items-center justify-center gap-3 mb-6">
-                <span className="material-icons-round text-accent text-4xl animate-pulse">mic</span>
-                <p className="text-accent text-lg font-extrabold uppercase tracking-[0.2em] neon-glow-pink">
-                  Now Singing
-                </p>
-              </div>
-              <h2 className="text-5xl md:text-6xl font-extrabold text-white mb-4 leading-tight">
-                {nowSinging.song_title}
-              </h2>
-              <p className="text-2xl text-text-secondary font-medium mb-6">{nowSinging.artist}</p>
-              <div className="inline-flex items-center gap-3 bg-white/5 rounded-full px-6 py-3 border border-white/10">
-                <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center">
-                  <span className="material-icons-round text-accent">person</span>
+            <div className="relative z-10 w-full flex flex-col items-center animate-[fadeSlideUp_0.6s_ease-out]">
+              {/* Song info header */}
+              <div className="text-center mb-4">
+                <div className="flex items-center justify-center gap-3 mb-3">
+                  <span className="material-icons-round text-accent text-3xl animate-pulse">mic</span>
+                  <p className="text-accent text-sm font-extrabold uppercase tracking-[0.2em] neon-glow-pink">
+                    Now Singing
+                  </p>
                 </div>
-                <span className="text-xl font-bold text-white">
-                  {nowSinging.profiles?.display_name || "Singer"}
-                </span>
+                <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-2 leading-tight">
+                  {nowSinging.song_title}
+                </h2>
+                <p className="text-lg text-text-secondary font-medium mb-3">{nowSinging.artist}</p>
+                <div className="inline-flex items-center gap-2 bg-white/5 rounded-full px-4 py-2 border border-white/10">
+                  <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center">
+                    <span className="material-icons-round text-accent text-sm">person</span>
+                  </div>
+                  <span className="text-base font-bold text-white">
+                    {nowSinging.profiles?.display_name || "Singer"}
+                  </span>
+                </div>
               </div>
+
+              {/* Lyrics */}
+              {showLyrics && singStartedAt && (
+                <LyricsDisplay
+                  songTitle={nowSinging.song_title}
+                  artist={nowSinging.artist}
+                  startedAt={singStartedAt}
+                />
+              )}
+
+              {/* Lyrics toggle */}
+              <button
+                onClick={() => setShowLyrics(!showLyrics)}
+                className="mt-2 text-xs text-text-muted hover:text-white transition-colors flex items-center gap-1 opacity-30 hover:opacity-100"
+              >
+                <span className="material-icons-round text-sm">
+                  {showLyrics ? "lyrics" : "lyrics"}
+                </span>
+                {showLyrics ? "Hide Lyrics" : "Show Lyrics"}
+              </button>
             </div>
           ) : (
             <div className="relative z-10 text-center">

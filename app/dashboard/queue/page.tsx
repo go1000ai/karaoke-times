@@ -34,25 +34,12 @@ export default function QueuePage() {
   const [nextUpTimedOut, setNextUpTimedOut] = useState(false);
   const supabase = createClient();
 
-  // Get venue ID — check owned venue first, then staff venue (via cookie)
+  // Get venue ID — check cookie first, then connected venues, then owned venue
   useEffect(() => {
     if (!user) return;
 
     const findVenue = async () => {
-      // Check if user owns a venue
-      const { data: owned } = await supabase
-        .from("venues")
-        .select("id, queue_paused")
-        .eq("owner_id", user.id)
-        .single();
-
-      if (owned) {
-        setVenueId(owned.id);
-        setPaused(owned.queue_paused);
-        return;
-      }
-
-      // KJ: get the active venue from cookie via API
+      // 1. Check cookie for an explicitly-selected venue
       const res = await fetch("/api/active-venue");
       const { venueId: activeId } = await res.json();
       if (activeId) {
@@ -61,12 +48,14 @@ export default function QueuePage() {
           .select("queue_paused")
           .eq("id", activeId)
           .single();
-        setVenueId(activeId);
-        if (venue) setPaused(venue.queue_paused);
-        return;
+        if (venue) {
+          setVenueId(activeId);
+          setPaused(venue.queue_paused);
+          return;
+        }
       }
 
-      // Fallback: first connected venue
+      // 2. KJ: first connected venue via venue_staff
       const { data: staffRecords } = await supabase
         .from("venue_staff")
         .select("venue_id")
@@ -83,6 +72,19 @@ export default function QueuePage() {
           .single();
         setVenueId(vid);
         if (venue) setPaused(venue.queue_paused);
+        return;
+      }
+
+      // 3. Fallback: user owns a venue
+      const { data: owned } = await supabase
+        .from("venues")
+        .select("id, queue_paused")
+        .eq("owner_id", user.id)
+        .single();
+
+      if (owned) {
+        setVenueId(owned.id);
+        setPaused(owned.queue_paused);
       }
     };
 
