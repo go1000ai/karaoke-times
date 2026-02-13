@@ -1,10 +1,11 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useState, useCallback } from "react";
 import { useQueueSubscription, type QueueEntry } from "@/hooks/useQueueSubscription";
 import { karaokeEvents } from "@/lib/mock-data";
 import { createClient } from "@/lib/supabase/client";
 import LyricsDisplay from "@/components/LyricsDisplay";
+import YouTubePlayer from "@/components/YouTubePlayer";
 
 interface FeaturedSpecial {
   id: string;
@@ -22,6 +23,16 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
   const [specials, setSpecials] = useState<FeaturedSpecial[]>([]);
   const [singStartedAt, setSingStartedAt] = useState<number | null>(null);
   const [showLyrics, setShowLyrics] = useState(true);
+  const [ytCurrentTime, setYtCurrentTime] = useState<number | undefined>(undefined);
+  const [ytPlaying, setYtPlaying] = useState(false);
+
+  const handleYTTimeUpdate = useCallback((seconds: number) => {
+    setYtCurrentTime(seconds);
+  }, []);
+
+  const handleYTStateChange = useCallback((playing: boolean) => {
+    setYtPlaying(playing);
+  }, []);
 
   // Live clock
   useEffect(() => {
@@ -71,13 +82,15 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
   const upNext = queue.find((q) => q.status === "up_next");
   const waiting = queue.filter((q) => q.status === "waiting");
 
-  // Reset lyrics timer when singer changes
+  // Reset lyrics timer and YouTube state when singer changes
   useEffect(() => {
     if (nowSinging) {
       setSingStartedAt(Date.now());
     } else {
       setSingStartedAt(null);
     }
+    setYtCurrentTime(undefined);
+    setYtPlaying(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nowSinging?.id]);
 
@@ -156,12 +169,29 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
                 </div>
               </div>
 
-              {/* Lyrics */}
+              {/* YouTube Player (hidden — audio only, or visible if desired) */}
+              {nowSinging.youtube_video_id && (
+                <div className="w-full max-w-md mb-4">
+                  <YouTubePlayer
+                    videoId={nowSinging.youtube_video_id}
+                    onTimeUpdate={handleYTTimeUpdate}
+                    onStateChange={handleYTStateChange}
+                    hidden
+                  />
+                  <div className="flex items-center justify-center gap-2 text-xs text-text-muted">
+                    <span className="material-icons-round text-red-500 text-sm">play_circle</span>
+                    <span>{ytPlaying ? "Karaoke track playing" : "Loading karaoke track..."}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Lyrics — synced to YouTube if available, fallback to wall-clock */}
               {showLyrics && singStartedAt && (
                 <LyricsDisplay
                   songTitle={nowSinging.song_title}
                   artist={nowSinging.artist}
                   startedAt={singStartedAt}
+                  currentTime={nowSinging.youtube_video_id ? ytCurrentTime : undefined}
                 />
               )}
 

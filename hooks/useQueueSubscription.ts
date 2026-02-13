@@ -13,6 +13,7 @@ export interface QueueEntry {
   position: number;
   requested_at: string;
   completed_at: string | null;
+  youtube_video_id: string | null;
   profiles?: {
     display_name: string | null;
     avatar_url: string | null;

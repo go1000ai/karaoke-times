@@ -33,10 +33,12 @@ export default function LyricsDisplay({
   songTitle,
   artist,
   startedAt,
+  currentTime,
 }: {
   songTitle: string;
   artist: string;
-  startedAt?: number; // timestamp when now_singing started
+  startedAt?: number; // timestamp when now_singing started (fallback timer)
+  currentTime?: number; // YouTube playback position in seconds (preferred)
 }) {
   const [lyrics, setLyrics] = useState<LyricLine[]>([]);
   const [isSynced, setIsSynced] = useState(false);
@@ -73,7 +75,20 @@ export default function LyricsDisplay({
       });
   }, [songTitle, artist, startedAt]);
 
-  // Auto-scroll synced lyrics based on elapsed time
+  // When YouTube provides currentTime, use it directly for synced lyrics
+  useEffect(() => {
+    if (currentTime === undefined || !isSynced || lyrics.length === 0) return;
+    let current = 0;
+    for (let i = lyrics.length - 1; i >= 0; i--) {
+      if (currentTime >= lyrics[i].time) {
+        current = i;
+        break;
+      }
+    }
+    setActiveLine(current);
+  }, [currentTime, isSynced, lyrics]);
+
+  // Fallback: auto-scroll synced lyrics based on wall-clock elapsed time
   const tick = useCallback(() => {
     if (!isSynced || lyrics.length === 0) return;
     const elapsed = (Date.now() - originRef.current) / 1000;
@@ -88,20 +103,23 @@ export default function LyricsDisplay({
   }, [isSynced, lyrics]);
 
   useEffect(() => {
+    // If YouTube is providing time, skip the wall-clock timer
+    if (currentTime !== undefined) return;
     if (!isSynced) return;
     const interval = setInterval(tick, 200);
     tick();
     return () => clearInterval(interval);
-  }, [isSynced, tick]);
+  }, [isSynced, tick, currentTime]);
 
-  // Auto-scroll for plain lyrics (advance every 4 seconds)
+  // Auto-scroll for plain lyrics (advance every 4 seconds) — only when no YouTube
   useEffect(() => {
+    if (currentTime !== undefined) return;
     if (isSynced || lyrics.length === 0) return;
     const interval = setInterval(() => {
       setActiveLine((prev) => Math.min(prev + 1, lyrics.length - 1));
     }, 4000);
     return () => clearInterval(interval);
-  }, [isSynced, lyrics.length]);
+  }, [isSynced, lyrics.length, currentTime]);
 
   // Scroll active line into view
   useEffect(() => {

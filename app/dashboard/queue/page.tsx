@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
+import YouTubeKaraokeSearch from "@/components/YouTubeKaraokeSearch";
 
 const CONFIRM_TIMEOUT_SEC = 5 * 60; // 5 minutes
 
@@ -32,6 +33,7 @@ export default function QueuePage() {
   const nextUpSinceRef = useRef<{ id: string; since: number } | null>(null);
   const [nextUpCountdown, setNextUpCountdown] = useState<number | null>(null);
   const [nextUpTimedOut, setNextUpTimedOut] = useState(false);
+  const [showYTSearch, setShowYTSearch] = useState(false);
   const supabase = createClient();
 
   // Get venue ID — check cookie first, then connected venues, then owned venue
@@ -202,6 +204,12 @@ export default function QueuePage() {
     setNextUpTimedOut(false);
   };
 
+  // Save a YouTube video ID to a queue entry
+  const setYouTubeVideo = async (entryId: string, videoId: string) => {
+    await supabase.from("song_queue").update({ youtube_video_id: videoId }).eq("id", entryId);
+    setShowYTSearch(false);
+  };
+
   const nowSinging = queue.find((q) => q.status === "now_singing");
   const upNext = queue.find((q) => q.status === "up_next");
   const waiting = queue.filter((q) => q.status === "waiting");
@@ -332,15 +340,34 @@ export default function QueuePage() {
                   {nowSinging.profiles?.display_name || "Anonymous"}
                 </p>
               </div>
-              <button
-                onClick={() => updateStatus(nowSinging.id, "completed")}
-                className="bg-primary text-black font-bold text-sm px-4 py-2 rounded-xl"
-              >
-                Done
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowYTSearch(true)}
+                  className="flex items-center gap-1.5 bg-red-500/10 text-red-400 font-bold text-xs px-3 py-2 rounded-xl border border-red-500/20 hover:bg-red-500/20 transition-colors"
+                >
+                  <span className="material-icons-round text-base">play_circle</span>
+                  Play Karaoke
+                </button>
+                <button
+                  onClick={() => updateStatus(nowSinging.id, "completed")}
+                  className="bg-primary text-black font-bold text-sm px-4 py-2 rounded-xl"
+                >
+                  Done
+                </button>
+              </div>
             </div>
           </div>
         </div>
+      )}
+
+      {/* YouTube Karaoke Search Modal */}
+      {showYTSearch && nowSinging && (
+        <YouTubeKaraokeSearch
+          songTitle={nowSinging.song_title}
+          artist={nowSinging.artist}
+          onSelect={(videoId) => setYouTubeVideo(nowSinging.id, videoId)}
+          onClose={() => setShowYTSearch(false)}
+        />
       )}
 
       {/* Up Next */}
