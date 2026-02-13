@@ -53,8 +53,12 @@ export function useQueueSubscriptionById(venueId: string) {
       )
       .subscribe();
 
+    // Polling fallback — ensures TV display stays fresh even if realtime drops
+    const poll = setInterval(fetchQueue, 5000);
+
     return () => {
       if (channel) supabase.removeChannel(channel);
+      clearInterval(poll);
     };
   }, [venueId]);
 
