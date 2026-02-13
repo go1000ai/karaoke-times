@@ -622,9 +622,9 @@ export default function HomePage() {
                     </span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {previewEvents.map((event) => (
+                    {previewEvents.map((event, idx) => (
                       <VenueCard
-                        key={event.id}
+                        key={`${event.id}-${event.dayOfWeek}-${idx}`}
                         event={event}
                         onClick={() => setSelectedEvent(event)}
                         showActions={!!user}
@@ -654,9 +654,9 @@ export default function HomePage() {
           ) : (
             // Show filtered day
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredEvents.map((event) => (
+              {filteredEvents.map((event, idx) => (
                 <VenueCard
-                        key={event.id}
+                        key={`${event.id}-${event.dayOfWeek}-${idx}`}
                         event={event}
                         onClick={() => setSelectedEvent(event)}
                         showActions={!!user}

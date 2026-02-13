@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import webpush from "web-push";
 
-// Configure VAPID (only if env vars are set)
-const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY;
-const VAPID_EMAIL = process.env.VAPID_EMAIL || "mailto:hello@karaoketimes.com";
-
-if (VAPID_PUBLIC && VAPID_PRIVATE) {
-  webpush.setVapidDetails(VAPID_EMAIL, VAPID_PUBLIC, VAPID_PRIVATE);
-}
+export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
+  const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY;
+  const VAPID_EMAIL = process.env.VAPID_EMAIL || "mailto:hello@karaoketimes.com";
+
   if (!VAPID_PUBLIC || !VAPID_PRIVATE) {
     return NextResponse.json({ error: "VAPID keys not configured" }, { status: 500 });
   }
@@ -48,6 +44,8 @@ export async function POST(req: NextRequest) {
   });
 
   try {
+    const webpush = await import("web-push");
+    webpush.setVapidDetails(VAPID_EMAIL, VAPID_PUBLIC, VAPID_PRIVATE);
     await webpush.sendNotification(pushSubscription, payload);
     return NextResponse.json({ ok: true });
   } catch (err: unknown) {
