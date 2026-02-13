@@ -9,20 +9,35 @@ interface User {
   role: string;
   created_at: string;
   email?: string;
+  isKJ?: boolean;
 }
+
+const ROLE_TABS = [
+  { value: "all", label: "All" },
+  { value: "user", label: "Singers" },
+  { value: "venue_owner", label: "Owners" },
+  { value: "kj", label: "KJs" },
+  { value: "admin", label: "Admins" },
+];
 
 export function UsersList({ users: initialUsers }: { users: User[] }) {
   const [users, setUsers] = useState(initialUsers);
   const [isPending, startTransition] = useTransition();
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
 
-  const filteredUsers = users.filter(
-    (u) =>
+  const filteredUsers = users.filter((u) => {
+    const matchesSearch =
       (u.display_name || "").toLowerCase().includes(search.toLowerCase()) ||
       (u.email || "").toLowerCase().includes(search.toLowerCase()) ||
-      u.role.toLowerCase().includes(search.toLowerCase())
-  );
+      u.role.toLowerCase().includes(search.toLowerCase());
+
+    if (roleFilter === "all") return matchesSearch;
+    if (roleFilter === "kj") return matchesSearch && u.isKJ;
+    if (roleFilter === "user") return matchesSearch && u.role === "user" && !u.isKJ;
+    return matchesSearch && u.role === roleFilter;
+  });
 
   function handleRoleChange(userId: string, newRole: string) {
     setProcessingId(userId);
@@ -59,41 +74,58 @@ export function UsersList({ users: initialUsers }: { users: User[] }) {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-extrabold text-white mb-1">Users</h1>
+          <h1 className="text-2xl font-extrabold text-white mb-1">All Users</h1>
           <p className="text-text-secondary text-sm">{users.length} registered users</p>
         </div>
       </div>
 
+      {/* Role Filter Tabs */}
+      <div className="flex gap-1 mb-4 overflow-x-auto">
+        {ROLE_TABS.map((tab) => (
+          <button
+            key={tab.value}
+            onClick={() => setRoleFilter(tab.value)}
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
+              roleFilter === tab.value
+                ? "bg-red-500/10 text-red-400 border border-red-500/20"
+                : "text-text-secondary hover:text-white hover:bg-white/5"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {/* Search */}
       <div className="relative mb-6">
-        <span className="material-icons-round absolute left-4 top-1/2 -translate-y-1/2 text-text-muted">
-          search
-        </span>
+        <span className="material-icons-round absolute left-4 top-1/2 -translate-y-1/2 text-text-muted">search</span>
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search users by name, email, or role..."
-          className="w-full bg-card-dark border border-border rounded-xl py-3 pl-12 pr-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary placeholder:text-text-muted"
+          className="w-full bg-card-dark border border-border rounded-xl py-3 pl-12 pr-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 placeholder:text-text-muted"
         />
       </div>
 
       {/* Users List */}
       <div className="space-y-3">
         {filteredUsers.map((user) => (
-          <div
-            key={user.id}
-            className="glass-card rounded-2xl p-5"
-          >
+          <div key={user.id} className="glass-card rounded-2xl p-5">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                   <span className="material-icons-round text-primary">person</span>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-white font-bold truncate">
-                    {user.display_name || "Unnamed User"}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-white font-bold truncate">
+                      {user.display_name || "Unnamed User"}
+                    </p>
+                    {user.isKJ && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-400/10 text-purple-400">KJ</span>
+                    )}
+                  </div>
                   <p className="text-xs text-text-muted truncate">{user.email || user.id}</p>
                   <p className="text-xs text-text-muted">
                     Joined {new Date(user.created_at).toLocaleDateString()}
@@ -102,21 +134,16 @@ export function UsersList({ users: initialUsers }: { users: User[] }) {
               </div>
 
               <div className="flex items-center gap-2 flex-shrink-0">
-                {/* Role Selector */}
                 <select
                   value={user.role}
                   onChange={(e) => handleRoleChange(user.id, e.target.value)}
                   disabled={isPending && processingId === user.id}
-                  className={`text-xs font-bold px-3 py-1.5 rounded-full border-0 cursor-pointer ${
-                    roleColors[user.role] || roleColors.user
-                  } disabled:opacity-50`}
+                  className={`text-xs font-bold px-3 py-1.5 rounded-full border-0 cursor-pointer ${roleColors[user.role] || roleColors.user} disabled:opacity-50`}
                 >
                   <option value="user">user</option>
                   <option value="venue_owner">venue_owner</option>
                   <option value="admin">admin</option>
                 </select>
-
-                {/* Delete */}
                 <button
                   onClick={() => handleDelete(user.id, user.display_name || "user")}
                   disabled={isPending && processingId === user.id}

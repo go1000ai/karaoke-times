@@ -12,10 +12,15 @@ interface Venue {
   state: string;
   neighborhood: string;
   owner_id: string | null;
+  is_private_room: boolean;
+  queue_paused: boolean;
   created_at: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   profiles: any;
   _event_count: number;
+  _review_count: number;
+  _avg_rating: string | null;
+  _promo_count: number;
+  _media_count: number;
 }
 
 interface Owner {
@@ -23,24 +28,22 @@ interface Owner {
   display_name: string | null;
 }
 
-export function VenuesList({
-  venues: initialVenues,
-  owners,
-}: {
-  venues: Venue[];
-  owners: Owner[];
-}) {
+export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[]; owners: Owner[] }) {
   const [venues, setVenues] = useState(initialVenues);
   const [isPending, startTransition] = useTransition();
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [ownerFilter, setOwnerFilter] = useState<"all" | "assigned" | "unassigned">("all");
 
-  const filteredVenues = venues.filter(
-    (v) =>
+  const filteredVenues = venues.filter((v) => {
+    const matchesSearch =
       v.name.toLowerCase().includes(search.toLowerCase()) ||
       v.city.toLowerCase().includes(search.toLowerCase()) ||
-      v.neighborhood.toLowerCase().includes(search.toLowerCase())
-  );
+      v.neighborhood.toLowerCase().includes(search.toLowerCase());
+    if (ownerFilter === "assigned" && !v.owner_id) return false;
+    if (ownerFilter === "unassigned" && v.owner_id) return false;
+    return matchesSearch;
+  });
 
   function handleDelete(venueId: string, name: string) {
     if (!confirm(`Delete venue "${name}" and all its events? This cannot be undone.`)) return;
@@ -59,13 +62,7 @@ export function VenuesList({
     startTransition(async () => {
       const result = await assignVenueOwner(venueId, ownerId || null);
       if (result.success) {
-        setVenues((prev) =>
-          prev.map((v) =>
-            v.id === venueId
-              ? { ...v, owner_id: ownerId || null }
-              : v
-          )
-        );
+        setVenues((prev) => prev.map((v) => (v.id === venueId ? { ...v, owner_id: ownerId || null } : v)));
       }
       setProcessingId(null);
     });
@@ -80,38 +77,70 @@ export function VenuesList({
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative mb-6">
-        <span className="material-icons-round absolute left-4 top-1/2 -translate-y-1/2 text-text-muted">
-          search
-        </span>
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search venues by name, city, or neighborhood..."
-          className="w-full bg-card-dark border border-border rounded-xl py-3 pl-12 pr-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary placeholder:text-text-muted"
-        />
+      {/* Search + Filters */}
+      <div className="flex gap-3 mb-6">
+        <div className="relative flex-1">
+          <span className="material-icons-round absolute left-4 top-1/2 -translate-y-1/2 text-text-muted">search</span>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search venues by name, city, or neighborhood..."
+            className="w-full bg-card-dark border border-border rounded-xl py-3 pl-12 pr-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 placeholder:text-text-muted"
+          />
+        </div>
+        <select
+          value={ownerFilter}
+          onChange={(e) => setOwnerFilter(e.target.value as typeof ownerFilter)}
+          className="bg-card-dark border border-border rounded-xl px-4 py-3 text-sm text-white cursor-pointer"
+        >
+          <option value="all">All</option>
+          <option value="assigned">Has Owner</option>
+          <option value="unassigned">Unassigned</option>
+        </select>
       </div>
 
       {/* Venues List */}
       <div className="space-y-3">
         {filteredVenues.map((venue) => (
-          <div
-            key={venue.id}
-            className="glass-card rounded-2xl p-5"
-          >
+          <div key={venue.id} className="glass-card rounded-2xl p-5">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="text-white font-bold truncate">{venue.name}</h3>
-                  <span className="text-xs text-text-muted bg-white/5 px-2 py-0.5 rounded-full">
-                    {venue._event_count} events
-                  </span>
+                  {venue.is_private_room && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-400/10 text-purple-400">Private Room</span>
+                  )}
+                  {venue.queue_paused && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400">Queue Paused</span>
+                  )}
                 </div>
                 <p className="text-xs text-text-secondary mt-1">
                   {venue.address} — {venue.neighborhood ? `${venue.neighborhood}, ` : ""}{venue.city}, {venue.state}
                 </p>
+
+                {/* Stats row */}
+                <div className="flex items-center gap-3 mt-2 flex-wrap">
+                  <span className="text-xs text-text-muted bg-white/5 px-2 py-0.5 rounded-full">
+                    {venue._event_count} events
+                  </span>
+                  {venue._review_count > 0 && (
+                    <span className="text-xs text-text-muted bg-white/5 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <span className="material-icons-round text-yellow-400 text-xs">star</span>
+                      {venue._avg_rating} ({venue._review_count})
+                    </span>
+                  )}
+                  {venue._promo_count > 0 && (
+                    <span className="text-xs text-text-muted bg-white/5 px-2 py-0.5 rounded-full">
+                      {venue._promo_count} promos
+                    </span>
+                  )}
+                  {venue._media_count > 0 && (
+                    <span className="text-xs text-text-muted bg-white/5 px-2 py-0.5 rounded-full">
+                      {venue._media_count} media
+                    </span>
+                  )}
+                </div>
 
                 {/* Owner Assignment */}
                 <div className="flex items-center gap-2 mt-3">
@@ -124,9 +153,7 @@ export function VenuesList({
                   >
                     <option value="">Unassigned</option>
                     {owners.map((o) => (
-                      <option key={o.id} value={o.id}>
-                        {o.display_name || o.id.slice(0, 8)}
-                      </option>
+                      <option key={o.id} value={o.id}>{o.display_name || o.id.slice(0, 8)}</option>
                     ))}
                   </select>
                 </div>
