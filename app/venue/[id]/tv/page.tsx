@@ -1,8 +1,7 @@
 "use client";
 
 import { use, useEffect, useState, useCallback } from "react";
-import { useQueueSubscription, type QueueEntry } from "@/hooks/useQueueSubscription";
-import { karaokeEvents } from "@/lib/mock-data";
+import { useQueueSubscriptionById, type QueueEntry } from "@/hooks/useQueueSubscriptionById";
 import { createClient } from "@/lib/supabase/client";
 import LyricsDisplay from "@/components/LyricsDisplay";
 import YouTubePlayer from "@/components/YouTubePlayer";
@@ -14,10 +13,15 @@ interface FeaturedSpecial {
   category: string;
 }
 
+interface VenueInfo {
+  name: string;
+  dj: string | null;
+}
+
 export default function TVDisplayPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const event = karaokeEvents.find((e) => e.id === id);
-  const { queue, loading } = useQueueSubscription(event?.venueName || "");
+  const { queue, loading } = useQueueSubscriptionById(id);
+  const [venueInfo, setVenueInfo] = useState<VenueInfo | null>(null);
   const [clock, setClock] = useState("");
   const [promoIndex, setPromoIndex] = useState(0);
   const [specials, setSpecials] = useState<FeaturedSpecial[]>([]);
@@ -47,6 +51,26 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
     return () => clearInterval(interval);
   }, []);
 
+  // Fetch venue info + current event DJ from Supabase
+  useEffect(() => {
+    const supabase = createClient();
+    const today = new Date().toLocaleDateString("en-US", { weekday: "long" });
+
+    supabase
+      .from("venues")
+      .select("name, venue_events(dj)")
+      .eq("id", id)
+      .eq("venue_events.day_of_week", today)
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          const events = data.venue_events as { dj: string }[] | null;
+          const dj = events?.[0]?.dj || null;
+          setVenueInfo({ name: data.name, dj });
+        }
+      });
+  }, [id]);
+
   // Fetch featured specials from POS
   useEffect(() => {
     const supabase = createClient();
@@ -64,8 +88,7 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
 
   // Rotate promos every 8 seconds
   const promos = [
-    event?.notes || null,
-    event?.dj && event.dj !== "Open" ? `Tonight's KJ: ${event.dj}` : null,
+    venueInfo?.dj ? `Tonight's KJ: ${venueInfo.dj}` : null,
     "Request songs at karaoke-times.vercel.app",
     "Scan the QR code to join the queue!",
   ].filter(Boolean) as string[];
@@ -118,11 +141,11 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
           />
           <div>
             <h1 className="text-xl font-extrabold text-white leading-tight">
-              {event?.venueName || "Karaoke Night"}
+              {venueInfo?.name || "Karaoke Night"}
             </h1>
-            {event?.dj && event.dj !== "Open" && (
+            {venueInfo?.dj && (
               <p className="text-primary text-sm font-bold neon-glow-green">
-                KJ {event.dj}
+                KJ {venueInfo.dj}
               </p>
             )}
           </div>
@@ -130,7 +153,7 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
         <div className="text-right">
           <p className="text-3xl font-extrabold text-white tabular-nums">{clock}</p>
           <p className="text-xs text-text-muted uppercase tracking-widest">
-            {event?.dayOfWeek || "Tonight"}
+            Tonight
           </p>
         </div>
       </div>
