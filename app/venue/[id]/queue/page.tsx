@@ -9,9 +9,9 @@ import { karaokeEvents } from "@/lib/mock-data";
 
 export default function PublicQueuePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { queue, loading } = useQueueSubscription(id);
   const { user } = useAuth();
   const event = karaokeEvents.find((e) => e.id === id);
+  const { queue, loading } = useQueueSubscription(event?.venueName || "");
   const [showRequest, setShowRequest] = useState(false);
 
   const nowSinging = queue.find((q) => q.status === "now_singing");

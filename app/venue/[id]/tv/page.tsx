@@ -14,8 +14,8 @@ interface FeaturedSpecial {
 
 export default function TVDisplayPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { queue, loading } = useQueueSubscription(id);
   const event = karaokeEvents.find((e) => e.id === id);
+  const { queue, loading } = useQueueSubscription(event?.venueName || "");
   const [clock, setClock] = useState("");
   const [promoIndex, setPromoIndex] = useState(0);
   const [specials, setSpecials] = useState<FeaturedSpecial[]>([]);

@@ -1,13 +1,44 @@
-import { requireVenueOwner } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getDashboardVenue } from "@/lib/get-dashboard-venue";
 import Link from "next/link";
 import { VenueSelector } from "./VenueSelector";
+import { FavoritesStatCard } from "./FavoritesCount";
+
+async function getUserRole(userId: string, supabase: any) {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", userId)
+    .single();
+
+  if (profile?.role === "venue_owner") return "venue_owner";
+  if (profile?.role === "admin") return "admin";
+
+  const { data: staffRecord } = await supabase
+    .from("venue_staff")
+    .select("id")
+    .eq("user_id", userId)
+    .not("accepted_at", "is", null)
+    .limit(1)
+    .single();
+
+  if (staffRecord) return "kj";
+  return "user";
+}
 
 export default async function DashboardOverview() {
-  const user = await requireVenueOwner();
+  const user = await requireAuth();
   const supabase = await createClient();
 
+  const role = await getUserRole(user.id, supabase);
+
+  // Singer dashboard
+  if (role === "user") {
+    return <SingerDashboard userId={user.id} supabase={supabase} />;
+  }
+
+  // Venue owner / KJ / Admin — existing logic
   const { venue, isOwner, allVenues } = await getDashboardVenue(user.id);
 
   // KJ with no venue selected and multiple venues — show venue picker
@@ -45,7 +76,7 @@ export default async function DashboardOverview() {
     .eq("venue_id", venue.id)
     .eq("status", "pending");
 
-  if (isOwner) {
+  if (isOwner || role === "admin") {
     // Owner dashboard
     const { count: eventCount } = await supabase
       .from("venue_events")
@@ -204,6 +235,100 @@ export default async function DashboardOverview() {
               <span className="material-icons-round text-text-muted ml-auto">chevron_right</span>
             </Link>
           )
+        ))}
+      </div>
+    </div>
+  );
+}
+
+async function SingerDashboard({ userId, supabase }: { userId: string; supabase: any }) {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("display_name")
+    .eq("id", userId)
+    .single();
+
+  // Get singer's bookings count
+  const { count: bookingCount } = await supabase
+    .from("room_bookings")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId);
+
+  // Get singer's active songs count
+  const { count: activeSongsCount } = await supabase
+    .from("song_queue")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .in("status", ["waiting", "up_next", "now_singing"]);
+
+  const displayName = profile?.display_name || "Singer";
+
+  return (
+    <div>
+      <h1 className="text-2xl font-extrabold text-white mb-1">
+        Welcome back, {displayName}!
+      </h1>
+      <p className="text-text-secondary text-sm mb-8">
+        Your karaoke hub — find venues, request songs, and manage your bookings.
+      </p>
+
+      {/* Request a Song CTA */}
+      <Link
+        href="/dashboard/request-song"
+        className="flex items-center justify-between glass-card rounded-2xl p-5 mb-6 border-accent/20 hover:border-accent/40 transition-all group"
+      >
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-accent/10 flex items-center justify-center flex-shrink-0">
+            <span className="material-icons-round text-accent text-3xl">queue_music</span>
+          </div>
+          <div>
+            <p className="font-extrabold text-white text-lg">Request a Song</p>
+            <p className="text-xs text-text-muted">Pick a venue, pick your song, get in line!</p>
+          </div>
+        </div>
+        <span className="material-icons-round text-accent text-2xl group-hover:translate-x-1 transition-transform">arrow_forward</span>
+      </Link>
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4 mb-8">
+        <Link href="/dashboard/my-queue" className="glass-card rounded-2xl p-5 hover:border-accent/30 transition-all">
+          <span className="material-icons-round text-3xl text-accent mb-2">format_list_numbered</span>
+          <p className="text-2xl font-extrabold text-white">{activeSongsCount ?? 0}</p>
+          <p className="text-xs text-text-muted mt-1">In Queue</p>
+        </Link>
+        <FavoritesStatCard />
+        <Link href="/dashboard/bookings" className="glass-card rounded-2xl p-5 hover:border-blue-400/30 transition-all">
+          <span className="material-icons-round text-3xl text-blue-400 mb-2">book_online</span>
+          <p className="text-2xl font-extrabold text-white">{bookingCount ?? 0}</p>
+          <p className="text-xs text-text-muted mt-1">Bookings</p>
+        </Link>
+      </div>
+
+      {/* Quick Actions */}
+      <h2 className="text-lg font-bold text-white mb-4">Quick Actions</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {[
+          { icon: "explore", label: "Explore Venues", desc: "Discover karaoke spots near you", href: "/" },
+          { icon: "search", label: "Search by Zip", desc: "Find venues by location", href: "/search" },
+          { icon: "map", label: "View Map", desc: "See all venues on a map", href: "/map" },
+          { icon: "music_note", label: "My Favorite Songs", desc: "Your saved songs to sing", href: "/dashboard/my-songs" },
+          { icon: "favorite", label: "My Favorite Venues", desc: "Your saved karaoke spots", href: "/dashboard/favorites" },
+          { icon: "person", label: "Edit Profile", desc: "Update your account info", href: "/dashboard/my-profile/edit" },
+        ].map((action) => (
+          <Link
+            key={action.href}
+            href={action.href}
+            className="flex items-center gap-4 glass-card rounded-2xl p-4 hover:border-primary/30 transition-all"
+          >
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <span className="material-icons-round text-primary text-2xl">{action.icon}</span>
+            </div>
+            <div>
+              <p className="font-semibold text-white text-sm">{action.label}</p>
+              <p className="text-xs text-text-muted">{action.desc}</p>
+            </div>
+            <span className="material-icons-round text-text-muted ml-auto">chevron_right</span>
+          </Link>
         ))}
       </div>
     </div>

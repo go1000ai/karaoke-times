@@ -32,41 +32,10 @@ function SignInContent() {
   const [error, setError] = useState(urlError ? "Sign in failed. Please try again." : "");
   const [success, setSuccess] = useState("");
 
-  // After login, check role and redirect accordingly
+  // After login, redirect all users to their dashboard
   useEffect(() => {
     if (!loading && user) {
-      const supabase = createClient();
-
-      async function redirectByRole() {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", user!.id)
-          .single();
-
-        if (profile?.role === "venue_owner") {
-          router.push("/dashboard");
-          return;
-        }
-
-        // Check if connected KJ
-        const { data: staff } = await supabase
-          .from("venue_staff")
-          .select("id")
-          .eq("user_id", user!.id)
-          .not("accepted_at", "is", null)
-          .limit(1);
-
-        if (staff && staff.length > 0) {
-          router.push("/dashboard");
-          return;
-        }
-
-        // Regular singer → profile
-        router.push("/profile");
-      }
-
-      redirectByRole();
+      router.push("/dashboard");
     }
   }, [user, loading, router]);
 
@@ -129,7 +98,7 @@ function SignInContent() {
         }
 
         setSubmitting(false);
-        router.push(isOwner ? "/dashboard" : "/profile");
+        router.push("/dashboard");
       } else {
         setSubmitting(false);
         setSuccess("Account created! Check your email to confirm, then log in.");
@@ -149,36 +118,9 @@ function SignInContent() {
         return;
       }
 
-      // Check role and redirect
+      setSubmitting(false);
       if (data.user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", data.user.id)
-          .single();
-
-        if (profile?.role === "venue_owner") {
-          setSubmitting(false);
-          router.push("/dashboard");
-          return;
-        }
-
-        // Check if connected KJ
-        const { data: staff } = await supabase
-          .from("venue_staff")
-          .select("id")
-          .eq("user_id", data.user.id)
-          .not("accepted_at", "is", null)
-          .limit(1);
-
-        setSubmitting(false);
-        if (staff && staff.length > 0) {
-          router.push("/dashboard");
-        } else {
-          router.push("/profile");
-        }
-      } else {
-        setSubmitting(false);
+        router.push("/dashboard");
       }
     }
   };

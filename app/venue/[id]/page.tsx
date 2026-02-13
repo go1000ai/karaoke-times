@@ -254,7 +254,7 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
 
         {/* Live Queue Status */}
         <section className="px-5 mt-5">
-          <QueueStatus venueId={id} />
+          <QueueStatus venueName={event?.venueName || venue.name} />
           <Link
             href={`/venue/${id}/queue`}
             className="mt-3 flex items-center justify-center gap-2 text-primary text-sm font-bold py-3 glass-card rounded-xl hover:bg-primary/5 transition-colors"

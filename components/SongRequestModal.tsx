@@ -3,6 +3,9 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
+import { resolveVenueId } from "@/lib/resolve-venue-id";
+
+const SAVED_SONGS_KEY = "kt-saved-songs";
 
 interface SongRequestModalProps {
   venueId: string;
@@ -16,6 +19,23 @@ interface SongResult {
   artworkUrl100: string;
 }
 
+interface SavedSong {
+  id: string;
+  title: string;
+  artist: string;
+  artwork?: string;
+  savedAt: string;
+}
+
+function loadSavedSongs(): SavedSong[] {
+  try {
+    const raw = localStorage.getItem(SAVED_SONGS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
 export default function SongRequestModal({ venueId, venueName, onClose }: SongRequestModalProps) {
   const { user } = useAuth();
   const [query, setQuery] = useState("");
@@ -26,23 +46,33 @@ export default function SongRequestModal({ venueId, venueName, onClose }: SongRe
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
-  const [mode, setMode] = useState<"search" | "manual">("search");
+  const [mode, setMode] = useState<"favorites" | "search" | "manual">("favorites");
   const [queuePaused, setQueuePaused] = useState<boolean | null>(null);
   const [duplicateWarning, setDuplicateWarning] = useState(false);
+  const [savedSongs, setSavedSongs] = useState<SavedSong[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const supabase = createClient();
 
-  // Check if queue is paused on mount
+  // Load saved songs and check queue pause on mount
   useEffect(() => {
+    setSavedSongs(loadSavedSongs());
     supabase
       .from("venues")
       .select("queue_paused")
-      .eq("id", venueId)
+      .ilike("name", venueName.trim())
+      .limit(1)
       .single()
       .then(({ data }) => {
         setQueuePaused(data?.queue_paused ?? false);
       });
-  }, [venueId, supabase]);
+  }, [venueName, supabase]);
+
+  // Default to search if no saved songs
+  useEffect(() => {
+    if (savedSongs.length === 0 && mode === "favorites") {
+      setMode("search");
+    }
+  }, [savedSongs, mode]);
 
   const searchSongs = useCallback(async (term: string) => {
     if (term.length < 2) {
@@ -68,19 +98,19 @@ export default function SongRequestModal({ venueId, venueName, onClose }: SongRe
     debounceRef.current = setTimeout(() => searchSongs(value), 350);
   };
 
-  const selectSong = (song: SongResult) => {
-    setSongTitle(song.trackName);
-    setArtist(song.artistName);
+  const selectSong = (title: string, artistName: string) => {
+    setSongTitle(title);
+    setArtist(artistName);
     setQuery("");
     setResults([]);
     setDuplicateWarning(false);
   };
 
-  const checkDuplicate = async (title: string): Promise<boolean> => {
+  const checkDuplicate = async (title: string, resolvedVenueId: string): Promise<boolean> => {
     const { data } = await supabase
       .from("song_queue")
       .select("id")
-      .eq("venue_id", venueId)
+      .eq("venue_id", resolvedVenueId)
       .in("status", ["waiting", "up_next", "now_singing"])
       .ilike("song_title", title.trim())
       .limit(1);
@@ -95,9 +125,17 @@ export default function SongRequestModal({ venueId, venueName, onClose }: SongRe
     setSubmitting(true);
     setError("");
 
+    // Resolve venue name to Supabase UUID
+    const supabaseVenueId = await resolveVenueId(venueName);
+    if (!supabaseVenueId) {
+      setError("Venue not found. Please try again.");
+      setSubmitting(false);
+      return;
+    }
+
     // Check for duplicates (unless user already dismissed the warning)
     if (!duplicateWarning) {
-      const isDupe = await checkDuplicate(songTitle);
+      const isDupe = await checkDuplicate(songTitle, supabaseVenueId);
       if (isDupe) {
         setDuplicateWarning(true);
         setSubmitting(false);
@@ -108,7 +146,7 @@ export default function SongRequestModal({ venueId, venueName, onClose }: SongRe
     const { data: lastInQueue } = await supabase
       .from("song_queue")
       .select("position")
-      .eq("venue_id", venueId)
+      .eq("venue_id", supabaseVenueId)
       .in("status", ["waiting", "up_next", "now_singing"])
       .order("position", { ascending: false })
       .limit(1)
@@ -117,7 +155,7 @@ export default function SongRequestModal({ venueId, venueName, onClose }: SongRe
     const nextPosition = ((lastInQueue?.position as number) ?? 0) + 1;
 
     const { error: insertError } = await supabase.from("song_queue").insert({
-      venue_id: venueId,
+      venue_id: supabaseVenueId,
       user_id: user.id,
       song_title: songTitle.trim(),
       artist: artist.trim(),
@@ -209,6 +247,19 @@ export default function SongRequestModal({ venueId, venueName, onClose }: SongRe
 
         {/* Mode Toggle */}
         <div className="flex gap-1 bg-card-dark rounded-xl p-1 mb-4">
+          {savedSongs.length > 0 && (
+            <button
+              onClick={() => setMode("favorites")}
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1 ${
+                mode === "favorites"
+                  ? "bg-primary/10 text-primary"
+                  : "text-text-muted hover:text-white"
+              }`}
+            >
+              <span className="material-icons-round text-xs">library_music</span>
+              My Favorites
+            </button>
+          )}
           <button
             onClick={() => setMode("search")}
             className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${
@@ -230,6 +281,36 @@ export default function SongRequestModal({ venueId, venueName, onClose }: SongRe
             Type Manually
           </button>
         </div>
+
+        {/* Favorites Mode */}
+        {mode === "favorites" && (
+          <div className="mb-4 flex-1 min-h-0 flex flex-col">
+            <div className="flex-1 overflow-y-auto space-y-1 -mx-1 px-1">
+              {savedSongs.map((song) => (
+                <button
+                  key={song.id}
+                  onClick={() => selectSong(song.title, song.artist)}
+                  className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 transition-colors text-left"
+                >
+                  {song.artwork ? (
+                    <img src={song.artwork} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <span className="material-icons-round text-primary text-lg">music_note</span>
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-white text-sm font-semibold truncate">{song.title}</p>
+                    <p className="text-text-muted text-xs truncate">{song.artist || "Unknown Artist"}</p>
+                  </div>
+                  <span className="material-icons-round text-primary/50 text-lg flex-shrink-0">
+                    add_circle
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Search Mode */}
         {mode === "search" && (
@@ -258,7 +339,7 @@ export default function SongRequestModal({ venueId, venueName, onClose }: SongRe
                 {results.map((song, i) => (
                   <button
                     key={`${song.trackName}-${song.artistName}-${i}`}
-                    onClick={() => selectSong(song)}
+                    onClick={() => selectSong(song.trackName, song.artistName)}
                     className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 transition-colors text-left"
                   >
                     <img
@@ -298,7 +379,7 @@ export default function SongRequestModal({ venueId, venueName, onClose }: SongRe
         {/* Selected Song / Manual Mode */}
         {(mode === "manual" || songTitle) && (
           <form onSubmit={handleSubmit} className="space-y-4">
-            {songTitle && mode === "search" && (
+            {songTitle && mode !== "manual" && (
               <div className="flex items-center gap-3 bg-primary/5 border border-primary/20 rounded-xl p-3">
                 <span className="material-icons-round text-primary">music_note</span>
                 <div className="min-w-0 flex-1">

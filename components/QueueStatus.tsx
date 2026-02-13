@@ -6,11 +6,11 @@ import { useAuth } from "@/components/AuthProvider";
 import { createClient } from "@/lib/supabase/client";
 
 interface QueueStatusProps {
-  venueId: string;
+  venueName: string;
 }
 
-export default function QueueStatus({ venueId }: QueueStatusProps) {
-  const { queue, loading } = useQueueSubscription(venueId);
+export default function QueueStatus({ venueName }: QueueStatusProps) {
+  const { queue, loading } = useQueueSubscription(venueName);
   const { user } = useAuth();
   const [confirmed, setConfirmed] = useState(false);
 

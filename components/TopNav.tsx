@@ -5,18 +5,20 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 
-const navLinks = [
+const publicNavLinks = [
   { label: "Explore", href: "/", icon: "home" },
   { label: "Search", href: "/search", icon: "search" },
-  { label: "Events", href: "/add-event", icon: "event" },
   { label: "Map", href: "/map", icon: "map" },
-  { label: "Favorites", href: "/favorites", icon: "favorite" },
 ];
 
 export default function TopNav() {
   const pathname = usePathname();
   const { user, loading, hasDashboard, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const navLinks = user
+    ? [...publicNavLinks, { label: "Favorites", href: "/favorites", icon: "favorite" }]
+    : publicNavLinks;
 
   return (
     <>

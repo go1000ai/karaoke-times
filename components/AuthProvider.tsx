@@ -53,28 +53,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, [supabase]);
 
-  async function checkDashboardAccess(userId: string) {
-    // Check if user is a venue owner
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", userId)
-      .single();
-
-    if (profile?.role === "venue_owner") {
-      setHasDashboard(true);
-      return;
-    }
-
-    // Check if user is a connected KJ
-    const { data: staff } = await supabase
-      .from("venue_staff")
-      .select("id")
-      .eq("user_id", userId)
-      .not("accepted_at", "is", null)
-      .limit(1);
-
-    setHasDashboard(!!(staff && staff.length > 0));
+  async function checkDashboardAccess(_userId: string) {
+    // All logged-in users get a dashboard
+    setHasDashboard(true);
   }
 
   const signOut = async () => {

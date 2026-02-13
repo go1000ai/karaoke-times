@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
+import { useAuth } from "@/components/AuthProvider";
 import { TubesBackground } from "@/components/ui/neon-flow";
+import { CardStack, type CardStackItem } from "@/components/ui/card-stack";
 import { karaokeEvents, DAY_ORDER, getEventsByDay, searchKJs, getKJSlugForName, type KaraokeEvent, type KJProfile } from "@/lib/mock-data";
 
 const DAY_ICONS: Record<string, string> = {
@@ -52,11 +54,25 @@ function useScrollReveal() {
   return ref;
 }
 
-function VenueCard({ event, onClick }: { event: KaraokeEvent; onClick: () => void }) {
+function VenueCard({
+  event,
+  onClick,
+  isFavorited,
+  onToggleFavorite,
+  onShare,
+  showActions,
+}: {
+  event: KaraokeEvent;
+  onClick: () => void;
+  isFavorited?: boolean;
+  onToggleFavorite?: () => void;
+  onShare?: () => void;
+  showActions?: boolean;
+}) {
   return (
-    <div onClick={onClick} className="glass-card rounded-2xl overflow-hidden hover:border-primary/30 transition-all group cursor-pointer">
+    <div onClick={onClick} className="glass-card rounded-2xl overflow-hidden hover:border-primary/30 transition-all group cursor-pointer flex flex-col">
       {/* Image or Placeholder */}
-      <div className="h-52 relative overflow-hidden">
+      <div className="h-52 relative overflow-hidden flex-shrink-0">
         {event.image ? (
           <img
             alt={event.venueName}
@@ -74,13 +90,40 @@ function VenueCard({ event, onClick }: { event: KaraokeEvent; onClick: () => voi
         <div className="absolute top-3 left-3 bg-primary text-black text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
           {event.dayOfWeek === "Private Room Karaoke" ? "Private Room" : event.dayOfWeek}
         </div>
+
+        {/* Heart + Share — only when logged in */}
+        {showActions && (
+          <div className="absolute top-3 right-3 flex gap-2 z-10">
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggleFavorite?.(); }}
+              className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
+                isFavorited
+                  ? "bg-red-500 shadow-lg shadow-red-500/40"
+                  : "bg-black/50 backdrop-blur-sm hover:bg-black/70"
+              }`}
+              title={isFavorited ? "Remove from favorites" : "Add to favorites"}
+            >
+              <span className="material-icons-round text-white text-lg">
+                {isFavorited ? "favorite" : "favorite_border"}
+              </span>
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onShare?.(); }}
+              className="w-9 h-9 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center hover:bg-black/70 transition-all"
+              title="Share"
+            >
+              <span className="material-icons-round text-white text-lg">share</span>
+            </button>
+          </div>
+        )}
+
         {event.image && (
           <div className="absolute inset-0 bg-gradient-to-t from-card-dark to-transparent opacity-60" />
         )}
       </div>
 
       {/* Info */}
-      <div className="p-5">
+      <div className="p-5 flex flex-col flex-1">
         <div className="flex justify-between items-start mb-1">
           <h4 className="font-bold text-white text-lg leading-tight">{event.venueName}</h4>
         </div>
@@ -93,34 +136,6 @@ function VenueCard({ event, onClick }: { event: KaraokeEvent; onClick: () => voi
           {event.address}, {event.city}, {event.state}
           {event.neighborhood ? ` — ${event.neighborhood}` : ""}
         </p>
-
-        {/* Details row */}
-        <div className="flex flex-wrap gap-2 mb-3">
-          {event.startTime && (
-            <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-[10px] px-2.5 py-1 rounded-full font-bold">
-              <span className="material-icons-round text-xs">schedule</span>
-              {event.startTime}{event.endTime ? ` - ${event.endTime}` : ""}
-            </span>
-          )}
-          {event.dj && event.dj !== "Open" && (() => {
-            const kjSlug = getKJSlugForName(event.dj);
-            return kjSlug ? (
-              <Link
-                href={`/kj/${kjSlug}`}
-                onClick={(e) => e.stopPropagation()}
-                className="inline-flex items-center gap-1 bg-accent/10 text-accent text-[10px] px-2.5 py-1 rounded-full font-bold hover:bg-accent/20 transition-colors"
-              >
-                <span className="material-icons-round text-xs">headphones</span>
-                {event.dj}
-              </Link>
-            ) : (
-              <span className="inline-flex items-center gap-1 bg-accent/10 text-accent text-[10px] px-2.5 py-1 rounded-full font-bold">
-                <span className="material-icons-round text-xs">headphones</span>
-                {event.dj}
-              </span>
-            );
-          })()}
-        </div>
 
         {/* Notes */}
         {event.notes && (
@@ -137,26 +152,56 @@ function VenueCard({ event, onClick }: { event: KaraokeEvent; onClick: () => voi
           </p>
         )}
 
-        {/* Actions */}
-        <div className="flex gap-2 mt-2">
-          {event.phone && (
-            <a
-              href={`tel:${event.phone}`}
-              className="inline-flex items-center gap-1.5 border border-primary/30 text-primary text-xs font-semibold px-4 py-2 rounded-full hover:bg-primary/10 transition-colors"
-            >
-              <span className="material-icons-round text-sm">call</span>
-              Call
-            </a>
-          )}
-          {event.isPrivateRoom && (
-            <button
-              className="inline-flex items-center gap-1.5 bg-accent text-white text-xs font-semibold px-4 py-2 rounded-full hover:bg-accent/80 transition-colors cursor-default"
-              title="Coming Soon"
-            >
-              <span className="material-icons-round text-sm">meeting_room</span>
-              Book Now — Coming Soon
-            </button>
-          )}
+        {/* Details row — pinned to bottom */}
+        <div className="mt-auto">
+          <div className="flex flex-wrap gap-2 mb-3">
+            {event.startTime && (
+              <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-[10px] px-2.5 py-1 rounded-full font-bold">
+                <span className="material-icons-round text-xs">schedule</span>
+                {event.startTime}{event.endTime ? ` - ${event.endTime}` : ""}
+              </span>
+            )}
+            {event.dj && event.dj !== "Open" && (() => {
+              const kjSlug = getKJSlugForName(event.dj);
+              return kjSlug ? (
+                <Link
+                  href={`/kj/${kjSlug}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center gap-1 bg-accent/10 text-accent text-[10px] px-2.5 py-1 rounded-full font-bold hover:bg-accent/20 transition-colors"
+                >
+                  <span className="material-icons-round text-xs">headphones</span>
+                  {event.dj}
+                </Link>
+              ) : (
+                <span className="inline-flex items-center gap-1 bg-accent/10 text-accent text-[10px] px-2.5 py-1 rounded-full font-bold">
+                  <span className="material-icons-round text-xs">headphones</span>
+                  {event.dj}
+                </span>
+              );
+            })()}
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-2">
+            {event.phone && (
+              <a
+                href={`tel:${event.phone}`}
+                className="inline-flex items-center gap-1.5 border border-primary/30 text-primary text-xs font-bold px-4 py-2 rounded-full hover:bg-primary/10 transition-colors"
+              >
+                <span className="material-icons-round text-sm">call</span>
+                Call
+              </a>
+            )}
+            {event.isPrivateRoom && (
+              <button
+                className="inline-flex items-center gap-1.5 bg-accent text-white text-xs font-bold px-4 py-2 rounded-full hover:bg-accent/80 transition-colors cursor-default"
+                title="Coming Soon"
+              >
+                <span className="material-icons-round text-sm">meeting_room</span>
+                Book Now — Coming Soon
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -167,17 +212,77 @@ function isZipCode(value: string): boolean {
   return /^\d{5}$/.test(value.trim());
 }
 
+function useIsMobile(breakpoint = 640) {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < breakpoint);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, [breakpoint]);
+  return isMobile;
+}
+
+const FAVORITES_KEY = "kt-favorites";
+
+function loadFavorites(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(FAVORITES_KEY);
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function saveFavorites(favs: Set<string>) {
+  localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favs]));
+}
+
 export default function HomePage() {
   const scrollRef = useScrollReveal();
   const router = useRouter();
+  const isMobile = useIsMobile();
+  const { user } = useAuth();
   const [activeDay, setActiveDay] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<KaraokeEvent | null>(null);
   const [searchFilter, setSearchFilter] = useState<"all" | "kjs" | "venues">("all");
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const searchInputRef = useRef<HTMLInputElement>(null);
   const eventsByDay = getEventsByDay();
   const tabBarRef = useRef<HTMLDivElement>(null);
+
+  // Load favorites from localStorage on mount
+  useEffect(() => {
+    setFavorites(loadFavorites());
+  }, []);
+
+  const toggleFavorite = useCallback((eventId: string) => {
+    setFavorites((prev) => {
+      const next = new Set(prev);
+      if (next.has(eventId)) {
+        next.delete(eventId);
+      } else {
+        next.add(eventId);
+      }
+      saveFavorites(next);
+      return next;
+    });
+  }, []);
+
+  const shareEvent = useCallback((event: KaraokeEvent) => {
+    if (navigator.share) {
+      navigator.share({
+        title: event.venueName,
+        text: `${event.eventName} at ${event.venueName}`,
+        url: `${window.location.origin}/venue/${event.id}`,
+      });
+    } else {
+      navigator.clipboard.writeText(`${window.location.origin}/venue/${event.id}`);
+    }
+  }, []);
 
   // Search logic — filters across all fields
   const searchResults = searchQuery.trim().length > 0
@@ -393,13 +498,53 @@ export default function HomePage() {
 
               <a
                 href="#listings"
-                className="reveal inline-flex items-center gap-2 bg-primary text-black font-bold px-7 py-3 rounded-full hover:shadow-lg hover:shadow-primary/40 transition-all text-sm"
+                className="reveal inline-flex items-center gap-2 bg-primary text-black font-bold px-6 py-3 rounded-full hover:shadow-lg hover:shadow-primary/40 transition-all text-sm"
               >
                 Browse All Listings
                 <span className="material-icons-round text-lg">arrow_downward</span>
               </a>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* ─── FEATURED VENUES CARD STACK ─── */}
+      <section className="py-16 md:py-20 border-t border-border overflow-hidden">
+        <div className="max-w-6xl mx-auto px-6 md:px-8">
+          <div className="text-center mb-6">
+            <p
+              className="reveal text-primary text-2xl mb-2 neon-glow-green"
+              style={{ fontFamily: "var(--font-script)" }}
+            >
+              Don&apos;t Miss Out
+            </p>
+            <h2 className="reveal text-3xl md:text-5xl font-extrabold text-white uppercase tracking-tight mb-4">
+              Featured Karaoke Spots
+            </h2>
+          </div>
+          <CardStack
+            items={karaokeEvents
+              .filter((e) => e.image)
+              .slice(0, 12)
+              .map((e) => ({
+                id: e.id,
+                title: e.venueName,
+                description: `${e.eventName} — ${e.dayOfWeek}${e.startTime ? ` at ${e.startTime}` : ""}`,
+                imageSrc: e.image ?? undefined,
+                href: `/venue/${e.id}`,
+                tag: e.neighborhood || e.city,
+              }))}
+            autoAdvance
+            intervalMs={3500}
+            pauseOnHover
+            loop
+            cardWidth={isMobile ? 280 : 480}
+            cardHeight={isMobile ? 200 : 300}
+            maxVisible={isMobile ? 3 : 7}
+            overlap={isMobile ? 0.35 : 0.48}
+            spreadDeg={isMobile ? 30 : 48}
+            depthPx={isMobile ? 80 : 140}
+          />
         </div>
       </section>
 
@@ -478,7 +623,15 @@ export default function HomePage() {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {previewEvents.map((event) => (
-                      <VenueCard key={event.id} event={event} onClick={() => setSelectedEvent(event)} />
+                      <VenueCard
+                        key={event.id}
+                        event={event}
+                        onClick={() => setSelectedEvent(event)}
+                        showActions={!!user}
+                        isFavorited={favorites.has(event.id)}
+                        onToggleFavorite={() => toggleFavorite(event.id)}
+                        onShare={() => shareEvent(event)}
+                      />
                     ))}
                   </div>
                   {hasMore && (
@@ -502,7 +655,15 @@ export default function HomePage() {
             // Show filtered day
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredEvents.map((event) => (
-                <VenueCard key={event.id} event={event} onClick={() => setSelectedEvent(event)} />
+                <VenueCard
+                        key={event.id}
+                        event={event}
+                        onClick={() => setSelectedEvent(event)}
+                        showActions={!!user}
+                        isFavorited={favorites.has(event.id)}
+                        onToggleFavorite={() => toggleFavorite(event.id)}
+                        onShare={() => shareEvent(event)}
+                      />
               ))}
             </div>
           )}
@@ -787,7 +948,7 @@ export default function HomePage() {
               <Link
                 href={`/venue/${selectedEvent.id}`}
                 onClick={() => setSelectedEvent(null)}
-                className="w-full bg-primary text-black font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-primary/30 transition-all"
+                className="w-full bg-primary text-black font-bold py-3 rounded-full flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-primary/30 transition-all text-sm"
               >
                 <span className="material-icons-round text-xl">open_in_new</span>
                 View Full Listing
@@ -840,10 +1001,10 @@ export default function HomePage() {
                 <button
                   key={tab.key}
                   onClick={() => setSearchFilter(tab.key)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                  className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${
                     searchFilter === tab.key
-                      ? "bg-primary text-black"
-                      : "glass-card text-text-secondary hover:text-white"
+                      ? "bg-primary text-black shadow-lg shadow-primary/30"
+                      : "glass-card text-text-secondary hover:text-white hover:border-primary/30"
                   }`}
                 >
                   {tab.label} ({tab.count})

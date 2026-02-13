@@ -12,10 +12,12 @@ export default function BottomNav() {
     { icon: "home", label: "Explore", href: "/" },
     { icon: "search", label: "Search", href: "/search" },
     { icon: "add", label: "", href: "/add-event", isFab: true },
-    { icon: "favorite_border", label: "Favorites", href: "/favorites" },
-    user
-      ? { icon: "notifications_none", label: "Reminders", href: "/notifications" }
-      : { icon: "login", label: "Login", href: "/signin" },
+    ...(user
+      ? [
+          { icon: "favorite_border", label: "Favorites", href: "/dashboard/favorites" },
+          { icon: "notifications_none", label: "Reminders", href: "/notifications" },
+        ]
+      : [{ icon: "login", label: "Login", href: "/signin" }]),
   ];
 
   return (
