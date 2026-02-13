@@ -11,6 +11,11 @@ import { resolveVenueId } from "@/lib/resolve-venue-id";
 const FAVORITES_KEY = "kt-favorites";
 const SAVED_SONGS_KEY = "kt-saved-songs";
 
+interface SupabaseVenue {
+  id: string;
+  name: string;
+}
+
 interface SongResult {
   trackName: string;
   artistName: string;
@@ -73,6 +78,10 @@ export default function RequestSongPage() {
   const preVenue = preVenueId ? karaokeEvents.find((e) => e.id === preVenueId) || null : null;
   const [selectedVenue, setSelectedVenue] = useState<KaraokeEvent | null>(preVenue);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  // Supabase venues (real venues managed by KJs/owners)
+  const [supabaseVenues, setSupabaseVenues] = useState<SupabaseVenue[]>([]);
+  // When a Supabase venue is directly selected, store its UUID to avoid name resolution
+  const [directVenueUUID, setDirectVenueUUID] = useState<string | null>(null);
 
   // Song selection
   const [mode, setMode] = useState<"search" | "manual" | "library">("library");
@@ -93,6 +102,16 @@ export default function RequestSongPage() {
   useEffect(() => {
     setFavoriteIds(loadFavoriteIds());
     setSavedSongs(loadSavedSongs());
+
+    // Fetch real venues from Supabase so singers can select the actual venue UUID
+    const supabase = createClient();
+    supabase
+      .from("venues")
+      .select("id, name")
+      .order("name")
+      .then(({ data }) => {
+        if (data) setSupabaseVenues(data as SupabaseVenue[]);
+      });
   }, []);
 
   // Dedupe venues by name
@@ -115,6 +134,19 @@ export default function RequestSongPage() {
         v.venueName.toLowerCase().includes(venueSearch.toLowerCase()) ||
         v.neighborhood?.toLowerCase().includes(venueSearch.toLowerCase()))
     : otherVenues;
+
+  // Filter Supabase venues that aren't already in mock data (avoid duplicates)
+  const mockVenueNames = new Set(uniqueVenues.map((v) => v.venueName.toLowerCase()));
+  const extraSupabaseVenues = supabaseVenues.filter(
+    (v) => !mockVenueNames.has(v.name.toLowerCase())
+  );
+  const filteredSupabaseVenues = venueSearch
+    ? extraSupabaseVenues.filter((v) =>
+        v.name.toLowerCase().includes(venueSearch.toLowerCase()))
+    : extraSupabaseVenues;
+
+  // Also gather Supabase venues that DO match mock data names (so we can use their UUID)
+  const supabaseByName = new Map(supabaseVenues.map((v) => [v.name.toLowerCase(), v.id]));
 
   // Song search
   const searchSongs = useCallback(async (term: string) => {
@@ -175,8 +207,11 @@ export default function RequestSongPage() {
 
     const supabase = createClient();
 
-    // Resolve venue name to Supabase UUID
-    const supabaseVenueId = await resolveVenueId(selectedVenue.venueName);
+    // Use direct UUID if available, otherwise look up the Supabase UUID for the mock-data venue name
+    const supabaseVenueId =
+      directVenueUUID ||
+      supabaseByName.get(selectedVenue.venueName.toLowerCase()) ||
+      (await resolveVenueId(selectedVenue.venueName));
     if (!supabaseVenueId) {
       setError("Venue not found in database. Please try again.");
       setSubmitting(false);
@@ -216,6 +251,7 @@ export default function RequestSongPage() {
   const reset = () => {
     setStep("song");
     setSelectedVenue(null);
+    setDirectVenueUUID(null);
     setSongTitle("");
     setArtist("");
     setQuery("");
@@ -518,6 +554,60 @@ export default function RequestSongPage() {
             />
           </div>
 
+          {/* Supabase venues (KJ-managed, live queue enabled) */}
+          {filteredSupabaseVenues.length > 0 && (
+            <div className="mb-6">
+              <p className="text-xs font-bold text-accent uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                <span className="material-icons-round text-sm">storefront</span>
+                Live Venues
+              </p>
+              <div className="space-y-2">
+                {filteredSupabaseVenues.map((venue) => (
+                  <button
+                    key={venue.id}
+                    onClick={() => {
+                      // Create a mock-like event object for the confirm step
+                      setSelectedVenue({
+                        id: venue.id,
+                        venueName: venue.name,
+                        dayOfWeek: "",
+                        eventName: "",
+                        address: "",
+                        city: "",
+                        state: "",
+                        neighborhood: "",
+                        crossStreet: "",
+                        phone: "",
+                        dj: "",
+                        startTime: "",
+                        endTime: "",
+                        notes: "",
+                        image: null,
+                        isPrivateRoom: false,
+                        bookingUrl: null,
+                        website: null,
+                        latitude: null,
+                        longitude: null,
+                      });
+                      setDirectVenueUUID(venue.id);
+                      setStep("confirm");
+                    }}
+                    className="w-full flex items-center gap-4 glass-card rounded-xl p-4 hover:border-accent/30 transition-all text-left border-accent/10"
+                  >
+                    <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
+                      <span className="material-icons-round text-accent">mic</span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-white font-bold text-sm truncate">{venue.name}</p>
+                      <p className="text-accent text-[10px] font-bold">Live Queue</p>
+                    </div>
+                    <span className="material-icons-round text-accent/50">chevron_right</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Favorite venues */}
           {filteredFavorites.length > 0 && (
             <div className="mb-6">
@@ -529,7 +619,7 @@ export default function RequestSongPage() {
                 {filteredFavorites.map((venue) => (
                   <button
                     key={venue.id}
-                    onClick={() => { setSelectedVenue(venue); setStep("confirm"); }}
+                    onClick={() => { setSelectedVenue(venue); setDirectVenueUUID(null); setStep("confirm"); }}
                     className="w-full flex items-center gap-4 glass-card rounded-xl p-4 hover:border-primary/30 transition-all text-left"
                   >
                     <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0">
@@ -558,13 +648,13 @@ export default function RequestSongPage() {
           {/* All Venues */}
           <div>
             <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-3">
-              {filteredFavorites.length > 0 ? "All Venues" : "Select a Venue"}
+              {filteredFavorites.length > 0 || filteredSupabaseVenues.length > 0 ? "All Venues" : "Select a Venue"}
             </p>
             <div className="space-y-2">
               {filteredOthers.map((venue) => (
                 <button
                   key={venue.id}
-                  onClick={() => { setSelectedVenue(venue); setStep("confirm"); }}
+                  onClick={() => { setSelectedVenue(venue); setDirectVenueUUID(null); setStep("confirm"); }}
                   className="w-full flex items-center gap-4 glass-card rounded-xl p-4 hover:border-primary/30 transition-all text-left"
                 >
                   <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0">
@@ -589,7 +679,7 @@ export default function RequestSongPage() {
             </div>
           </div>
 
-          {filteredFavorites.length === 0 && filteredOthers.length === 0 && (
+          {filteredFavorites.length === 0 && filteredOthers.length === 0 && filteredSupabaseVenues.length === 0 && (
             <div className="glass-card rounded-2xl p-8 text-center">
               <span className="material-icons-round text-4xl text-text-muted mb-3">search_off</span>
               <p className="text-white font-semibold">No venues found</p>

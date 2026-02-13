@@ -1,17 +1,56 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import Link from "next/link";
 import { useQueueSubscription } from "@/hooks/useQueueSubscription";
+import { useQueueSubscriptionById } from "@/hooks/useQueueSubscriptionById";
 import { useAuth } from "@/components/AuthProvider";
 import SongRequestModal from "@/components/SongRequestModal";
 import { karaokeEvents } from "@/lib/mock-data";
+import { createClient } from "@/lib/supabase/client";
+
+/**
+ * Simple UUID v4 check — the [id] param is either a mock-data slug
+ * (e.g. "fusion-east-monday") or a Supabase UUID.
+ */
+function isUUID(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
 
 export default function PublicQueuePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { user } = useAuth();
-  const event = karaokeEvents.find((e) => e.id === id);
-  const { queue, loading } = useQueueSubscription(event?.venueName || "");
+
+  // Determine whether the [id] is a mock-data slug or a Supabase UUID
+  const isVenueUUID = isUUID(id);
+  const event = !isVenueUUID ? karaokeEvents.find((e) => e.id === id) : null;
+
+  // When [id] is a UUID, fetch the venue name from Supabase
+  const [supabaseVenueName, setSupabaseVenueName] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isVenueUUID) return;
+    const supabase = createClient();
+    supabase
+      .from("venues")
+      .select("name")
+      .eq("id", id)
+      .single()
+      .then(({ data }) => {
+        if (data) setSupabaseVenueName(data.name);
+      });
+  }, [id, isVenueUUID]);
+
+  // Use the correct subscription hook based on id type
+  const byNameResult = useQueueSubscription(event?.venueName || "");
+  const byIdResult = useQueueSubscriptionById(isVenueUUID ? id : "");
+
+  const queue = isVenueUUID ? byIdResult.queue : byNameResult.queue;
+  const loading = isVenueUUID ? byIdResult.loading : byNameResult.loading;
+
+  const displayName = event?.venueName || supabaseVenueName || "Live Queue";
+  const displayEventName = event?.eventName || null;
+  const displayDj = event?.dj || null;
+
   const [showRequest, setShowRequest] = useState(false);
 
   const nowSinging = queue.find((q) => q.status === "now_singing");
@@ -53,11 +92,11 @@ export default function PublicQueuePage({ params }: { params: Promise<{ id: stri
           </Link>
           <div className="min-w-0">
             <h1 className="text-xl font-extrabold text-white truncate">
-              {event?.venueName || "Live Queue"}
+              {displayName}
             </h1>
-            {event?.eventName && (
+            {displayEventName && (
               <p className="text-accent text-xs font-bold uppercase tracking-wider truncate">
-                {event.eventName}
+                {displayEventName}
               </p>
             )}
           </div>
@@ -67,9 +106,9 @@ export default function PublicQueuePage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
-        {event?.dj && event.dj !== "Open" && (
+        {displayDj && displayDj !== "Open" && (
           <p className="text-text-secondary text-sm mb-6 ml-12">
-            KJ: <span className="text-primary font-semibold">{event.dj}</span>
+            KJ: <span className="text-primary font-semibold">{displayDj}</span>
           </p>
         )}
 
@@ -262,7 +301,7 @@ export default function PublicQueuePage({ params }: { params: Promise<{ id: stri
       {showRequest && (
         <SongRequestModal
           venueId={id}
-          venueName={event?.venueName || "Venue"}
+          venueName={displayName}
           onClose={() => setShowRequest(false)}
         />
       )}

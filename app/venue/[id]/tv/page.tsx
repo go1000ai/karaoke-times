@@ -1,9 +1,10 @@
 "use client";
 
-import { use, useEffect, useState, useMemo } from "react";
+import { use, useEffect, useState, useMemo, useRef } from "react";
 import { useQueueSubscriptionById, type QueueEntry } from "@/hooks/useQueueSubscriptionById";
 import { createClient } from "@/lib/supabase/client";
 import { QRCodeSVG } from "qrcode.react";
+import YouTubePlayer, { type YouTubePlayerHandle } from "@/components/YouTubePlayer";
 
 /* ── Types ─────────────────────────────────────────────── */
 
@@ -76,6 +77,42 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [slideIndex, setSlideIndex] = useState(0);
   const [tvSettings, setTvSettings] = useState<TVSettings>(DEFAULT_SETTINGS);
+
+  /* ── YouTube on TV (controlled by KJ) ─────────────── */
+  const [tvVideoId, setTvVideoId] = useState<string | null>(null);
+  const tvYtRef = useRef<YouTubePlayerHandle>(null);
+
+  // Subscribe to the KJ's broadcast channel for TV mode + playback sync
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase.channel(`youtube-sync:${id}`);
+
+    channel
+      .on("broadcast", { event: "tv-mode" }, ({ payload }) => {
+        if (payload?.show && payload?.videoId) {
+          setTvVideoId(payload.videoId);
+        } else {
+          setTvVideoId(null);
+        }
+      })
+      .on("broadcast", { event: "playback" }, ({ payload }) => {
+        if (!tvYtRef.current) return;
+        if (payload?.resync && payload?.time !== undefined) {
+          // KJ hit resync — seek to their current time
+          tvYtRef.current.seekTo(payload.time);
+          tvYtRef.current.play();
+        } else if (payload?.playing === false) {
+          tvYtRef.current.pause();
+        } else if (payload?.playing === true) {
+          tvYtRef.current.play();
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id]);
 
   /* ── Live clock ─────────────────────────────────────── */
   useEffect(() => {
@@ -268,59 +305,82 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
 
       {/* ── Main Content — 2 Column Layout ──────────────── */}
       <div className="flex flex-1 min-h-0">
-        {/* ── Left Column — Rotating Content ────────────── */}
+        {/* ── Left Column — YouTube Video or Rotating Content ── */}
         <div className="flex-1 relative overflow-hidden">
-          {/* Ambient glow */}
-          <div className="absolute inset-0 pointer-events-none z-0">
-            <div className="absolute top-[20%] left-[10%] w-[60%] h-[40%] bg-accent/8 blur-[100px] rounded-full" />
-            <div className="absolute bottom-[20%] right-[10%] w-[50%] h-[30%] bg-primary/8 blur-[80px] rounded-full" />
-          </div>
-
-          {/* Current slide — absolute fill so nothing clips */}
-          <div className="absolute inset-0 z-10 flex items-center justify-center p-4">
-            {currentSlide ? (
-              <div
-                key={`${currentSlide.kind}-${slideIndex}`}
-                className="w-full h-full flex items-center justify-center animate-tv-slideIn"
-              >
-                {currentSlide.kind === "specials" && (
-                  <SpecialsSlide items={currentSlide.items} />
-                )}
-                {currentSlide.kind === "promo" && (
-                  <PromoSlide promo={currentSlide.promo} />
-                )}
-                {currentSlide.kind === "media" && (
-                  <MediaSlide media={currentSlide.media} />
-                )}
-                {currentSlide.kind === "event" && (
-                  <EventSlide venue={currentSlide.venue} />
-                )}
-              </div>
-            ) : (
-              <div className="text-center">
-                <span className="material-icons-round text-primary/20 text-[120px] mb-4">
-                  mic
-                </span>
-                <p className="text-2xl font-bold text-white/40">Karaoke Night</p>
-                <p className="text-text-muted mt-2">Scan the QR code to request a song!</p>
-              </div>
-            )}
-          </div>
-
-          {/* Slide indicators — absolute so they don't reduce content space */}
-          {slides.length > 1 && (
-            <div className="absolute bottom-3 left-0 right-0 z-20 flex justify-center gap-2">
-              {slides.map((_, i) => (
-                <div
-                  key={i}
-                  className={`w-2 h-2 rounded-full transition-all duration-500 ${
-                    i === slideIndex % slides.length
-                      ? "bg-primary w-6"
-                      : "bg-white/20"
-                  }`}
+          {tvVideoId ? (
+            /* ── YouTube Video from KJ ──────────────────── */
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black">
+              <div className="w-full h-full">
+                <YouTubePlayer
+                  ref={tvYtRef}
+                  videoId={tvVideoId}
+                  muted
                 />
-              ))}
+              </div>
+              {/* "Now Playing" indicator */}
+              <div className="absolute top-4 left-4 z-20 flex items-center gap-2 bg-black/60 backdrop-blur-sm rounded-full px-3 py-1.5">
+                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                <span className="text-white text-xs font-bold uppercase tracking-wider">
+                  Now Playing
+                </span>
+              </div>
             </div>
+          ) : (
+            /* ── Slides (promos, specials, etc.) ────────── */
+            <>
+              {/* Ambient glow */}
+              <div className="absolute inset-0 pointer-events-none z-0">
+                <div className="absolute top-[20%] left-[10%] w-[60%] h-[40%] bg-accent/8 blur-[100px] rounded-full" />
+                <div className="absolute bottom-[20%] right-[10%] w-[50%] h-[30%] bg-primary/8 blur-[80px] rounded-full" />
+              </div>
+
+              {/* Current slide — absolute fill so nothing clips */}
+              <div className="absolute inset-0 z-10 flex items-center justify-center p-4">
+                {currentSlide ? (
+                  <div
+                    key={`${currentSlide.kind}-${slideIndex}`}
+                    className="w-full h-full flex items-center justify-center animate-tv-slideIn"
+                  >
+                    {currentSlide.kind === "specials" && (
+                      <SpecialsSlide items={currentSlide.items} />
+                    )}
+                    {currentSlide.kind === "promo" && (
+                      <PromoSlide promo={currentSlide.promo} />
+                    )}
+                    {currentSlide.kind === "media" && (
+                      <MediaSlide media={currentSlide.media} />
+                    )}
+                    {currentSlide.kind === "event" && (
+                      <EventSlide venue={currentSlide.venue} />
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center">
+                    <span className="material-icons-round text-primary/20 text-[120px] mb-4">
+                      mic
+                    </span>
+                    <p className="text-2xl font-bold text-white/40">Karaoke Night</p>
+                    <p className="text-text-muted mt-2">Scan the QR code to request a song!</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Slide indicators — absolute so they don't reduce content space */}
+              {slides.length > 1 && (
+                <div className="absolute bottom-3 left-0 right-0 z-20 flex justify-center gap-2">
+                  {slides.map((_, i) => (
+                    <div
+                      key={i}
+                      className={`w-2 h-2 rounded-full transition-all duration-500 ${
+                        i === slideIndex % slides.length
+                          ? "bg-primary w-6"
+                          : "bg-white/20"
+                      }`}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
 

@@ -24,6 +24,8 @@ interface QueueEntry {
 export default function QueuePage() {
   const { user } = useAuth();
   const [venueId, setVenueId] = useState<string | null>(null);
+  const [venueName, setVenueName] = useState<string | null>(null);
+  const [venueNotFound, setVenueNotFound] = useState(false);
   const [queue, setQueue] = useState<QueueEntry[]>([]);
   const [skippedQueue, setSkippedQueue] = useState<QueueEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,6 +38,8 @@ export default function QueuePage() {
   const [nextUpCountdown, setNextUpCountdown] = useState<number | null>(null);
   const [nextUpTimedOut, setNextUpTimedOut] = useState(false);
   const [showYTSearch, setShowYTSearch] = useState(false);
+  const [showOnTV, setShowOnTV] = useState(false);
+  const [allVenues, setAllVenues] = useState<{ id: string; name: string }[]>([]);
   const supabase = createClient();
 
   // Get venue ID — check cookie first, then connected venues, then owned venue
@@ -43,56 +47,79 @@ export default function QueuePage() {
     if (!user) return;
 
     const findVenue = async () => {
+      console.log("[KJ Queue] Finding venue for user:", user.id);
+
       // 1. Check cookie for an explicitly-selected venue
       const res = await fetch("/api/active-venue");
       const { venueId: activeId } = await res.json();
+      console.log("[KJ Queue] Cookie active_venue_id:", activeId || "(none)");
       if (activeId) {
         const { data: venue } = await supabase
           .from("venues")
-          .select("queue_paused")
+          .select("name, queue_paused")
           .eq("id", activeId)
           .single();
         if (venue) {
+          console.log("[KJ Queue] Using cookie venue:", venue.name, activeId);
           setVenueId(activeId);
+          setVenueName(venue.name);
           setPaused(venue.queue_paused);
           return;
         }
       }
 
       // 2. KJ: first connected venue via venue_staff
-      const { data: staffRecords } = await supabase
+      const { data: staffRecords, error: staffError } = await supabase
         .from("venue_staff")
-        .select("venue_id")
+        .select("venue_id, venues(name)")
         .eq("user_id", user.id)
         .not("accepted_at", "is", null)
         .limit(1);
 
+      console.log("[KJ Queue] venue_staff records:", staffRecords?.length ?? 0, staffError ? `error: ${staffError.message}` : "");
+
       if (staffRecords?.[0]) {
         const vid = staffRecords[0].venue_id;
+        const staffVenueName = (staffRecords[0].venues as unknown as { name: string })?.name ?? null;
         const { data: venue } = await supabase
           .from("venues")
           .select("queue_paused")
           .eq("id", vid)
           .single();
+        console.log("[KJ Queue] Using staff venue:", staffVenueName, vid);
         setVenueId(vid);
+        setVenueName(staffVenueName);
         if (venue) setPaused(venue.queue_paused);
         return;
       }
 
       // 3. Fallback: user owns a venue
-      const { data: owned } = await supabase
+      const { data: owned, error: ownedError } = await supabase
         .from("venues")
-        .select("id, queue_paused")
+        .select("id, name, queue_paused")
         .eq("owner_id", user.id)
         .single();
 
+      console.log("[KJ Queue] Owned venue:", owned?.name ?? "(none)", ownedError ? `error: ${ownedError.message}` : "");
+
       if (owned) {
         setVenueId(owned.id);
+        setVenueName(owned.name);
         setPaused(owned.queue_paused);
+        return;
       }
+
+      // No venue found via any method
+      console.warn("[KJ Queue] No venue found for user", user.id);
+      setVenueNotFound(true);
+      setLoading(false);
     };
 
-    findVenue();
+    findVenue().catch((err) => {
+      console.error("[KJ Queue] findVenue crashed:", err);
+      setVenueNotFound(true);
+      setLoading(false);
+    });
   }, [user, supabase]);
 
   // Fetch and subscribe to queue
@@ -100,12 +127,18 @@ export default function QueuePage() {
     if (!venueId) return;
 
     const fetchQueue = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("song_queue")
         .select("*, profiles(display_name)")
         .eq("venue_id", venueId)
         .in("status", ["waiting", "up_next", "now_singing"])
         .order("position");
+
+      if (error) {
+        console.error("[KJ Queue] Fetch error:", error.message, "venueId:", venueId);
+      } else {
+        console.log("[KJ Queue] Fetched", data?.length ?? 0, "entries for venue", venueId);
+      }
 
       setQueue((data as unknown as QueueEntry[]) ?? []);
       setLoading(false);
@@ -206,6 +239,15 @@ export default function QueuePage() {
     setNextUpTimedOut(false);
   };
 
+  // Broadcast TV mode change to the TV display
+  const broadcastTVMode = useCallback((videoId: string | null, show: boolean) => {
+    broadcastChannelRef.current?.send({
+      type: "broadcast",
+      event: "tv-mode",
+      payload: { videoId, show },
+    });
+  }, []);
+
   // Save a YouTube video ID to a queue entry
   const setYouTubeVideo = async (entryId: string, videoId: string) => {
     // Optimistic update — show the player immediately
@@ -214,6 +256,10 @@ export default function QueuePage() {
     );
     setShowYTSearch(false);
     await supabase.from("song_queue").update({ youtube_video_id: videoId }).eq("id", entryId);
+    // If currently showing on TV, update with new video
+    if (showOnTV) {
+      broadcastTVMode(videoId, true);
+    }
   };
 
   const ytRef = useRef<YouTubePlayerHandle>(null);
@@ -305,10 +351,72 @@ export default function QueuePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nextInLine?.id]);
 
-  if (loading) {
+  // Fetch all venues when no venue is auto-detected, so the KJ can manually pick one
+  useEffect(() => {
+    if (!venueNotFound) return;
+    supabase
+      .from("venues")
+      .select("id, name")
+      .order("name")
+      .then(({ data }) => {
+        if (data) setAllVenues(data);
+      });
+  }, [venueNotFound, supabase]);
+
+  const selectManualVenue = async (vid: string, name: string) => {
+    // Save to cookie so it persists
+    await fetch("/api/active-venue", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ venueId: vid }),
+    });
+    setVenueId(vid);
+    setVenueName(name);
+    setVenueNotFound(false);
+    setLoading(true); // Will trigger the queue fetch effect
+  };
+
+  if (loading && !venueNotFound) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (venueNotFound) {
+    return (
+      <div>
+        <div className="text-center py-10">
+          <span className="material-icons-round text-6xl text-text-muted mb-4">storefront</span>
+          <h1 className="text-2xl font-bold text-white mb-2">No Venue Linked</h1>
+          <p className="text-text-secondary mb-6 max-w-md mx-auto">
+            Your account isn&apos;t automatically connected to a venue. Select one below to manage its queue.
+          </p>
+        </div>
+
+        {allVenues.length > 0 ? (
+          <div className="max-w-md mx-auto space-y-2">
+            <p className="text-xs font-bold text-text-muted uppercase tracking-wider mb-3">Select a Venue</p>
+            {allVenues.map((v) => (
+              <button
+                key={v.id}
+                onClick={() => selectManualVenue(v.id, v.name)}
+                className="w-full flex items-center gap-4 glass-card rounded-xl p-4 hover:border-primary/30 transition-all text-left"
+              >
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <span className="material-icons-round text-primary">storefront</span>
+                </div>
+                <p className="text-white font-bold text-sm truncate flex-1">{v.name}</p>
+                <span className="material-icons-round text-text-muted">chevron_right</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center">
+            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+          </div>
+        )}
       </div>
     );
   }
@@ -320,7 +428,11 @@ export default function QueuePage() {
         <div>
           <h1 className="text-2xl font-extrabold text-white mb-1">Song Queue</h1>
           <p className="text-text-secondary text-sm">
-            Manage your live song queue. Updates in real-time.
+            {venueName && (
+              <span className="text-white font-semibold">{venueName}</span>
+            )}
+            {venueName && " — "}
+            Manage your live song queue.
             <span className="inline-flex items-center gap-1 ml-2 text-primary">
               <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
               Live
@@ -397,6 +509,10 @@ export default function QueuePage() {
                 <button
                   onClick={async () => {
                     await supabase.from("song_queue").update({ youtube_video_id: null }).eq("id", nowSinging.id);
+                    if (showOnTV) {
+                      setShowOnTV(false);
+                      broadcastTVMode(null, false);
+                    }
                   }}
                   className="flex flex-col items-center bg-blue-500/10 text-blue-400 font-bold text-xs px-3 py-2 rounded-xl border border-blue-500/20 hover:bg-blue-500/20 transition-colors"
                 >
@@ -407,7 +523,13 @@ export default function QueuePage() {
                   <span className="text-[10px] text-blue-400/60 font-medium">View TV</span>
                 </button>
                 <button
-                  onClick={() => updateStatus(nowSinging.id, "completed")}
+                  onClick={() => {
+                    if (showOnTV) {
+                      setShowOnTV(false);
+                      broadcastTVMode(null, false);
+                    }
+                    updateStatus(nowSinging.id, "completed");
+                  }}
                   className="flex items-center gap-1.5 bg-primary text-black font-bold text-sm px-4 py-2 rounded-xl"
                 >
                   <span className="material-icons-round text-base">check_circle</span>
@@ -479,6 +601,26 @@ export default function QueuePage() {
                     >
                       <span className="material-icons-round text-sm">sync</span>
                       Resync
+                    </button>
+                    <button
+                      onClick={() => {
+                        const next = !showOnTV;
+                        setShowOnTV(next);
+                        broadcastTVMode(
+                          next ? nowSinging.youtube_video_id : null,
+                          next
+                        );
+                      }}
+                      className={`flex items-center gap-1 font-bold text-[10px] px-2 py-1 rounded-lg border transition-colors ${
+                        showOnTV
+                          ? "bg-accent/10 text-accent border-accent/20 hover:bg-accent/20"
+                          : "bg-white/5 text-text-muted border-white/10 hover:bg-white/10 hover:text-white"
+                      }`}
+                    >
+                      <span className="material-icons-round text-sm">
+                        {showOnTV ? "slideshow" : "tv"}
+                      </span>
+                      {showOnTV ? "Show Promos" : "Show on TV"}
                     </button>
                   </div>
                 </div>

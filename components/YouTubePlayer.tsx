@@ -6,6 +6,7 @@ export interface YouTubePlayerHandle {
   play: () => void;
   pause: () => void;
   restart: () => void;
+  seekTo: (seconds: number) => void;
   getCurrentTime: () => number;
 }
 
@@ -66,6 +67,7 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
         postCommand("seekTo", [0, true]);
         postCommand("playVideo");
       },
+      seekTo: (seconds: number) => postCommand("seekTo", [seconds, true]),
       getCurrentTime: () => lastTimeRef.current,
     }));
 

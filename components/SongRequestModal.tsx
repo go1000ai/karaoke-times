@@ -7,6 +7,10 @@ import { resolveVenueId } from "@/lib/resolve-venue-id";
 
 const SAVED_SONGS_KEY = "kt-saved-songs";
 
+function isUUID(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
 interface SongRequestModalProps {
   venueId: string;
   venueName: string;
@@ -56,16 +60,13 @@ export default function SongRequestModal({ venueId, venueName, onClose }: SongRe
   // Load saved songs and check queue pause on mount
   useEffect(() => {
     setSavedSongs(loadSavedSongs());
-    supabase
-      .from("venues")
-      .select("queue_paused")
-      .ilike("name", venueName.trim())
-      .limit(1)
-      .single()
-      .then(({ data }) => {
-        setQueuePaused(data?.queue_paused ?? false);
-      });
-  }, [venueName, supabase]);
+    const query = isUUID(venueId)
+      ? supabase.from("venues").select("queue_paused").eq("id", venueId).single()
+      : supabase.from("venues").select("queue_paused").ilike("name", venueName.trim()).limit(1).single();
+    query.then(({ data }) => {
+      setQueuePaused(data?.queue_paused ?? false);
+    });
+  }, [venueId, venueName, supabase]);
 
   // Default to search if no saved songs
   useEffect(() => {
@@ -125,8 +126,8 @@ export default function SongRequestModal({ venueId, venueName, onClose }: SongRe
     setSubmitting(true);
     setError("");
 
-    // Resolve venue name to Supabase UUID
-    const supabaseVenueId = await resolveVenueId(venueName);
+    // Use the venue UUID directly if already a UUID, otherwise resolve by name
+    const supabaseVenueId = isUUID(venueId) ? venueId : await resolveVenueId(venueName);
     if (!supabaseVenueId) {
       setError("Venue not found. Please try again.");
       setSubmitting(false);
