@@ -8,6 +8,7 @@ const CONFIRM_TIMEOUT_SEC = 5 * 60; // 5 minutes
 
 interface QueueEntry {
   id: string;
+  user_id: string;
   song_title: string;
   artist: string;
   status: string;
@@ -136,6 +137,25 @@ export default function QueuePage() {
     return () => { supabase.removeChannel(channel); };
   }, [venueId, supabase]);
 
+  // Send push notification to a singer
+  const notifySinger = async (userId: string, songTitle: string) => {
+    try {
+      await fetch("/api/push/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          title: "You're Next!",
+          body: `Get ready to sing "${songTitle}"! Confirm in the app within 5 minutes.`,
+          url: "/dashboard/my-queue",
+          tag: "youre-next",
+        }),
+      });
+    } catch {
+      // Push may not be set up yet — fail silently
+    }
+  };
+
   const updateStatus = async (id: string, status: string) => {
     const updates: Record<string, unknown> = { status };
     if (status === "completed" || status === "skipped") {
@@ -206,10 +226,12 @@ export default function QueuePage() {
       return;
     }
 
-    // If new singer became next, reset the timer and timed-out flag
+    // If new singer became next, reset the timer and timed-out flag + notify them
     if (!nextUpSinceRef.current || nextUpSinceRef.current.id !== nextInLine.id) {
       nextUpSinceRef.current = { id: nextInLine.id, since: Date.now() };
       setNextUpTimedOut(false);
+      // Send push notification to the singer
+      notifySinger(nextInLine.user_id, nextInLine.song_title);
     }
 
     const tick = () => {

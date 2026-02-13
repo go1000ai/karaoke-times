@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
 import { updateSongStatus } from "@/lib/data/queue";
+import PushNotificationPrompt from "@/components/PushNotificationPrompt";
 
 const CONFIRM_TIMEOUT_SEC = 5 * 60; // 5 minutes
 
@@ -198,6 +199,8 @@ export default function MyQueuePage() {
           ? `You have ${myEntries.length} active song${myEntries.length === 1 ? "" : "s"} in the queue.`
           : "You\u2019re not in any queues right now."}
       </p>
+
+      <PushNotificationPrompt />
 
       {myEntries.length === 0 ? (
         <div className="glass-card rounded-2xl p-10 text-center">
