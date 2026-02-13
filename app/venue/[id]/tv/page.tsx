@@ -5,6 +5,7 @@ import { useQueueSubscriptionById, type QueueEntry } from "@/hooks/useQueueSubsc
 import { createClient } from "@/lib/supabase/client";
 import LyricsDisplay from "@/components/LyricsDisplay";
 import YouTubePlayer from "@/components/YouTubePlayer";
+import { QRCodeSVG } from "qrcode.react";
 
 interface FeaturedSpecial {
   id: string;
@@ -125,10 +126,12 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
     );
   }
 
+  const queueUrl = `https://karaoke-times.vercel.app/venue/${id}/queue`;
+
   return (
-    <div className="min-h-screen bg-black text-white overflow-hidden select-none">
+    <div className="h-screen bg-black text-white overflow-hidden select-none flex flex-col">
       {/* Top Bar — Logo + KJ + Clock */}
-      <div className="flex items-center justify-between px-8 py-4 bg-gradient-to-r from-bg-dark via-black to-bg-dark border-b border-border/30">
+      <div className="flex items-center justify-between px-8 py-4 bg-gradient-to-r from-bg-dark via-black to-bg-dark border-b border-border/30 flex-shrink-0">
         <div className="flex items-center gap-4">
           <img
             src="/logo.png"
@@ -159,7 +162,7 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
       </div>
 
       {/* Main Content — 2 Column Layout */}
-      <div className="flex h-[calc(100vh-88px)]">
+      <div className="flex flex-1 min-h-0">
         {/* Left — Now Singing + Lyrics */}
         <div className="flex-1 flex flex-col items-center justify-center p-8 relative overflow-hidden">
           {/* Ambient glow */}
@@ -242,7 +245,7 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
         <div className="w-[380px] bg-white/[0.02] border-l border-border/20 flex flex-col">
           {/* Up Next */}
           {upNext && (
-            <div className="p-5 border-b border-border/20 bg-primary/5">
+            <div className="p-5 border-b border-border/20 bg-primary/5 flex-shrink-0">
               <div className="flex items-center gap-2 mb-3">
                 <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
                 <p className="text-primary text-xs font-extrabold uppercase tracking-[0.15em]">
@@ -265,7 +268,7 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
           )}
 
           {/* Queue Header */}
-          <div className="px-5 py-3 flex items-center justify-between border-b border-border/10">
+          <div className="px-5 py-3 flex items-center justify-between border-b border-border/10 flex-shrink-0">
             <p className="text-xs font-extrabold text-text-muted uppercase tracking-widest">
               In Line
             </p>
@@ -275,7 +278,7 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
           </div>
 
           {/* Queue List */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto min-h-0">
             {waiting.length === 0 && !upNext && !nowSinging ? (
               <div className="flex flex-col items-center justify-center h-full opacity-40">
                 <span className="material-icons-round text-4xl text-text-muted mb-2">queue_music</span>
@@ -292,7 +295,7 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
 
           {/* Featured Specials from POS */}
           {specials.length > 0 && (
-            <div className="p-4 border-t border-border/20 bg-gradient-to-r from-orange-500/5 to-amber-500/5">
+            <div className="p-4 border-t border-border/20 bg-gradient-to-r from-orange-500/5 to-amber-500/5 flex-shrink-0">
               <div className="flex items-center gap-2 mb-2">
                 <span className="material-icons-round text-orange-400 text-sm">local_bar</span>
                 <p className="text-[10px] font-extrabold text-orange-400 uppercase tracking-[0.15em]">
@@ -311,12 +314,39 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
               </div>
             </div>
           )}
+        </div>
+      </div>
 
-          {/* Promo Banner — rotates */}
+      {/* Bottom Bar — QR Code + Promo (full width) */}
+      <div className="flex-shrink-0 border-t border-border/30 bg-gradient-to-r from-primary/5 via-black to-accent/5">
+        <div className="flex items-center gap-6 px-8 py-3">
+          {/* QR Code */}
+          <div className="flex-shrink-0 bg-white rounded-xl p-2">
+            <QRCodeSVG
+              value={queueUrl}
+              size={80}
+              bgColor="#ffffff"
+              fgColor="#000000"
+              level="M"
+            />
+          </div>
+
+          {/* Text */}
+          <div className="flex-1 min-w-0">
+            <p className="text-white font-bold text-base leading-snug">
+              Scan to request a song
+            </p>
+            <p className="text-text-muted text-sm leading-snug mt-0.5 break-words">
+              Join the queue at{" "}
+              <span className="text-primary font-semibold">karaoke-times.vercel.app</span>
+            </p>
+          </div>
+
+          {/* Rotating promo */}
           {promos.length > 0 && (
-            <div className="p-4 border-t border-border/20 bg-gradient-to-r from-primary/5 to-accent/5">
+            <div className="flex-shrink-0 text-right max-w-[300px]">
               <p
-                className="text-sm text-white/70 text-center font-medium leading-relaxed transition-opacity duration-500"
+                className="text-sm text-white/70 font-medium leading-snug transition-opacity duration-500 break-words"
                 key={promoIndex}
               >
                 {promos[promoIndex]}
