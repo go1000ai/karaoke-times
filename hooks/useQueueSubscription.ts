@@ -23,9 +23,9 @@ export interface QueueEntry {
 export function useQueueSubscription(venueName: string) {
   const [queue, setQueue] = useState<QueueEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
 
   useEffect(() => {
+    const supabase = createClient();
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     const init = async () => {
@@ -81,7 +81,7 @@ export function useQueueSubscription(venueName: string) {
     return () => {
       if (channel) supabase.removeChannel(channel);
     };
-  }, [venueName, supabase]);
+  }, [venueName]);
 
   return { queue, loading };
 }

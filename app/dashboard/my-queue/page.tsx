@@ -158,8 +158,12 @@ export default function MyQueuePage() {
 
   const handleConfirm = async (entryId: string) => {
     setActingOn(entryId);
-    await updateSongStatus(entryId, "up_next");
+    // Immediately stop the timer and move entry to up_next locally
+    delete nextSinceRef.current[entryId];
+    setCountdowns((prev) => { const n = { ...prev }; delete n[entryId]; return n; });
     setTimedOut((prev) => { const n = { ...prev }; delete n[entryId]; return n; });
+    setMyEntries((prev) => prev.map((e) => e.id === entryId ? { ...e, status: "up_next" } : e));
+    await updateSongStatus(entryId, "up_next");
     setActingOn(null);
   };
 

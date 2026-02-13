@@ -13,7 +13,6 @@ export { type QueueEntry };
 export function useQueueSubscriptionById(venueId: string) {
   const [queue, setQueue] = useState<QueueEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
 
   useEffect(() => {
     if (!venueId) {
@@ -21,6 +20,7 @@ export function useQueueSubscriptionById(venueId: string) {
       return;
     }
 
+    const supabase = createClient();
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     const fetchQueue = async () => {
@@ -56,7 +56,7 @@ export function useQueueSubscriptionById(venueId: string) {
     return () => {
       if (channel) supabase.removeChannel(channel);
     };
-  }, [venueId, supabase]);
+  }, [venueId]);
 
   return { queue, loading };
 }

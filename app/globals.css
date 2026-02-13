@@ -13,6 +13,14 @@
 
   --font-display: "Plus Jakarta Sans", sans-serif;
   --font-script: "Mr Dafoe", cursive;
+
+  --animate-fadeIn: fadeIn 0.7s ease-out;
+  --animate-tv-slideIn: tvSlideIn 1s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-tv-kenBurns: tvKenBurns 20s ease-in-out infinite alternate;
+  --animate-tv-shimmer: tvShimmer 3s ease-in-out infinite;
+  --animate-tv-glow: tvGlow 4s ease-in-out infinite alternate;
+  --animate-tv-float: tvFloat 6s ease-in-out infinite;
+  --animate-tv-textReveal: tvTextReveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 body {
@@ -38,6 +46,66 @@ body {
 .hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* ── TV Display Animations ─────────────────────────────── */
+
+/* Cinematic slide entrance */
+@keyframes tvSlideIn {
+  0% { opacity: 0; transform: scale(1.08) translateY(10px); filter: blur(8px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
+}
+
+/* Ken Burns slow zoom + pan for images */
+@keyframes tvKenBurns {
+  0% { transform: scale(1) translate(0, 0); }
+  25% { transform: scale(1.08) translate(-1%, -1%); }
+  50% { transform: scale(1.12) translate(1%, -0.5%); }
+  75% { transform: scale(1.06) translate(-0.5%, 1%); }
+  100% { transform: scale(1.1) translate(0.5%, -1%); }
+}
+
+/* Shimmer sweep overlay */
+@keyframes tvShimmer {
+  0% { transform: translateX(-100%) skewX(-15deg); }
+  50% { transform: translateX(200%) skewX(-15deg); }
+  100% { transform: translateX(200%) skewX(-15deg); }
+}
+
+/* Pulsing glow */
+@keyframes tvGlow {
+  0% { box-shadow: 0 0 20px rgba(0, 255, 194, 0.1), 0 0 60px rgba(0, 255, 194, 0.05); }
+  100% { box-shadow: 0 0 40px rgba(0, 255, 194, 0.2), 0 0 80px rgba(0, 255, 194, 0.1), 0 0 120px rgba(255, 0, 122, 0.05); }
+}
+
+/* Subtle floating */
+@keyframes tvFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+/* Text reveal from below */
+@keyframes tvTextReveal {
+  0% { opacity: 0; transform: translateY(20px); filter: blur(4px); }
+  100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+/* Gradient border animation */
+@keyframes tvBorderGlow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Particle-like sparkle for promos */
+@keyframes tvSparkle {
+  0%, 100% { opacity: 0; transform: scale(0) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1) rotate(180deg); }
 }
 
 @keyframes slideDown {

@@ -16,6 +16,7 @@ const ownerLinks = [
   { href: "/dashboard/bookings", icon: "book_online", label: "Bookings" },
   { href: "/dashboard/staff", icon: "group", label: "Staff & KJs" },
   { href: "/dashboard/integrations", icon: "point_of_sale", label: "POS Integration" },
+  { href: "/dashboard/tv-display", icon: "tv", label: "TV Display" },
   { href: "/dashboard/my-profile", icon: "person", label: "My Profile" },
 ];
 
@@ -24,6 +25,7 @@ const kjLinks = [
   { href: "/dashboard/connections", icon: "hub", label: "Connections" },
   { href: "/dashboard/queue", icon: "queue_music", label: "Song Queue" },
   { href: "/dashboard/promos", icon: "local_offer", label: "Bar Specials" },
+  { href: "/dashboard/tv-display", icon: "tv", label: "TV Display" },
   { href: "/dashboard/bookings", icon: "book_online", label: "Bookings" },
   { href: "/dashboard/my-profile", icon: "person", label: "My Profile" },
 ];
