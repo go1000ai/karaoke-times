@@ -1,10 +1,10 @@
 "use client";
 
-import { use, useEffect, useState, useCallback } from "react";
+import { use, useEffect, useState, useCallback, useRef } from "react";
 import { useQueueSubscriptionById, type QueueEntry } from "@/hooks/useQueueSubscriptionById";
 import { createClient } from "@/lib/supabase/client";
 import LyricsDisplay from "@/components/LyricsDisplay";
-import YouTubePlayer from "@/components/YouTubePlayer";
+import YouTubePlayer, { type YouTubePlayerHandle } from "@/components/YouTubePlayer";
 import { QRCodeSVG } from "qrcode.react";
 
 interface FeaturedSpecial {
@@ -30,6 +30,44 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
   const [showLyrics, setShowLyrics] = useState(true);
   const [ytCurrentTime, setYtCurrentTime] = useState<number | undefined>(undefined);
   const [ytPlaying, setYtPlaying] = useState(false);
+  const [audioUnlocked, setAudioUnlocked] = useState(false);
+  const [broadcastTime, setBroadcastTime] = useState<number | undefined>(undefined);
+  const [hasBroadcast, setHasBroadcast] = useState(false);
+  const broadcastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ytRef = useRef<YouTubePlayerHandle>(null);
+
+  // Subscribe to KJ's YouTube playback sync via broadcast
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase.channel(`youtube-sync:${id}`);
+
+    channel.on("broadcast", { event: "playback" }, ({ payload }) => {
+      setHasBroadcast(true);
+      if (payload.time !== undefined) {
+        setBroadcastTime(payload.time);
+      }
+      // Reset fallback timeout — if no broadcast for 5s, fall back to local player
+      if (broadcastTimeoutRef.current) clearTimeout(broadcastTimeoutRef.current);
+      broadcastTimeoutRef.current = setTimeout(() => {
+        setHasBroadcast(false);
+      }, 5000);
+    });
+
+    channel.subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+      if (broadcastTimeoutRef.current) clearTimeout(broadcastTimeoutRef.current);
+    };
+  }, [id]);
+
+  // Unlock audio on first user interaction anywhere on the page
+  useEffect(() => {
+    if (audioUnlocked) return;
+    const unlock = () => setAudioUnlocked(true);
+    document.addEventListener("click", unlock, { once: true });
+    return () => document.removeEventListener("click", unlock);
+  }, [audioUnlocked]);
 
   const handleYTTimeUpdate = useCallback((seconds: number) => {
     setYtCurrentTime(seconds);
@@ -113,6 +151,8 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
     }
     setYtCurrentTime(undefined);
     setYtPlaying(false);
+    setBroadcastTime(undefined);
+    setHasBroadcast(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nowSinging?.id]);
 
@@ -196,13 +236,16 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
                 )}
               </div>
 
-              {/* YouTube Player — audio only (hidden), syncs lyrics */}
+              {/* YouTube Player — muted, hidden, just for lyrics time sync */}
+              {/* The KJ plays audio from their device; TV only tracks time */}
               {nowSinging.youtube_video_id && (
                 <YouTubePlayer
+                  ref={ytRef}
                   videoId={nowSinging.youtube_video_id}
                   onTimeUpdate={handleYTTimeUpdate}
                   onStateChange={handleYTStateChange}
                   hidden
+                  muted
                 />
               )}
 
@@ -214,7 +257,13 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
                     songTitle={nowSinging.song_title}
                     artist={nowSinging.artist}
                     startedAt={singStartedAt}
-                    currentTime={nowSinging.youtube_video_id && ytCurrentTime !== undefined ? ytCurrentTime + 2 : undefined}
+                    currentTime={
+                      hasBroadcast && broadcastTime !== undefined
+                        ? broadcastTime + 2
+                        : ytPlaying && ytCurrentTime !== undefined
+                          ? ytCurrentTime + 2
+                          : undefined
+                    }
                   />
                 </div>
               )}
@@ -235,6 +284,9 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
               <span className="material-icons-round text-primary/20 text-[120px] mb-4">mic</span>
               <p className="text-2xl font-bold text-white/40">Stage is Open</p>
               <p className="text-text-muted mt-2">Request a song to get started!</p>
+              {!audioUnlocked && (
+                <p className="text-primary/60 text-xs mt-6 animate-pulse">Tap anywhere to enable audio</p>
+              )}
             </div>
           )}
         </div>

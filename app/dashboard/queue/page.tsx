@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
 import YouTubeKaraokeSearch from "@/components/YouTubeKaraokeSearch";
+import YouTubePlayer, { type YouTubePlayerHandle } from "@/components/YouTubePlayer";
 
 const CONFIRM_TIMEOUT_SEC = 5 * 60; // 5 minutes
 
@@ -16,6 +17,7 @@ interface QueueEntry {
   position: number;
   requested_at: string;
   completed_at: string | null;
+  youtube_video_id: string | null;
   profiles?: { display_name: string | null };
 }
 
@@ -206,9 +208,50 @@ export default function QueuePage() {
 
   // Save a YouTube video ID to a queue entry
   const setYouTubeVideo = async (entryId: string, videoId: string) => {
-    await supabase.from("song_queue").update({ youtube_video_id: videoId }).eq("id", entryId);
+    // Optimistic update — show the player immediately
+    setQueue((prev) =>
+      prev.map((q) => (q.id === entryId ? { ...q, youtube_video_id: videoId } : q))
+    );
     setShowYTSearch(false);
+    await supabase.from("song_queue").update({ youtube_video_id: videoId }).eq("id", entryId);
   };
+
+  const ytRef = useRef<YouTubePlayerHandle>(null);
+  const broadcastChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const lastBroadcastRef = useRef(0);
+
+  // Set up broadcast channel for YouTube playback sync to TV display
+  useEffect(() => {
+    if (!venueId) return;
+    const channel = supabase.channel(`youtube-sync:${venueId}`);
+    channel.subscribe();
+    broadcastChannelRef.current = channel;
+    return () => {
+      supabase.removeChannel(channel);
+      broadcastChannelRef.current = null;
+    };
+  }, [venueId, supabase]);
+
+  // Broadcast playback time to TV (~1s throttle)
+  const handleYTTimeUpdate = useCallback((seconds: number) => {
+    const now = Date.now();
+    if (now - lastBroadcastRef.current >= 1000) {
+      lastBroadcastRef.current = now;
+      broadcastChannelRef.current?.send({
+        type: "broadcast",
+        event: "playback",
+        payload: { time: seconds, playing: true },
+      });
+    }
+  }, []);
+
+  const handleYTStateChange = useCallback((playing: boolean) => {
+    broadcastChannelRef.current?.send({
+      type: "broadcast",
+      event: "playback",
+      payload: { playing },
+    });
+  }, []);
 
   const nowSinging = queue.find((q) => q.status === "now_singing");
   const upNext = queue.find((q) => q.status === "up_next");
@@ -343,19 +386,113 @@ export default function QueuePage() {
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowYTSearch(true)}
-                  className="flex items-center gap-1.5 bg-red-500/10 text-red-400 font-bold text-xs px-3 py-2 rounded-xl border border-red-500/20 hover:bg-red-500/20 transition-colors"
+                  className="flex flex-col items-center bg-red-500/10 text-red-400 font-bold text-xs px-3 py-2 rounded-xl border border-red-500/20 hover:bg-red-500/20 transition-colors"
                 >
-                  <span className="material-icons-round text-base">play_circle</span>
-                  Play Karaoke
+                  <span className="flex items-center gap-1">
+                    <span className="material-icons-round text-base">play_circle</span>
+                    Play Karaoke
+                  </span>
+                  <span className="text-[10px] text-red-400/60 font-medium">View TV</span>
+                </button>
+                <button
+                  onClick={async () => {
+                    await supabase.from("song_queue").update({ youtube_video_id: null }).eq("id", nowSinging.id);
+                  }}
+                  className="flex flex-col items-center bg-blue-500/10 text-blue-400 font-bold text-xs px-3 py-2 rounded-xl border border-blue-500/20 hover:bg-blue-500/20 transition-colors"
+                >
+                  <span className="flex items-center gap-1">
+                    <span className="material-icons-round text-base">lyrics</span>
+                    Lyrics Only
+                  </span>
+                  <span className="text-[10px] text-blue-400/60 font-medium">View TV</span>
                 </button>
                 <button
                   onClick={() => updateStatus(nowSinging.id, "completed")}
-                  className="bg-primary text-black font-bold text-sm px-4 py-2 rounded-xl"
+                  className="flex items-center gap-1.5 bg-primary text-black font-bold text-sm px-4 py-2 rounded-xl"
                 >
-                  Done
+                  <span className="material-icons-round text-base">check_circle</span>
+                  Complete
                 </button>
               </div>
             </div>
+
+            {/* YouTube Player — KJ plays audio from their device */}
+            {nowSinging.youtube_video_id && (
+              <div className="mt-4 pt-4 border-t border-white/5">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Karaoke Track</p>
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={() => {
+                        ytRef.current?.play();
+                        broadcastChannelRef.current?.send({
+                          type: "broadcast",
+                          event: "playback",
+                          payload: { playing: true },
+                        });
+                      }}
+                      className="flex items-center gap-1 bg-white/5 text-text-muted font-bold text-[10px] px-2 py-1 rounded-lg border border-white/10 hover:bg-white/10 hover:text-white transition-colors"
+                    >
+                      <span className="material-icons-round text-sm">play_arrow</span>
+                      Play
+                    </button>
+                    <button
+                      onClick={() => {
+                        ytRef.current?.pause();
+                        broadcastChannelRef.current?.send({
+                          type: "broadcast",
+                          event: "playback",
+                          payload: { playing: false },
+                        });
+                      }}
+                      className="flex items-center gap-1 bg-white/5 text-text-muted font-bold text-[10px] px-2 py-1 rounded-lg border border-white/10 hover:bg-white/10 hover:text-white transition-colors"
+                    >
+                      <span className="material-icons-round text-sm">pause</span>
+                      Pause
+                    </button>
+                    <button
+                      onClick={() => {
+                        ytRef.current?.restart();
+                        lastBroadcastRef.current = 0;
+                        broadcastChannelRef.current?.send({
+                          type: "broadcast",
+                          event: "playback",
+                          payload: { time: 0, playing: true },
+                        });
+                      }}
+                      className="flex items-center gap-1 bg-white/5 text-text-muted font-bold text-[10px] px-2 py-1 rounded-lg border border-white/10 hover:bg-white/10 hover:text-white transition-colors"
+                    >
+                      <span className="material-icons-round text-sm">replay</span>
+                      Restart
+                    </button>
+                    <button
+                      onClick={() => {
+                        const time = ytRef.current?.getCurrentTime() ?? 0;
+                        lastBroadcastRef.current = 0;
+                        broadcastChannelRef.current?.send({
+                          type: "broadcast",
+                          event: "playback",
+                          payload: { time, playing: true, resync: true },
+                        });
+                      }}
+                      className="flex items-center gap-1 bg-primary/10 text-primary font-bold text-[10px] px-2 py-1 rounded-lg border border-primary/20 hover:bg-primary/20 transition-colors"
+                    >
+                      <span className="material-icons-round text-sm">sync</span>
+                      Resync
+                    </button>
+                  </div>
+                </div>
+                <div className="rounded-xl overflow-hidden">
+                  <YouTubePlayer
+                    ref={ytRef}
+                    videoId={nowSinging.youtube_video_id}
+                    onTimeUpdate={handleYTTimeUpdate}
+                    onStateChange={handleYTStateChange}
+                  />
+                </div>
+                <p className="text-[10px] text-text-muted mt-1.5 text-center">Lyrics on TV sync to this playback</p>
+              </div>
+            )}
           </div>
         </div>
       )}

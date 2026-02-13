@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 interface VideoResult {
   id: string;
@@ -8,6 +9,11 @@ interface VideoResult {
   thumbnail: string | null;
   duration: string;
   channel: string;
+}
+
+interface CachedTrack {
+  youtube_video_id: string;
+  track_type: string;
 }
 
 export default function YouTubeKaraokeSearch({
@@ -21,10 +27,37 @@ export default function YouTubeKaraokeSearch({
   onSelect: (videoId: string) => void;
   onClose: () => void;
 }) {
-  const [query, setQuery] = useState(`${songTitle} ${artist}`);
+  const [query, setQuery] = useState(`${songTitle} ${artist} karaoke instrumental`);
   const [results, setResults] = useState<VideoResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [cached, setCached] = useState<CachedTrack | null>(null);
+  const [checkingCache, setCheckingCache] = useState(true);
+
+  // Check cache first
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from("karaoke_tracks")
+      .select("youtube_video_id, track_type")
+      .ilike("song_title", songTitle.trim())
+      .ilike("artist", artist.trim())
+      .limit(1)
+      .then(({ data }) => {
+        if (data?.[0]) {
+          setCached(data[0] as CachedTrack);
+        }
+        setCheckingCache(false);
+      });
+  }, [songTitle, artist]);
+
+  // Auto-search on mount (after cache check)
+  useEffect(() => {
+    if (!checkingCache) {
+      search(query);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkingCache]);
 
   const search = async (q: string) => {
     setLoading(true);
@@ -39,11 +72,20 @@ export default function YouTubeKaraokeSearch({
     setLoading(false);
   };
 
-  // Auto-search on mount
-  useEffect(() => {
-    search(query);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const handleSelect = async (videoId: string) => {
+    // Save to cache
+    const supabase = createClient();
+    await supabase.from("karaoke_tracks").upsert(
+      {
+        song_title: songTitle.trim(),
+        artist: artist.trim(),
+        youtube_video_id: videoId,
+        track_type: "instrumental",
+      },
+      { onConflict: "song_title,artist,track_type" }
+    );
+    onSelect(videoId);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,6 +112,23 @@ export default function YouTubeKaraokeSearch({
             <span className="material-icons-round">close</span>
           </button>
         </div>
+
+        {/* Cached track */}
+        {cached && (
+          <div className="p-4 border-b border-border/50 bg-primary/5">
+            <p className="text-xs font-bold text-primary uppercase tracking-wider mb-2">Previously Used</p>
+            <button
+              onClick={() => handleSelect(cached.youtube_video_id)}
+              className="w-full flex items-center gap-3 p-3 rounded-xl bg-primary/10 border border-primary/20 hover:bg-primary/20 transition-colors text-left"
+            >
+              <span className="material-icons-round text-primary text-2xl">play_circle</span>
+              <div>
+                <p className="text-white text-sm font-semibold">Use saved track</p>
+                <p className="text-text-muted text-xs">{cached.track_type} version</p>
+              </div>
+            </button>
+          </div>
+        )}
 
         {/* Search */}
         <form onSubmit={handleSubmit} className="p-4 border-b border-border/50">
@@ -113,7 +172,7 @@ export default function YouTubeKaraokeSearch({
           {results.map((video) => (
             <button
               key={video.id}
-              onClick={() => onSelect(video.id)}
+              onClick={() => handleSelect(video.id)}
               className="w-full flex items-start gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors text-left group"
             >
               {/* Thumbnail */}
@@ -152,10 +211,10 @@ export default function YouTubeKaraokeSearch({
           ))}
         </div>
 
-        {/* Manual URL input */}
+        {/* Footer */}
         <div className="p-4 border-t border-border/50">
           <p className="text-text-muted text-[10px] text-center">
-            Or paste a YouTube URL directly in the search box
+            Selected tracks are saved for future use
           </p>
         </div>
       </div>

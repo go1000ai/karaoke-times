@@ -47,7 +47,7 @@ export default function LyricsDisplay({
   const containerRef = useRef<HTMLDivElement>(null);
   const originRef = useRef<number>(startedAt || Date.now());
 
-  // Fetch lyrics
+  // Fetch lyrics when song changes
   useEffect(() => {
     setLoading(true);
     setActiveLine(0);
@@ -73,11 +73,18 @@ export default function LyricsDisplay({
         setLyrics([]);
         setLoading(false);
       });
-  }, [songTitle, artist, startedAt]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [songTitle, artist]);
 
-  // When YouTube provides currentTime, use it directly for synced lyrics
+  // Reset timing origin when startedAt changes (e.g. lyrics restart)
   useEffect(() => {
-    if (currentTime === undefined || !isSynced || lyrics.length === 0) return;
+    originRef.current = startedAt || Date.now();
+    setActiveLine(0);
+  }, [startedAt]);
+
+  // When YouTube provides currentTime, use it to determine active line
+  useEffect(() => {
+    if (currentTime === undefined || lyrics.length === 0) return;
     let current = 0;
     for (let i = lyrics.length - 1; i >= 0; i--) {
       if (currentTime >= lyrics[i].time) {
@@ -86,7 +93,7 @@ export default function LyricsDisplay({
       }
     }
     setActiveLine(current);
-  }, [currentTime, isSynced, lyrics]);
+  }, [currentTime, lyrics]);
 
   // Fallback: auto-scroll synced lyrics based on wall-clock elapsed time
   const tick = useCallback(() => {
