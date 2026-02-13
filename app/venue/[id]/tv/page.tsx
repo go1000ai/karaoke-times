@@ -319,12 +319,12 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
 
       {/* Bottom Bar — QR Code + Promo (full width) */}
       <div className="flex-shrink-0 border-t border-border/30 bg-gradient-to-r from-primary/5 via-black to-accent/5">
-        <div className="flex items-center gap-6 px-8 py-3">
+        <div className="flex items-center gap-6 px-8 py-4">
           {/* QR Code */}
-          <div className="flex-shrink-0 bg-white rounded-xl p-2">
+          <div className="flex-shrink-0 bg-white rounded-xl p-2.5">
             <QRCodeSVG
               value={queueUrl}
-              size={80}
+              size={120}
               bgColor="#ffffff"
               fgColor="#000000"
               level="M"
