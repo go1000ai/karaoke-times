@@ -89,6 +89,7 @@ export function CardStack<T extends CardStackItem>({
     wrapIndex(initialIndex, len),
   );
   const [hovering, setHovering] = React.useState(false);
+  const draggedRef = React.useRef(false);
 
   React.useEffect(() => {
     setActive((a) => wrapIndex(a, len));
@@ -183,6 +184,7 @@ export function CardStack<T extends CardStackItem>({
                     drag: "x" as const,
                     dragConstraints: { left: 0, right: 0 },
                     dragElastic: 0.18,
+                    onDragStart: () => { draggedRef.current = true; },
                     onDragEnd: (
                       _e: any,
                       info: { offset: { x: number }; velocity: { x: number } },
@@ -203,7 +205,7 @@ export function CardStack<T extends CardStackItem>({
                   className={cn(
                     "absolute bottom-0 rounded-2xl border-4 border-white/10 overflow-hidden shadow-xl",
                     "will-change-transform select-none",
-                    isActive ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
+                    isActive && item.href ? "cursor-pointer" : isActive ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
                   )}
                   style={{
                     width: cardWidth,
@@ -229,7 +231,17 @@ export function CardStack<T extends CardStackItem>({
                     stiffness: springStiffness,
                     damping: springDamping,
                   }}
-                  onClick={() => setActive(i)}
+                  onClick={() => {
+                    if (draggedRef.current) {
+                      draggedRef.current = false;
+                      return;
+                    }
+                    if (isActive && item.href) {
+                      window.location.href = item.href;
+                    } else {
+                      setActive(i);
+                    }
+                  }}
                   {...dragProps}
                 >
                   <div
