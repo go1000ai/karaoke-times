@@ -24,12 +24,18 @@ export function useQueueSubscriptionById(venueId: string) {
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     const fetchQueue = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("song_queue")
         .select("*, profiles(display_name, avatar_url)")
         .eq("venue_id", venueId)
         .in("status", ["waiting", "up_next", "now_singing"])
         .order("position", { ascending: true });
+
+      if (error) {
+        console.error("[Queue] Fetch error:", error.message, "venueId:", venueId);
+      } else {
+        console.log("[Queue] Fetched", data?.length ?? 0, "entries for venue", venueId);
+      }
 
       setQueue((data as unknown as QueueEntry[]) ?? []);
       setLoading(false);
