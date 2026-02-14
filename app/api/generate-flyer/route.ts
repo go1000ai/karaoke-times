@@ -92,10 +92,60 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Auto-save flyer to storage and database
+    let savedImageUrl: string | undefined;
+    try {
+      let imageBuffer: Buffer | null = null;
+
+      if (n8nResult.imageBase64) {
+        imageBuffer = Buffer.from(n8nResult.imageBase64, "base64");
+      } else if (n8nResult.imageUrl) {
+        const imgRes = await fetch(n8nResult.imageUrl);
+        if (imgRes.ok) {
+          imageBuffer = Buffer.from(await imgRes.arrayBuffer());
+        }
+      }
+
+      if (imageBuffer) {
+        const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webp`;
+
+        const { error: uploadErr } = await supabase.storage
+          .from("flyers")
+          .upload(fileName, imageBuffer, {
+            contentType: "image/webp",
+            upsert: false,
+          });
+
+        if (!uploadErr) {
+          const { data: urlData } = supabase.storage
+            .from("flyers")
+            .getPublicUrl(fileName);
+          savedImageUrl = urlData.publicUrl;
+
+          // Save metadata to flyers table
+          await supabase.from("flyers").insert({
+            user_id: user.id,
+            venue_id: body.venueId || null,
+            event_name: body.eventName,
+            venue_name: body.venueName,
+            event_date: body.eventDate,
+            theme: body.theme || null,
+            image_path: fileName,
+            copy_data: n8nResult.copyData || null,
+          });
+        } else {
+          console.error("Flyer upload error:", uploadErr);
+        }
+      }
+    } catch (saveErr) {
+      // Don't fail the request if saving fails — still return the flyer
+      console.error("Flyer save error:", saveErr);
+    }
+
     const response: FlyerResponse = {
       success: true,
-      imageUrl: n8nResult.imageUrl,
-      imageBase64: n8nResult.imageBase64,
+      imageUrl: savedImageUrl || n8nResult.imageUrl,
+      imageBase64: !savedImageUrl ? n8nResult.imageBase64 : undefined,
       copyData: n8nResult.copyData,
     };
 
