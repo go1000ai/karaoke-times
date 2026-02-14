@@ -158,15 +158,6 @@ export default function TopNav() {
 
               <div className="border-t border-border my-2" />
 
-              <Link
-                href="/add-event"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium text-primary hover:bg-primary/5 transition-colors"
-              >
-                <span className="material-icons-round text-xl">add_circle</span>
-                Add Karaoke Event
-              </Link>
-
               {!loading && user ? (
                 <>
                   {hasDashboard && (

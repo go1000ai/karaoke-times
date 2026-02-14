@@ -480,14 +480,14 @@ export default function HomePage() {
                 discover amazing KJs, and never miss a karaoke night again.
               </p>
 
-              <div className="reveal space-y-4 mb-8">
+              <div className="reveal space-y-4 mb-8 max-w-sm mx-auto md:mx-0">
                 {[
                   { icon: "mic", text: "49+ karaoke nights listed every week" },
                   { icon: "headphones", text: "Top KJs across all boroughs" },
                   { icon: "local_bar", text: "Drink specials, happy hours & free shots" },
                   { icon: "meeting_room", text: "Private rooms available for groups" },
                 ].map((item, i) => (
-                  <div key={i} className="flex items-center gap-3 justify-center md:justify-start">
+                  <div key={i} className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
                       <span className="material-icons-round text-primary text-lg">{item.icon}</span>
                     </div>
