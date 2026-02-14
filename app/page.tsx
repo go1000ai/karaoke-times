@@ -480,7 +480,7 @@ export default function HomePage() {
                 discover amazing KJs, and never miss a karaoke night again.
               </p>
 
-              <div className="reveal space-y-4 mb-8 max-w-sm mx-auto md:mx-0 text-left">
+              <div className="reveal flex flex-col items-start gap-4 mb-8 mx-auto md:mx-0 w-fit">
                 {[
                   { icon: "mic", text: "49+ karaoke nights listed every week" },
                   { icon: "headphones", text: "Top KJs across all boroughs" },
