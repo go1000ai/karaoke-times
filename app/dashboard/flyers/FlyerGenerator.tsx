@@ -79,9 +79,11 @@ export default function FlyerGenerator({
     null
   );
   const [copyData, setCopyData] = useState<CopyData | null>(null);
+  const [generatedImageBase64, setGeneratedImageBase64] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
 
   // Rotate loading messages
   useEffect(() => {
@@ -228,15 +230,45 @@ export default function FlyerGenerator({
       } else if (result.imageBase64) {
         setGeneratedImageUrl(`data:image/webp;base64,${result.imageBase64}`);
       }
+      setGeneratedImageBase64(result.imageBase64 || null);
 
       if (result.copyData) {
         setCopyData(result.copyData);
       }
 
+      setSaveStatus("idle");
       setStatus("done");
     } catch {
       setStatus("error");
       setError("Something went wrong. Please try again.");
+    }
+  }
+
+  async function handleSave() {
+    if (saveStatus !== "idle" || !generatedImageUrl) return;
+    setSaveStatus("saving");
+    try {
+      const res = await fetch("/api/flyers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageBase64: generatedImageBase64 || undefined,
+          imageUrl: !generatedImageBase64 ? generatedImageUrl : undefined,
+          eventName,
+          venueName,
+          venueId,
+          eventDate,
+          theme: theme === "custom" ? customTheme : theme,
+          copyData,
+        }),
+      });
+      if (res.ok) {
+        setSaveStatus("saved");
+      } else {
+        setSaveStatus("idle");
+      }
+    } catch {
+      setSaveStatus("idle");
     }
   }
 
@@ -402,12 +434,29 @@ export default function FlyerGenerator({
         )}
 
         <div className="flex flex-wrap gap-3">
+          {saveStatus === "saved" ? (
+            <span className="flex items-center gap-2 bg-primary/10 text-primary font-bold px-6 py-2.5 rounded-xl border border-primary/20">
+              <span className="material-icons-round text-lg">check_circle</span>
+              Saved to My Flyers
+            </span>
+          ) : (
+            <button
+              onClick={handleSave}
+              disabled={saveStatus === "saving"}
+              className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-black font-bold px-6 py-2.5 rounded-xl transition-colors disabled:opacity-60"
+            >
+              <span className="material-icons-round text-lg">
+                {saveStatus === "saving" ? "hourglass_empty" : "bookmark"}
+              </span>
+              {saveStatus === "saving" ? "Saving..." : "Save to My Flyers"}
+            </button>
+          )}
           <a
             href={generatedImageUrl}
             download={`${eventName.replace(/\s+/g, "-").toLowerCase()}-flyer.webp`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-black font-bold px-6 py-2.5 rounded-xl transition-colors"
+            className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white font-bold px-6 py-2.5 rounded-xl transition-colors border border-border"
           >
             <span className="material-icons-round text-lg">download</span>
             Download
