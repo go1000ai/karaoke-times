@@ -120,7 +120,7 @@ export default function ConnectionsPage() {
       setMessage(result.message);
       setSearchQuery("");
       setSearchResults([]);
-      fetchData();
+      await fetchData();
     } else {
       setMessage(result.error || "Failed to send request.");
     }
@@ -139,7 +139,7 @@ export default function ConnectionsPage() {
     setResponding(null);
     setMessage(result.message || result.error);
     setTimeout(() => setMessage(""), 4000);
-    fetchData();
+    await fetchData();
   };
 
   // Cancel a pending request (KJ-initiated)
@@ -149,7 +149,7 @@ export default function ConnectionsPage() {
     setResponding(null);
     setMessage("Request cancelled.");
     setTimeout(() => setMessage(""), 3000);
-    fetchData();
+    await fetchData();
   };
 
   // Check if venue is already connected or pending
