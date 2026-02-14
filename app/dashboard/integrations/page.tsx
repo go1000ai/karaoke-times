@@ -468,6 +468,42 @@ export default function IntegrationsPage() {
         )}
       </div>
 
+      {/* VirtualDJ Integration */}
+      <div className="glass-card rounded-2xl p-5 mb-8">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
+            <span className="material-icons-round text-purple-400">album</span>
+          </div>
+          <div className="flex-1">
+            <h2 className="font-bold text-white">VirtualDJ</h2>
+            <p className="text-text-muted text-xs">
+              Connect your song queue to VirtualDJ for live karaoke playback with AI stems
+            </p>
+          </div>
+        </div>
+        <p className="text-text-secondary text-sm mb-4">
+          Open the VirtualDJ Bridge page on the same computer running VirtualDJ. It connects
+          to VirtualDJ&apos;s Network Control Plugin on localhost and syncs your song queue automatically.
+        </p>
+        <div className="flex items-center gap-3">
+          <a
+            href="/dashboard/vdj"
+            className="bg-purple-500 text-white font-bold text-sm px-6 py-3 rounded-xl hover:shadow-lg hover:shadow-purple-500/20 transition-all flex items-center gap-2"
+          >
+            <span className="material-icons-round text-lg">open_in_new</span>
+            Open VDJ Bridge
+          </a>
+          <a
+            href="https://www.virtualdj.com/wiki/NetworkControlPlugin.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-text-muted text-xs hover:text-white transition-colors"
+          >
+            Setup Guide →
+          </a>
+        </div>
+      </div>
+
       {/* SkyTab (Coming Soon) */}
       <div className="glass-card rounded-2xl p-5 opacity-60">
         <div className="flex items-center gap-3">

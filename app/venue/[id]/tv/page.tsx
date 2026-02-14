@@ -64,6 +64,12 @@ type Slide =
   | { kind: "media"; media: MediaItem }
   | { kind: "event"; venue: VenueInfo };
 
+function formatSeconds(s: number): string {
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m}:${sec.toString().padStart(2, "0")}`;
+}
+
 /* ── Page Component ────────────────────────────────────── */
 
 export default function TVDisplayPage({ params }: { params: Promise<{ id: string }> }) {
@@ -81,6 +87,16 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
   /* ── YouTube on TV (controlled by KJ) ─────────────── */
   const [tvVideoId, setTvVideoId] = useState<string | null>(null);
   const tvYtRef = useRef<YouTubePlayerHandle>(null);
+
+  /* ── VirtualDJ now-playing (broadcast from KJ's bridge) ── */
+  const [vdjNowPlaying, setVdjNowPlaying] = useState<{
+    title: string;
+    artist: string;
+    position: number;
+    length: number;
+    isPlaying: boolean;
+  } | null>(null);
+  const [vdjSinger, setVdjSinger] = useState<string | null>(null);
 
   // Subscribe to the KJ's broadcast channel for TV mode + playback sync
   useEffect(() => {
@@ -105,6 +121,28 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
           tvYtRef.current.pause();
         } else if (payload?.playing === true) {
           tvYtRef.current.play();
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id]);
+
+  // Subscribe to VDJ bridge broadcast for now-playing info
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase.channel(`vdj-sync:${id}`);
+
+    channel
+      .on("broadcast", { event: "vdj-status" }, ({ payload }) => {
+        if (payload?.nowPlaying) {
+          setVdjNowPlaying(payload.nowPlaying);
+          setVdjSinger(payload.singer || null);
+        } else {
+          setVdjNowPlaying(null);
+          setVdjSinger(null);
         }
       })
       .subscribe();
@@ -305,7 +343,7 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
 
       {/* ── Main Content — 2 Column Layout ──────────────── */}
       <div className="flex flex-1 min-h-0">
-        {/* ── Left Column — YouTube Video or Rotating Content ── */}
+        {/* ── Left Column — YouTube / VDJ / Rotating Content ── */}
         <div className="flex-1 relative overflow-hidden">
           {tvVideoId ? (
             /* ── YouTube Video from KJ ──────────────────── */
@@ -323,6 +361,58 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
                 <span className="text-white text-xs font-bold uppercase tracking-wider">
                   Now Playing
                 </span>
+              </div>
+            </div>
+          ) : vdjNowPlaying?.isPlaying ? (
+            /* ── VirtualDJ Now Playing overlay ───────────── */
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black">
+              {/* Ambient background glow */}
+              <div className="absolute inset-0 pointer-events-none">
+                <div className="absolute top-[30%] left-[20%] w-[50%] h-[40%] bg-purple-500/10 blur-[120px] rounded-full animate-pulse" />
+                <div className="absolute bottom-[20%] right-[15%] w-[40%] h-[30%] bg-accent/10 blur-[100px] rounded-full animate-pulse" style={{ animationDelay: "1s" }} />
+              </div>
+
+              <div className="relative text-center px-12 max-w-2xl">
+                {/* VDJ badge */}
+                <div className="flex items-center justify-center gap-2 mb-6">
+                  <span className="w-2.5 h-2.5 bg-purple-500 rounded-full animate-pulse" />
+                  <span className="text-purple-400 text-xs font-extrabold uppercase tracking-[0.2em]">
+                    Now Playing via VirtualDJ
+                  </span>
+                </div>
+
+                {/* Song info */}
+                <div className="animate-tv-textReveal">
+                  <span className="material-icons-round text-purple-400/30 text-[100px] mb-2">music_note</span>
+                  <h2 className="text-5xl font-extrabold text-white leading-tight mb-3">
+                    {vdjNowPlaying.title}
+                  </h2>
+                  <p className="text-2xl text-purple-300 font-bold mb-2">{vdjNowPlaying.artist}</p>
+                  {vdjSinger && (
+                    <p className="text-accent text-lg font-semibold neon-glow-pink mt-1">
+                      <span className="material-icons-round text-sm align-middle mr-1">mic</span>
+                      {vdjSinger}
+                    </p>
+                  )}
+                </div>
+
+                {/* Progress bar */}
+                {vdjNowPlaying.length > 0 && (
+                  <div className="mt-8 w-full max-w-md mx-auto">
+                    <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-purple-500 to-accent rounded-full transition-all duration-1000"
+                        style={{
+                          width: `${Math.min(100, (vdjNowPlaying.position / vdjNowPlaying.length) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                    <div className="flex justify-between mt-2 text-xs text-text-muted font-mono">
+                      <span>{formatSeconds(vdjNowPlaying.position)}</span>
+                      <span>{formatSeconds(vdjNowPlaying.length)}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
