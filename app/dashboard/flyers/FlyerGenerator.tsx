@@ -704,17 +704,17 @@ export default function FlyerGenerator({
         </div>
       </CollapsibleSection>
 
-      {/* Section 4: Upload Image */}
+      {/* Section 4: Style Reference */}
       <CollapsibleSection
-        title="Upload Image"
-        icon="add_photo_alternate"
+        title="Style Reference"
+        icon="style"
         isOpen={openSections.image}
         onToggle={() => toggleSection("image")}
         filled={!!imageFile}
         optional
       >
         <p className="text-text-muted text-xs mb-3">
-          Upload a venue photo or logo to reference in the AI-generated flyer.
+          Upload a flyer or design you love — the AI will analyze its style (colors, typography, layout) and create your flyer to match that look.
         </p>
         {imagePreview ? (
           <div className="relative inline-block">
@@ -741,10 +741,10 @@ export default function FlyerGenerator({
               cloud_upload
             </span>
             <p className="text-text-secondary text-sm">
-              Drag & drop an image here, or click to browse
+              Drop a sample flyer here, or click to browse
             </p>
             <p className="text-text-muted text-xs mt-1">
-              JPEG, PNG, or WebP (max 5MB)
+              Upload any flyer or design you want to match (max 5MB)
             </p>
             <input
               ref={fileInputRef}
