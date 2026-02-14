@@ -753,15 +753,15 @@ export default function HomePage() {
               &copy; 2026 Karaoke Times NYC. All rights reserved.
             </p>
             <div className="flex gap-4">
-              <span className="text-text-muted text-xs hover:text-primary cursor-pointer transition-colors">
+              <Link href="/terms" className="text-text-muted text-xs hover:text-primary transition-colors">
                 Terms
-              </span>
-              <span className="text-text-muted text-xs hover:text-primary cursor-pointer transition-colors">
+              </Link>
+              <Link href="/privacy" className="text-text-muted text-xs hover:text-primary transition-colors">
                 Privacy
-              </span>
-              <span className="text-text-muted text-xs hover:text-primary cursor-pointer transition-colors">
+              </Link>
+              <a href="mailto:info@go1000.ai" className="text-text-muted text-xs hover:text-primary transition-colors">
                 Contact
-              </span>
+              </a>
             </div>
           </div>
         </div>

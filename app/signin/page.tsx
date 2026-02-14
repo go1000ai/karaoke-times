@@ -338,8 +338,8 @@ function SignInContent() {
 
         <p className="text-[10px] text-text-muted mt-6 text-center leading-relaxed">
           By continuing, you agree to Karaoke Times&apos;{" "}
-          <span className="underline">Terms of Service</span> and{" "}
-          <span className="underline">Privacy Policy</span>
+          <a href="/terms" className="underline hover:text-primary transition-colors">Terms of Service</a> and{" "}
+          <a href="/privacy" className="underline hover:text-primary transition-colors">Privacy Policy</a>
         </p>
       </div>
     </div>
