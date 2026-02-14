@@ -59,6 +59,10 @@ const VENUE_IMAGES: Record<string, string> = {
   "irish-american-pub-saturday": "/venues/irish-american-pub-saturday.webp",
   "333-lounge-and-restaurant-sunday": "/venues/333-lounge-and-restaurant-sunday.webp",
   "lilah-s-bar-and-grill-bi-monthly-sundays": "/venues/lilah-s-bar-and-grill-bi-monthly-sundays.webp",
+  // Private room venues
+  "sing-sing-karaoke-private-room-karaoke": "/venues/sing-sing-avenue-a.webp",
+  "boho-karaoke-private-room-karaoke": "/venues/boho-karaoke.webp",
+  "aux-karaoke-private-room-karaoke": "/venues/aux-karaoke.webp",
 };
 
 interface RawRow {
