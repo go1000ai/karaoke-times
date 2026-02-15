@@ -7,6 +7,7 @@ import BottomNav from "@/components/BottomNav";
 import { useAuth } from "@/components/AuthProvider";
 import { TubesBackground } from "@/components/ui/neon-flow";
 import { CardStack, type CardStackItem } from "@/components/ui/card-stack";
+import { createClient } from "@/lib/supabase/client";
 import { karaokeEvents, DAY_ORDER, getEventsByDay, searchKJs, getKJSlugForName, type KaraokeEvent, type KJProfile } from "@/lib/mock-data";
 
 const DAY_ICONS: Record<string, string> = {
@@ -250,13 +251,18 @@ export default function HomePage() {
   const [selectedEvent, setSelectedEvent] = useState<KaraokeEvent | null>(null);
   const [searchFilter, setSearchFilter] = useState<"all" | "kjs" | "venues">("all");
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [venueCount, setVenueCount] = useState<number>(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const eventsByDay = getEventsByDay();
   const tabBarRef = useRef<HTMLDivElement>(null);
 
-  // Load favorites from localStorage on mount
+  // Load favorites + venue count on mount
   useEffect(() => {
     setFavorites(loadFavorites());
+    createClient()
+      .from("venues")
+      .select("id", { count: "exact", head: true })
+      .then(({ count }) => setVenueCount(count ?? 0));
   }, []);
 
   const toggleFavorite = useCallback((eventId: string) => {
@@ -482,7 +488,7 @@ export default function HomePage() {
 
               <div className="reveal flex flex-col items-start gap-4 mb-8 mx-auto md:mx-0 w-fit">
                 {[
-                  { icon: "mic", text: "49+ karaoke nights listed every week" },
+                  { icon: "mic", text: `${venueCount}+ karaoke nights listed every week` },
                   { icon: "headphones", text: "Top KJs across all boroughs" },
                   { icon: "local_bar", text: "Drink specials, happy hours & free shots" },
                   { icon: "door_sliding", text: "Private rooms available for groups" },
