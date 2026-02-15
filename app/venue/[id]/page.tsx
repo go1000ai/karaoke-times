@@ -140,7 +140,7 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
           </p>
           {venue.isPrivateRoom && (
             <span className="inline-flex items-center gap-1 mt-2 bg-purple-500/10 text-purple-400 text-xs px-3 py-1 rounded-full font-bold">
-              <span className="material-icons-round text-sm">meeting_room</span>
+              <span className="material-icons-round text-sm">door_sliding</span>
               Private Room
             </span>
           )}

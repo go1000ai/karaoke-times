@@ -9,12 +9,30 @@ interface VenueOption {
   id: string;
   name: string;
   address: string;
+  city: string;
+  state: string;
+  logoUrl: string;
 }
 
 interface Props {
   venues: VenueOption[];
   defaultVenueId: string;
 }
+
+const COLOR_PRESETS = [
+  { name: "Gold", hex: "#FFD700" },
+  { name: "Hot Pink", hex: "#FF007A" },
+  { name: "Neon Cyan", hex: "#00FFC2" },
+  { name: "Royal Purple", hex: "#7B2FBE" },
+  { name: "Fire Red", hex: "#FF2D00" },
+  { name: "Electric Blue", hex: "#0066FF" },
+  { name: "Lime Green", hex: "#39FF14" },
+  { name: "Sunset Orange", hex: "#FF6B35" },
+  { name: "Rose Pink", hex: "#FF5CA1" },
+  { name: "Ice White", hex: "#E8F0FE" },
+  { name: "Champagne", hex: "#F7E7CE" },
+  { name: "Deep Black", hex: "#0A0A0A" },
+];
 
 type GenerationStatus = "idle" | "uploading" | "generating" | "done" | "error";
 
@@ -24,6 +42,19 @@ const LOADING_MESSAGES = [
   "Adding the finishing touches...",
   "Almost there...",
 ];
+
+const TIME_OPTIONS = (() => {
+  const times: string[] = [];
+  for (let h = 0; h < 24; h++) {
+    for (const m of [0, 30]) {
+      const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+      const period = h < 12 ? "AM" : "PM";
+      const min = m === 0 ? "00" : "30";
+      times.push(`${hour12}:${min} ${period}`);
+    }
+  }
+  return times;
+})();
 
 export default function FlyerGenerator({
   venues,
@@ -39,12 +70,16 @@ export default function FlyerGenerator({
   const selectedVenue = venues.find((v) => v.id === selectedVenueId) || venues[0];
   const venueId = selectedVenue?.id || "";
   const venueName = selectedVenue?.name || "";
-  const venueAddress = selectedVenue?.address || "";
+  const venueAddress = [selectedVenue?.address, selectedVenue?.city, selectedVenue?.state]
+    .filter(Boolean)
+    .join(", ");
+  const venueLogo = selectedVenue?.logoUrl || "";
 
   // Section collapse state
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     basics: true,
     vibe: false,
+    colors: false,
     specials: false,
     image: false,
   });
@@ -62,6 +97,10 @@ export default function FlyerGenerator({
   const [moodDescription, setMoodDescription] = useState("");
   const [dressCode, setDressCode] = useState("");
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
+
+  // Form state — Colors
+  const [selectedColors, setSelectedColors] = useState<string[]>([]);
+  const [customColor, setCustomColor] = useState("#FF007A");
 
   // Form state — Specials & Promos
   const [drinkSpecials, setDrinkSpecials] = useState("");
@@ -104,6 +143,20 @@ export default function FlyerGenerator({
         ? prev.filter((f) => f !== feature)
         : [...prev, feature]
     );
+  }
+
+  function toggleColor(hex: string) {
+    setSelectedColors((prev) =>
+      prev.includes(hex)
+        ? prev.filter((c) => c !== hex)
+        : [...prev, hex]
+    );
+  }
+
+  function addCustomColor() {
+    if (customColor && !selectedColors.includes(customColor)) {
+      setSelectedColors((prev) => [...prev, customColor]);
+    }
   }
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -191,7 +244,7 @@ export default function FlyerGenerator({
         setStatus("generating");
       }
 
-      const payload: FlyerRequest = {
+      const payload: FlyerRequest & { colors?: string[]; logoUrl?: string } = {
         eventName: eventName.trim(),
         venueName,
         venueAddress,
@@ -209,6 +262,8 @@ export default function FlyerGenerator({
         promoText: promoText.trim(),
         imageUrl,
         venueId,
+        ...(selectedColors.length > 0 && { colors: selectedColors }),
+        ...(venueLogo && { logoUrl: venueLogo }),
       };
 
       const res = await fetch("/api/generate-flyer", {
@@ -273,7 +328,13 @@ export default function FlyerGenerator({
   }
 
   function handleRegenerate() {
-    handleGenerate();
+    setStatus("idle");
+    setGeneratedImageUrl(null);
+    setGeneratedImageBase64(null);
+    setCopyData(null);
+    setSaveStatus("idle");
+    setError("");
+    setOpenSections({ basics: true, vibe: true, colors: true, specials: true, image: true });
   }
 
   function handleStartOver() {
@@ -287,6 +348,8 @@ export default function FlyerGenerator({
     setMoodDescription("");
     setDressCode("");
     setSelectedFeatures([]);
+    setSelectedColors([]);
+    setCustomColor("#FF007A");
     setDrinkSpecials("");
     setFoodDeals("");
     setPrizes("");
@@ -562,25 +625,31 @@ export default function FlyerGenerator({
             <label className="block text-xs text-text-muted mb-1.5 font-semibold uppercase tracking-wider">
               Start Time *
             </label>
-            <input
-              type="text"
+            <select
               value={startTime}
               onChange={(e) => setStartTime(e.target.value)}
-              placeholder="9:00 PM"
-              className="w-full bg-white/5 border border-border rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50"
-            />
+              className="w-full bg-white/5 border border-border rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            >
+              <option value="">Select start time...</option>
+              {TIME_OPTIONS.map((t) => (
+                <option key={`start-${t}`} value={t}>{t}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-xs text-text-muted mb-1.5 font-semibold uppercase tracking-wider">
               End Time
             </label>
-            <input
-              type="text"
+            <select
               value={endTime}
               onChange={(e) => setEndTime(e.target.value)}
-              placeholder="2:00 AM"
-              className="w-full bg-white/5 border border-border rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50"
-            />
+              className="w-full bg-white/5 border border-border rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            >
+              <option value="">Select end time...</option>
+              {TIME_OPTIONS.map((t) => (
+                <option key={`end-${t}`} value={t}>{t}</option>
+              ))}
+            </select>
           </div>
         </div>
         {venueAddress && (
@@ -594,6 +663,18 @@ export default function FlyerGenerator({
               readOnly
               className="w-full bg-white/5 border border-border rounded-xl px-4 py-2.5 text-text-secondary text-sm cursor-not-allowed"
             />
+          </div>
+        )}
+        {venueLogo && (
+          <div className="mt-3 flex items-center gap-3">
+            <img
+              src={venueLogo}
+              alt={`${venueName} logo`}
+              className="w-12 h-12 rounded-lg object-contain bg-white/5 border border-border"
+            />
+            <span className="text-text-secondary text-xs">
+              Venue logo will be included on the flyer
+            </span>
           </div>
         )}
       </CollapsibleSection>
@@ -691,7 +772,95 @@ export default function FlyerGenerator({
         </div>
       </CollapsibleSection>
 
-      {/* Section 3: Specials & Promos */}
+      {/* Section 3: Colors */}
+      <CollapsibleSection
+        title="Flyer Colors"
+        icon="palette"
+        isOpen={openSections.colors}
+        onToggle={() => toggleSection("colors")}
+        filled={selectedColors.length > 0}
+        optional
+      >
+        <div className="space-y-4">
+          <p className="text-text-muted text-xs">
+            Pick 1-4 colors for your flyer. If none selected, colors will match the theme automatically.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {COLOR_PRESETS.map((color) => (
+              <button
+                key={color.hex}
+                type="button"
+                onClick={() => toggleColor(color.hex)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                  selectedColors.includes(color.hex)
+                    ? "bg-white/15 text-white border-2 border-white/60"
+                    : "bg-white/5 text-text-muted border border-border hover:border-white/30"
+                }`}
+              >
+                <span
+                  className="w-3 h-3 rounded-full inline-block border border-white/20"
+                  style={{ backgroundColor: color.hex }}
+                />
+                {color.name}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-text-muted font-semibold uppercase tracking-wider">
+              Custom Color
+            </label>
+            <input
+              type="color"
+              value={customColor}
+              onChange={(e) => setCustomColor(e.target.value)}
+              className="w-8 h-8 rounded-lg border border-border cursor-pointer bg-transparent"
+            />
+            <span className="text-text-secondary text-xs font-mono">{customColor}</span>
+            <button
+              type="button"
+              onClick={addCustomColor}
+              className="px-3 py-1 rounded-full text-xs font-bold bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 transition-colors"
+            >
+              Add
+            </button>
+          </div>
+
+          {selectedColors.length > 0 && (
+            <div>
+              <label className="block text-xs text-text-muted mb-1.5 font-semibold uppercase tracking-wider">
+                Selected ({selectedColors.length})
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {selectedColors.map((hex) => {
+                  const preset = COLOR_PRESETS.find((c) => c.hex === hex);
+                  return (
+                    <span
+                      key={hex}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-white/10 text-white border border-white/20"
+                    >
+                      <span
+                        className="w-3 h-3 rounded-full inline-block border border-white/20"
+                        style={{ backgroundColor: hex }}
+                      />
+                      {preset?.name || hex}
+                      <button
+                        type="button"
+                        onClick={() => toggleColor(hex)}
+                        className="ml-0.5 text-text-muted hover:text-white"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </CollapsibleSection>
+
+      {/* Section 4: Specials & Promos */}
       <CollapsibleSection
         title="Specials & Promos"
         icon="local_offer"

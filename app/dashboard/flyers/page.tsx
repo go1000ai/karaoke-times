@@ -10,17 +10,43 @@ export default async function FlyersPage() {
   const { venue } = await getDashboardVenue(user.id);
   const supabase = await createClient();
 
-  // Fetch all venues so the user can generate flyers for any venue
+  // Fetch all venues with city/state and primary logo
   const { data: venueRows } = await supabase
     .from("venues")
-    .select("id, name, address")
+    .select("id, name, address, city, state, venue_media!inner(url)")
+    .eq("venue_media.is_primary", true)
     .order("name");
 
-  const allVenues = (venueRows ?? []).map((v) => ({
-    id: v.id,
-    name: v.name,
-    address: v.address || "",
-  }));
+  // Also fetch venues without a primary logo
+  const { data: allVenueRows } = await supabase
+    .from("venues")
+    .select("id, name, address, city, state")
+    .order("name");
+
+  // Merge: use logo from first query, fill in rest from second
+  const logoMap = new Map<string, string>();
+  for (const v of venueRows ?? []) {
+    const media = v.venue_media as unknown as { url: string }[];
+    if (media?.[0]?.url) logoMap.set(v.id, media[0].url);
+  }
+
+  // Deduplicate venues by name (keep first occurrence)
+  const seen = new Set<string>();
+  const allVenues = (allVenueRows ?? [])
+    .map((v) => ({
+      id: v.id,
+      name: v.name,
+      address: v.address || "",
+      city: v.city || "",
+      state: v.state || "",
+      logoUrl: logoMap.get(v.id) || "",
+    }))
+    .filter((v) => {
+      const key = v.name.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 
   return (
     <div>

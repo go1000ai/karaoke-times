@@ -18,7 +18,7 @@ const DAY_ICONS: Record<string, string> = {
   Saturday: "looks_6",
   Sunday: "calendar_today",
   "Bi-Monthly Sundays": "event_repeat",
-  "Private Room Karaoke": "meeting_room",
+  "Private Room Karaoke": "door_sliding",
 };
 
 const DAY_SHORT: Record<string, string> = {
@@ -197,7 +197,7 @@ function VenueCard({
                 className="inline-flex items-center gap-1.5 bg-accent text-white text-xs font-bold px-4 py-2 rounded-full hover:bg-accent/80 transition-colors cursor-default"
                 title="Coming Soon"
               >
-                <span className="material-icons-round text-sm">meeting_room</span>
+                <span className="material-icons-round text-sm">door_sliding</span>
                 Book Now — Coming Soon
               </button>
             )}
@@ -485,7 +485,7 @@ export default function HomePage() {
                   { icon: "mic", text: "49+ karaoke nights listed every week" },
                   { icon: "headphones", text: "Top KJs across all boroughs" },
                   { icon: "local_bar", text: "Drink specials, happy hours & free shots" },
-                  { icon: "meeting_room", text: "Private rooms available for groups" },
+                  { icon: "door_sliding", text: "Private rooms available for groups" },
                 ].map((item, i) => (
                   <div key={i} className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
@@ -707,7 +707,7 @@ export default function HomePage() {
                 desc: "Happy hours and deals at karaoke bars near you",
               },
               {
-                icon: "meeting_room",
+                icon: "door_sliding",
                 title: "Private Rooms",
                 desc: "Book private karaoke rooms for your group",
               },
@@ -847,7 +847,7 @@ export default function HomePage() {
                 })()}
                 {selectedEvent.isPrivateRoom && (
                   <span className="inline-flex items-center gap-1 bg-purple-500/10 text-purple-400 text-xs px-3 py-1.5 rounded-full font-bold">
-                    <span className="material-icons-round text-sm">meeting_room</span>
+                    <span className="material-icons-round text-sm">door_sliding</span>
                     Private Room
                   </span>
                 )}

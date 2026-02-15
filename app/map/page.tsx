@@ -195,7 +195,7 @@ function MapPageContent() {
                       selectedVenueId === venue.id ? "text-bg-dark" : "text-primary"
                     }`}
                   >
-                    {venue.isPrivateRoom ? "meeting_room" : "mic"}
+                    {venue.isPrivateRoom ? "door_sliding" : "mic"}
                   </span>
                 </div>
               </MarkerContent>
@@ -310,7 +310,7 @@ function MapPageContent() {
               <div className="flex gap-3 items-center">
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
                   <span className="material-icons-round text-primary text-xl">
-                    {venue.isPrivateRoom ? "meeting_room" : "mic"}
+                    {venue.isPrivateRoom ? "door_sliding" : "mic"}
                   </span>
                 </div>
                 <div className="flex-grow min-w-0">
