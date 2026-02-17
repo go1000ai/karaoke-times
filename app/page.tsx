@@ -10,6 +10,22 @@ import { CardStack, type CardStackItem } from "@/components/ui/card-stack";
 import { createClient } from "@/lib/supabase/client";
 import { karaokeEvents, DAY_ORDER, getEventsByDay, searchKJs, getKJSlugForName, type KaraokeEvent, type KJProfile } from "@/lib/mock-data";
 import { extractYouTubeVideoId, getYouTubeThumbnail } from "@/lib/youtube";
+import CircularGallery, { type GalleryItem } from "@/components/CircularGallery";
+
+const GALLERY_ITEMS: GalleryItem[] = [
+  { title: "Fusion East", subtitle: "Lower East Side, Manhattan", image: "/venues/fusion-east-monday.png", label: "Monday Night" },
+  { title: "Karaoke Highlights", subtitle: "NYC's Best Performers", video: "/videos/karaoke-highlight.mp4", label: "Featured" },
+  { title: "Essence Bar & Grill", subtitle: "Wakefield, Bronx", image: "/venues/essence-bar-grill-friday.png", label: "Friday Night" },
+  { title: "Superstar Karaoke", subtitle: "Essence Bar Fridays", video: "/videos/essence-reel.mp4", label: "Live" },
+  { title: "Footprints Cafe", subtitle: "South Ozone Park, Queens", image: "/venues/footprints-cafe-monday.png", label: "Monday Night" },
+  { title: "Wednesday Karaoke", subtitle: "Midweek Vibes", video: "/videos/wednesday-night.mp4", label: "Live" },
+  { title: "GT Kingston", subtitle: "Wakefield, Bronx", image: "/venues/gt-kingston-monday.png", label: "Monday Night" },
+  { title: "Karaoke Nights NYC", subtitle: "The Best Karaoke in the City", video: "/videos/instagram-clip.mp4", label: "Featured" },
+  { title: "Havana Cafe", subtitle: "Bronx, NY", image: "/venues/havana-cafe-wednesday.png", label: "Wednesday Night" },
+  { title: "Aux Karaoke Live", subtitle: "Live Performance Highlights", video: "/videos/aux-karaoke-live.mp4", label: "Live" },
+  { title: "Oval Sports Lounge", subtitle: "Bronx, NY", image: "/venues/oval-sports-lounge-tuesday.png", label: "Tuesday Night" },
+  { title: "Superstar Fridays", subtitle: "Essence Bar & Grill", video: "/videos/essence-superstar-fridays.mp4", label: "Live" },
+];
 
 const DAY_ICONS: Record<string, string> = {
   Monday: "looks_one",
@@ -252,7 +268,7 @@ export default function HomePage() {
   const [selectedEvent, setSelectedEvent] = useState<KaraokeEvent | null>(null);
   const [searchFilter, setSearchFilter] = useState<"all" | "kjs" | "venues">("all");
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
-  const [venueCount, setVenueCount] = useState<number>(0);
+  const venueCount = Math.floor(karaokeEvents.length / 10) * 10;
   const [featuredSingers, setFeaturedSingers] = useState<{
     id: string;
     title: string | null;
@@ -268,14 +284,10 @@ export default function HomePage() {
   const eventsByDay = getEventsByDay();
   const tabBarRef = useRef<HTMLDivElement>(null);
 
-  // Load favorites + venue count + featured singers on mount
+  // Load favorites + featured singers on mount
   useEffect(() => {
     setFavorites(loadFavorites());
     const supabase = createClient();
-    supabase
-      .from("venues")
-      .select("id", { count: "exact", head: true })
-      .then(({ count }) => setVenueCount(count ?? 0));
     supabase
       .from("singer_highlights")
       .select("id, title, song_title, song_artist, highlight_type, event_date, video_url, singer:profiles!singer_user_id(display_name), venue:venues!venue_id(name)")
@@ -467,73 +479,62 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ─── VIDEO + ABOUT SECTION ─── */}
-      <section className="py-16 md:py-24 bg-bg-dark">
+      {/* ─── 3D VIDEO GALLERY + ABOUT SECTION ─── */}
+      <section className="py-16 md:py-24 bg-bg-dark overflow-hidden">
         <div className="max-w-6xl mx-auto px-6 md:px-8">
-          <div className="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-12">
-            {/* Video */}
-            <div className="w-full md:w-5/12 reveal">
-              <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-accent/10 aspect-[9/16] max-h-[420px] md:max-h-[480px] mx-auto">
-                <video
-                  className="w-full h-full object-cover rounded-2xl"
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  poster="/karaoke-hero-2.png"
-                >
-                  <source src="/karaoke-highlight.mp4" type="video/mp4" />
-                </video>
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 bg-accent rounded-full animate-pulse" />
-                    <span className="text-white/80 text-xs font-semibold">Karaoke Highlights</span>
+          {/* Section header */}
+          <div className="text-center mb-4 reveal">
+            <p
+              className="text-primary text-2xl mb-2 neon-glow-green"
+              style={{ fontFamily: "var(--font-script)" }}
+            >
+              NYC&apos;s #1 Directory
+            </p>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-white uppercase tracking-tight mb-2">
+              Your Night Starts Here
+            </h2>
+            <p className="text-text-secondary text-sm sm:text-base leading-relaxed max-w-xl mx-auto mb-1">
+              From Brooklyn to Manhattan, the Bronx to Queens — Karaoke Times
+              is your ultimate guide to the karaoke scene. Find live venues,
+              discover amazing KJs, and never miss a karaoke night again.
+            </p>
+            <p className="text-text-muted text-xs">
+              <span className="hidden sm:inline">Drag</span>
+              <span className="sm:hidden">Swipe</span>
+              {" "}to explore
+            </p>
+          </div>
+
+          {/* 3D Circular Gallery */}
+          <div className="reveal">
+            <CircularGallery items={GALLERY_ITEMS} autoRotateSpeed={0.12} />
+          </div>
+
+          {/* About bullets + CTA */}
+          <div className="text-center mt-8 reveal">
+            <div className="flex flex-wrap justify-center gap-6 mb-8">
+              {[
+                { icon: "mic", text: `${venueCount}+ karaoke nights weekly` },
+                { icon: "headphones", text: "Top KJs, all boroughs" },
+                { icon: "local_bar", text: "Drink specials & happy hours" },
+                { icon: "door_sliding", text: "Private rooms for groups" },
+              ].map((item, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <span className="material-icons-round text-primary text-base">{item.icon}</span>
                   </div>
+                  <p className="text-white/80 text-sm font-medium">{item.text}</p>
                 </div>
-              </div>
+              ))}
             </div>
 
-            {/* Text */}
-            <div className="w-full md:w-5/12 text-center md:text-left">
-              <p
-                className="reveal text-primary text-2xl mb-2 neon-glow-green"
-                style={{ fontFamily: "var(--font-script)" }}
-              >
-                NYC&apos;s #1 Directory
-              </p>
-              <h2 className="reveal text-3xl md:text-4xl font-extrabold text-white mb-6 uppercase tracking-tight">
-                Your Night Starts Here
-              </h2>
-              <p className="reveal text-text-secondary leading-relaxed mb-6">
-                From Brooklyn to Manhattan, the Bronx to Queens — Karaoke Times
-                is your ultimate guide to the karaoke scene. Find live venues,
-                discover amazing KJs, and never miss a karaoke night again.
-              </p>
-
-              <div className="reveal flex flex-col items-start gap-4 mb-8 mx-auto md:mx-0 w-fit">
-                {[
-                  { icon: "mic", text: `${venueCount}+ karaoke nights listed every week` },
-                  { icon: "headphones", text: "Top KJs across all boroughs" },
-                  { icon: "local_bar", text: "Drink specials, happy hours & free shots" },
-                  { icon: "door_sliding", text: "Private rooms available for groups" },
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <span className="material-icons-round text-primary text-lg">{item.icon}</span>
-                    </div>
-                    <p className="text-white/80 text-sm font-medium">{item.text}</p>
-                  </div>
-                ))}
-              </div>
-
-              <a
-                href="#listings"
-                className="reveal inline-flex items-center gap-2 bg-primary text-black font-bold px-6 py-3 rounded-full hover:shadow-lg hover:shadow-primary/40 transition-all text-sm"
-              >
-                Browse All Listings
-                <span className="material-icons-round text-lg">arrow_downward</span>
-              </a>
-            </div>
+            <a
+              href="#listings"
+              className="inline-flex items-center gap-2 bg-primary text-black font-bold px-6 py-3 rounded-full hover:shadow-lg hover:shadow-primary/40 transition-all text-sm"
+            >
+              Browse All Listings
+              <span className="material-icons-round text-lg">arrow_downward</span>
+            </a>
           </div>
         </div>
       </section>
