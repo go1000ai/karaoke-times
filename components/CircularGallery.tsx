@@ -167,7 +167,7 @@ export default function CircularGallery({
               }}
             >
               <div className="relative w-full h-full rounded-2xl shadow-2xl overflow-hidden border border-white/10">
-                {/* Video — only rendered when near front to save battery/data */}
+                {/* Video — only loads when card faces front */}
                 {item.video && isFrontFacing ? (
                   <video
                     src={item.video}
@@ -176,15 +176,19 @@ export default function CircularGallery({
                     muted
                     loop
                     playsInline
-                    preload="metadata"
+                    preload="none"
                     className="absolute inset-0 w-full h-full object-cover"
                     draggable={false}
                   />
-                ) : item.video ? (
-                  // Poster fallback for videos in the back
-                  <div className="absolute inset-0 w-full h-full bg-black/60 flex items-center justify-center">
-                    <span className="material-icons-round text-white/30 text-4xl">videocam</span>
-                  </div>
+                ) : item.video && item.image ? (
+                  // Show poster thumbnail for videos in the back
+                  <img
+                    src={item.image}
+                    alt={item.title}
+                    className="absolute inset-0 w-full h-full object-cover"
+                    draggable={false}
+                    loading="lazy"
+                  />
                 ) : item.image ? (
                   <img
                     src={item.image}

@@ -14,17 +14,17 @@ import CircularGallery, { type GalleryItem } from "@/components/CircularGallery"
 
 const GALLERY_ITEMS: GalleryItem[] = [
   { title: "Fusion East", subtitle: "Lower East Side, Manhattan", image: "/venues/fusion-east-monday.png", label: "Monday Night" },
-  { title: "Karaoke Highlights", subtitle: "NYC's Best Performers", video: "/videos/karaoke-highlight.mp4", label: "Featured" },
+  { title: "Karaoke Highlights", subtitle: "NYC's Best Performers", video: "/videos/karaoke-highlight.mp4", image: "/videos/karaoke-highlight-poster.jpg", label: "Featured" },
   { title: "Essence Bar & Grill", subtitle: "Wakefield, Bronx", image: "/venues/essence-bar-grill-friday.png", label: "Friday Night" },
-  { title: "Superstar Karaoke", subtitle: "Essence Bar Fridays", video: "/videos/essence-reel.mp4", label: "Live" },
+  { title: "Superstar Karaoke", subtitle: "Essence Bar Fridays", video: "/videos/essence-reel.mp4", image: "/videos/essence-reel-poster.jpg", label: "Live" },
   { title: "Footprints Cafe", subtitle: "South Ozone Park, Queens", image: "/venues/footprints-cafe-monday.png", label: "Monday Night" },
-  { title: "Wednesday Karaoke", subtitle: "Midweek Vibes", video: "/videos/wednesday-night.mp4", label: "Live" },
+  { title: "Wednesday Karaoke", subtitle: "Midweek Vibes", video: "/videos/wednesday-night.mp4", image: "/videos/wednesday-night-poster.jpg", label: "Live" },
   { title: "GT Kingston", subtitle: "Wakefield, Bronx", image: "/venues/gt-kingston-monday.png", label: "Monday Night" },
-  { title: "Karaoke Nights NYC", subtitle: "The Best Karaoke in the City", video: "/videos/instagram-clip.mp4", label: "Featured" },
+  { title: "Karaoke Nights NYC", subtitle: "The Best Karaoke in the City", video: "/videos/instagram-clip.mp4", image: "/videos/instagram-clip-poster.jpg", label: "Featured" },
   { title: "Havana Cafe", subtitle: "Bronx, NY", image: "/venues/havana-cafe-wednesday.png", label: "Wednesday Night" },
-  { title: "Aux Karaoke Live", subtitle: "Live Performance Highlights", video: "/videos/aux-karaoke-live.mp4", label: "Live" },
+  { title: "Aux Karaoke Live", subtitle: "Live Performance Highlights", video: "/videos/aux-karaoke-live.mp4", image: "/videos/aux-karaoke-live-poster.jpg", label: "Live" },
   { title: "Oval Sports Lounge", subtitle: "Bronx, NY", image: "/venues/oval-sports-lounge-tuesday.png", label: "Tuesday Night" },
-  { title: "Superstar Fridays", subtitle: "Essence Bar & Grill", video: "/videos/essence-superstar-fridays.mp4", label: "Live" },
+  { title: "Superstar Fridays", subtitle: "Essence Bar & Grill", video: "/videos/essence-superstar-fridays.mp4", image: "/videos/essence-superstar-fridays-poster.jpg", label: "Live" },
 ];
 
 const DAY_ICONS: Record<string, string> = {
