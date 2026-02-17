@@ -14,10 +14,10 @@ interface Promo {
 
 export function PromosList({
   promos: initialPromos,
-  isOwner,
+  canEdit,
 }: {
   promos: Promo[];
-  isOwner: boolean;
+  canEdit: boolean;
 }) {
   const [promos, setPromos] = useState(initialPromos);
   const [showForm, setShowForm] = useState(false);
@@ -74,7 +74,7 @@ export function PromosList({
             Create promotional offers for your venue.
           </p>
         </div>
-        {isOwner && !showForm && (
+        {canEdit && !showForm && (
           <button
             onClick={() => setShowForm(true)}
             className="bg-primary text-black font-bold text-sm px-5 py-2.5 rounded-xl flex items-center gap-1.5 hover:shadow-lg hover:shadow-primary/30 transition-all"
@@ -212,7 +212,7 @@ export function PromosList({
                       </p>
                     )}
                   </div>
-                  {isOwner && (
+                  {canEdit && (
                     <div className="flex items-center gap-1 ml-3 flex-shrink-0">
                       <button
                         onClick={() => handleToggle(promo.id, promo.is_active)}

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import VenueSwitcher from "@/components/VenueSwitcher";
+import { SignOutButton } from "./SignOutButton";
 
 type NavLink = {
   href: string;
@@ -15,7 +16,7 @@ export function DashboardNav({ links }: { links: NavLink[] }) {
   const pathname = usePathname();
 
   return (
-    <nav className="flex-1 p-4 space-y-1">
+    <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
       {links.map((link) => {
         const isActive =
           link.href === "/dashboard"
@@ -53,6 +54,8 @@ export function MobileDrawer({
   venues = [],
   activeVenueId = null,
   isVenueRole = false,
+  userName,
+  userEmail,
 }: {
   links: NavLink[];
   venueName: string;
@@ -60,6 +63,8 @@ export function MobileDrawer({
   venues?: { id: string; name: string }[];
   activeVenueId?: string | null;
   isVenueRole?: boolean;
+  userName?: string;
+  userEmail?: string;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -167,6 +172,19 @@ export function MobileDrawer({
                 );
               })}
             </nav>
+
+            {/* User Info + Sign Out */}
+            <div className="p-4 border-t border-border">
+              <div className="px-3 py-2">
+                {userName && (
+                  <p className="text-sm font-semibold text-white truncate">{userName}</p>
+                )}
+                {userEmail && (
+                  <p className="text-[11px] text-text-muted truncate mb-3">{userEmail}</p>
+                )}
+                <SignOutButton />
+              </div>
+            </div>
           </div>
         </div>
       )}

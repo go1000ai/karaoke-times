@@ -38,6 +38,15 @@ interface MediaItem {
   type: "image" | "video";
 }
 
+interface SingerHighlight {
+  id: string;
+  title: string | null;
+  song_title: string | null;
+  song_artist: string | null;
+  highlight_type: string;
+  singer?: { display_name: string | null };
+}
+
 interface TVSettings {
   show_specials: boolean;
   show_promos: boolean;
@@ -62,7 +71,8 @@ type Slide =
   | { kind: "specials"; items: Special[] }
   | { kind: "promo"; promo: Promo }
   | { kind: "media"; media: MediaItem }
-  | { kind: "event"; venue: VenueInfo };
+  | { kind: "event"; venue: VenueInfo }
+  | { kind: "singer_highlight"; highlight: SingerHighlight };
 
 function formatSeconds(s: number): string {
   const m = Math.floor(s / 60);
@@ -81,6 +91,7 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
   const [specials, setSpecials] = useState<Special[]>([]);
   const [promos, setPromos] = useState<Promo[]>([]);
   const [media, setMedia] = useState<MediaItem[]>([]);
+  const [singerHighlights, setSingerHighlights] = useState<SingerHighlight[]>([]);
   const [slideIndex, setSlideIndex] = useState(0);
   const [tvSettings, setTvSettings] = useState<TVSettings>(DEFAULT_SETTINGS);
 
@@ -248,6 +259,21 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
       });
   }, [id]);
 
+  /* ── Fetch singer highlights for venue ───────────────── */
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from("singer_highlights")
+      .select("id, title, song_title, song_artist, highlight_type, singer:profiles!singer_user_id(display_name)")
+      .eq("venue_id", id)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(3)
+      .then(({ data }) => {
+        if (data) setSingerHighlights(data as unknown as SingerHighlight[]);
+      });
+  }, [id]);
+
   /* ── Build slides array from available data + settings ── */
   const slides: Slide[] = useMemo(() => {
     const s: Slide[] = [];
@@ -276,8 +302,12 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
     if (tvSettings.show_event && venueInfo?.eventName) {
       s.push({ kind: "event", venue: venueInfo });
     }
+    // Singer highlights always show when available
+    for (const h of singerHighlights) {
+      s.push({ kind: "singer_highlight", highlight: h });
+    }
     return s;
-  }, [specials, promos, media, venueInfo, tvSettings]);
+  }, [specials, promos, media, venueInfo, tvSettings, singerHighlights]);
 
   /* ── Auto-rotate slides ─────────────────────────────── */
   useEffect(() => {
@@ -442,6 +472,9 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
                     )}
                     {currentSlide.kind === "event" && (
                       <EventSlide venue={currentSlide.venue} />
+                    )}
+                    {currentSlide.kind === "singer_highlight" && (
+                      <SingerHighlightSlide highlight={currentSlide.highlight} />
                     )}
                   </div>
                 ) : (
@@ -788,6 +821,64 @@ function EventSlide({ venue }: { venue: VenueInfo }) {
           >
             {venue.eventNotes}
           </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Singer Highlight Slide ────────────────────────────── */
+
+function SingerHighlightSlide({ highlight }: { highlight: SingerHighlight }) {
+  const typeLabel =
+    highlight.highlight_type === "singer_of_night"
+      ? "Singer of the Night"
+      : highlight.highlight_type === "weekly_featured"
+      ? "Featured Singer of the Week"
+      : "Featured Singer of the Month";
+
+  return (
+    <div className="w-full max-w-lg text-center px-8 relative">
+      {/* Celebratory background glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-yellow-400/10 rounded-full blur-[100px] animate-pulse" />
+      <div className="absolute top-[30%] left-[20%] w-[100px] h-[100px] bg-accent/15 rounded-full blur-[60px] animate-pulse" style={{ animationDelay: "0.5s" }} />
+
+      {/* Sparkle decorations */}
+      <div className="absolute top-8 right-12 w-3 h-3 bg-yellow-400 rounded-full animate-tv-float opacity-60" style={{ animationDelay: "0s" }} />
+      <div className="absolute top-20 left-8 w-2 h-2 bg-accent rounded-full animate-tv-float opacity-60" style={{ animationDelay: "1s" }} />
+      <div className="absolute bottom-20 right-20 w-2 h-2 bg-primary rounded-full animate-tv-float opacity-60" style={{ animationDelay: "2s" }} />
+      <div className="absolute bottom-12 left-16 w-3 h-3 bg-yellow-400 rounded-full animate-tv-float opacity-60" style={{ animationDelay: "0.5s" }} />
+
+      <div className="relative">
+        {/* Star icon */}
+        <div className="inline-block animate-tv-float">
+          <span className="material-icons-round text-yellow-400 text-7xl" style={{ filter: "drop-shadow(0 0 20px rgba(250,204,21,0.5))" }}>
+            star
+          </span>
+        </div>
+
+        {/* Type label */}
+        <p className="text-yellow-400 text-sm font-extrabold uppercase tracking-[0.2em] mt-2 animate-tv-textReveal">
+          {typeLabel}
+        </p>
+
+        {/* Singer name */}
+        <h2 className="text-5xl font-extrabold text-white leading-tight mt-4 mb-3 animate-tv-textReveal" style={{ animationDelay: "0.15s" }}>
+          {highlight.title || highlight.singer?.display_name || "Amazing Singer"}
+        </h2>
+
+        {/* Song info */}
+        {highlight.song_title && (
+          <div className="animate-tv-textReveal" style={{ animationDelay: "0.3s" }}>
+            <p className="text-2xl text-accent font-bold">
+              &ldquo;{highlight.song_title}&rdquo;
+            </p>
+            {highlight.song_artist && (
+              <p className="text-text-secondary text-lg mt-1">
+                by {highlight.song_artist}
+              </p>
+            )}
+          </div>
         )}
       </div>
     </div>

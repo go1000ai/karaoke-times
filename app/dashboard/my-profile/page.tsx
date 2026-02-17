@@ -34,6 +34,26 @@ export default async function DashboardProfilePage() {
     .select("id", { count: "exact", head: true })
     .eq("user_id", user.id);
 
+  // Check if user is a KJ
+  const { data: staffRecord } = await supabase
+    .from("venue_staff")
+    .select("id")
+    .eq("user_id", user.id)
+    .not("accepted_at", "is", null)
+    .limit(1)
+    .single();
+
+  const isKJ = !!staffRecord;
+
+  // Fetch KJ profile if exists
+  const { data: kjProfile } = isKJ
+    ? await supabase
+        .from("kj_profiles")
+        .select("slug, stage_name, bio, photo_url, genres, equipment")
+        .eq("user_id", user.id)
+        .single()
+    : { data: null };
+
   const displayName =
     profile?.display_name ||
     user.user_metadata?.full_name ||
@@ -124,6 +144,65 @@ export default async function DashboardProfilePage() {
           <p className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">Reviews</p>
         </div>
       </div>
+
+      {/* KJ Profile Section */}
+      {isKJ && (
+        <div className="mb-6">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-3">
+            <span className="material-icons-round text-accent text-xl">headphones</span>
+            KJ Profile
+          </h2>
+
+          {kjProfile ? (
+            <div className="glass-card rounded-2xl p-5">
+              <div className="flex items-center gap-4 mb-3">
+                {kjProfile.photo_url ? (
+                  <img src={kjProfile.photo_url} alt="" className="w-14 h-14 rounded-full object-cover border border-accent/20" />
+                ) : (
+                  <div className="w-14 h-14 rounded-full bg-accent/10 flex items-center justify-center">
+                    <span className="material-icons-round text-accent text-2xl">headphones</span>
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-bold truncate">{kjProfile.stage_name}</p>
+                  <p className="text-text-muted text-xs">karaoke-times.vercel.app/kj/{kjProfile.slug}</p>
+                </div>
+              </div>
+              {kjProfile.bio && (
+                <p className="text-text-secondary text-sm mb-3">{kjProfile.bio}</p>
+              )}
+              {kjProfile.genres && (kjProfile.genres as string[]).length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {(kjProfile.genres as string[]).map((g: string) => (
+                    <span key={g} className="bg-purple-500/10 text-purple-400 text-[10px] font-bold px-2 py-0.5 rounded-full">{g}</span>
+                  ))}
+                </div>
+              )}
+              <Link
+                href="/dashboard/my-profile/kj"
+                className="flex items-center gap-1.5 text-primary text-sm font-semibold hover:underline"
+              >
+                <span className="material-icons-round text-base">edit</span>
+                Edit KJ Profile
+              </Link>
+            </div>
+          ) : (
+            <div className="glass-card rounded-2xl p-6 text-center">
+              <span className="material-icons-round text-3xl text-text-muted mb-2 block">headphones</span>
+              <p className="text-text-secondary text-sm mb-3">
+                Set up your public KJ profile so singers and venues can find you.
+              </p>
+              <Link
+                href="/dashboard/my-profile/kj"
+                className="inline-flex items-center gap-1.5 bg-primary text-black font-bold text-sm px-5 py-2.5 rounded-xl hover:shadow-lg hover:shadow-primary/30 transition-all"
+              >
+                <span className="material-icons-round text-lg">add</span>
+                Create KJ Profile
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Song History */}
       <div className="mb-6">

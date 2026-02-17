@@ -17,6 +17,19 @@ interface VenueOption {
 interface Props {
   venues: VenueOption[];
   defaultVenueId: string;
+  defaults?: {
+    eventName?: string;
+    eventDate?: string;
+    startTime?: string;
+    endTime?: string;
+    coverCharge?: string;
+    dressCode?: string;
+    drinkSpecials?: string;
+    dj?: string;
+    notes?: string;
+    ageRestriction?: string;
+    promos?: string;
+  };
 }
 
 const COLOR_PRESETS = [
@@ -59,6 +72,7 @@ const TIME_OPTIONS = (() => {
 export default function FlyerGenerator({
   venues,
   defaultVenueId,
+  defaults,
 }: Props) {
   const supabase = createClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -78,24 +92,26 @@ export default function FlyerGenerator({
   // Section collapse state
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     basics: true,
-    vibe: false,
+    vibe: !!(defaults?.dressCode),
     colors: false,
-    specials: false,
+    specials: !!(defaults?.drinkSpecials || defaults?.promos),
     image: false,
   });
 
   // Form state — Event Basics
-  const [eventName, setEventName] = useState("");
-  const [eventDate, setEventDate] = useState("");
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
-  const [coverCharge, setCoverCharge] = useState("");
+  const [eventName, setEventName] = useState(defaults?.eventName || "");
+  const [eventDate, setEventDate] = useState(defaults?.eventDate || "");
+  const [startTime, setStartTime] = useState(defaults?.startTime || "");
+  const [endTime, setEndTime] = useState(defaults?.endTime || "");
+  const [coverCharge, setCoverCharge] = useState(
+    [defaults?.coverCharge, defaults?.ageRestriction].filter(Boolean).join(" | ") || ""
+  );
 
   // Form state — Vibe & Theme
   const [theme, setTheme] = useState("");
   const [customTheme, setCustomTheme] = useState("");
-  const [moodDescription, setMoodDescription] = useState("");
-  const [dressCode, setDressCode] = useState("");
+  const [moodDescription, setMoodDescription] = useState(defaults?.notes || "");
+  const [dressCode, setDressCode] = useState(defaults?.dressCode || "");
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
 
   // Form state — Colors
@@ -103,10 +119,12 @@ export default function FlyerGenerator({
   const [customColor, setCustomColor] = useState("#FF007A");
 
   // Form state — Specials & Promos
-  const [drinkSpecials, setDrinkSpecials] = useState("");
+  const [drinkSpecials, setDrinkSpecials] = useState(defaults?.drinkSpecials || "");
   const [foodDeals, setFoodDeals] = useState("");
   const [prizes, setPrizes] = useState("");
-  const [promoText, setPromoText] = useState("");
+  const [promoText, setPromoText] = useState(
+    [defaults?.dj ? `KJ: ${defaults.dj}` : "", defaults?.promos].filter(Boolean).join("\n") || ""
+  );
 
   // Image upload state
   const [imageFile, setImageFile] = useState<File | null>(null);

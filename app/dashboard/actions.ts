@@ -1,9 +1,10 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { requireVenueOwner } from "@/lib/auth";
+import { requireVenueOwner, requireKJOrOwner } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
+import { getDashboardVenue } from "@/lib/get-dashboard-venue";
 
 export async function selectVenue(venueId: string) {
   const cookieStore = await cookies();
@@ -17,8 +18,11 @@ export async function selectVenue(venueId: string) {
 }
 
 export async function updateVenue(formData: FormData) {
-  const user = await requireVenueOwner();
+  const { user } = await requireKJOrOwner();
   const supabase = await createClient();
+  const { venue } = await getDashboardVenue(user.id);
+
+  if (!venue) return { error: "No venue found" };
 
   const { error } = await supabase
     .from("venues")
@@ -34,7 +38,7 @@ export async function updateVenue(formData: FormData) {
       is_private_room: formData.get("is_private_room") === "true",
       booking_url: (formData.get("booking_url") as string) || null,
     })
-    .eq("owner_id", user.id);
+    .eq("id", venue.id);
 
   if (error) return { error: error.message };
   revalidatePath("/dashboard/listing");
@@ -42,33 +46,36 @@ export async function updateVenue(formData: FormData) {
 }
 
 export async function createPromo(formData: FormData) {
-  const user = await requireVenueOwner();
+  const { user } = await requireKJOrOwner();
   const supabase = await createClient();
-
-  const { data: venue } = await supabase
-    .from("venues")
-    .select("id")
-    .eq("owner_id", user.id)
-    .single();
+  const { venue } = await getDashboardVenue(user.id);
 
   if (!venue) return { error: "No venue found" };
 
-  const { error } = await supabase.from("venue_promos").insert({
+  const insertData: Record<string, unknown> = {
     venue_id: venue.id,
     title: formData.get("title") as string,
-    description: formData.get("description") as string,
-    start_date: (formData.get("start_date") as string) || null,
-    end_date: (formData.get("end_date") as string) || null,
+    description: (formData.get("description") as string) || null,
     is_active: true,
-  });
+  };
+
+  const eventId = formData.get("event_id") as string;
+  if (eventId) insertData.event_id = eventId;
+
+  const startDate = formData.get("start_date") as string;
+  const endDate = formData.get("end_date") as string;
+  if (startDate) insertData.start_date = startDate;
+  if (endDate) insertData.end_date = endDate;
+
+  const { error } = await supabase.from("venue_promos").insert(insertData);
 
   if (error) return { error: error.message };
-  revalidatePath("/dashboard/promos");
+  revalidatePath("/dashboard/events");
   return { success: true };
 }
 
 export async function updatePromo(promoId: string, formData: FormData) {
-  await requireVenueOwner();
+  await requireKJOrOwner();
   const supabase = await createClient();
 
   const { error } = await supabase
@@ -82,12 +89,12 @@ export async function updatePromo(promoId: string, formData: FormData) {
     .eq("id", promoId);
 
   if (error) return { error: error.message };
-  revalidatePath("/dashboard/promos");
+  revalidatePath("/dashboard/events");
   return { success: true };
 }
 
 export async function togglePromo(promoId: string, isActive: boolean) {
-  await requireVenueOwner();
+  await requireKJOrOwner();
   const supabase = await createClient();
 
   const { error } = await supabase
@@ -96,35 +103,35 @@ export async function togglePromo(promoId: string, isActive: boolean) {
     .eq("id", promoId);
 
   if (error) return { error: error.message };
-  revalidatePath("/dashboard/promos");
+  revalidatePath("/dashboard/events");
   return { success: true };
 }
 
 export async function deletePromo(promoId: string) {
-  await requireVenueOwner();
+  await requireKJOrOwner();
   const supabase = await createClient();
 
   const { error } = await supabase.from("venue_promos").delete().eq("id", promoId);
 
   if (error) return { error: error.message };
-  revalidatePath("/dashboard/promos");
+  revalidatePath("/dashboard/events");
   return { success: true };
 }
 
 export async function createEvent(formData: FormData) {
-  const user = await requireVenueOwner();
+  const ctx = await requireKJOrOwner();
   const supabase = await createClient();
 
-  const { data: venue } = await supabase
-    .from("venues")
-    .select("id")
-    .eq("owner_id", user.id)
-    .single();
+  const venueId = formData.get("venue_id") as string;
+  if (!venueId) return { error: "No venue selected" };
 
-  if (!venue) return { error: "No venue found" };
+  let restrictions: string[] = [];
+  try {
+    restrictions = JSON.parse((formData.get("restrictions") as string) || "[]");
+  } catch { /* empty */ }
 
-  const { error } = await supabase.from("venue_events").insert({
-    venue_id: venue.id,
+  const insertData: Record<string, unknown> = {
+    venue_id: venueId,
     day_of_week: formData.get("day_of_week") as string,
     event_name: (formData.get("event_name") as string) || "Karaoke Night",
     dj: (formData.get("dj") as string) || null,
@@ -132,7 +139,21 @@ export async function createEvent(formData: FormData) {
     end_time: formData.get("end_time") as string,
     notes: (formData.get("notes") as string) || null,
     is_active: true,
-  });
+    age_restriction: (formData.get("age_restriction") as string) || "all_ages",
+    dress_code: (formData.get("dress_code") as string) || "casual",
+    cover_charge: (formData.get("cover_charge") as string) || "free",
+    drink_minimum: (formData.get("drink_minimum") as string) || "none",
+    happy_hour_details: (formData.get("happy_hour_details") as string) || null,
+    event_date: (formData.get("event_date") as string) || null,
+    restrictions,
+  };
+
+  // KJs get tagged as the event owner
+  if (ctx.role === "kj") {
+    insertData.kj_user_id = ctx.user.id;
+  }
+
+  const { error } = await supabase.from("venue_events").insert(insertData);
 
   if (error) return { error: error.message };
   revalidatePath("/dashboard/events");
@@ -140,8 +161,13 @@ export async function createEvent(formData: FormData) {
 }
 
 export async function updateEvent(eventId: string, formData: FormData) {
-  await requireVenueOwner();
+  await requireKJOrOwner();
   const supabase = await createClient();
+
+  let restrictions: string[] = [];
+  try {
+    restrictions = JSON.parse((formData.get("restrictions") as string) || "[]");
+  } catch { /* empty */ }
 
   const { error } = await supabase
     .from("venue_events")
@@ -152,6 +178,13 @@ export async function updateEvent(eventId: string, formData: FormData) {
       start_time: formData.get("start_time") as string,
       end_time: formData.get("end_time") as string,
       notes: (formData.get("notes") as string) || null,
+      age_restriction: (formData.get("age_restriction") as string) || "all_ages",
+      dress_code: (formData.get("dress_code") as string) || "casual",
+      cover_charge: (formData.get("cover_charge") as string) || "free",
+      drink_minimum: (formData.get("drink_minimum") as string) || "none",
+      happy_hour_details: (formData.get("happy_hour_details") as string) || null,
+      event_date: (formData.get("event_date") as string) || null,
+      restrictions,
     })
     .eq("id", eventId);
 
@@ -161,7 +194,7 @@ export async function updateEvent(eventId: string, formData: FormData) {
 }
 
 export async function toggleEvent(eventId: string, isActive: boolean) {
-  await requireVenueOwner();
+  await requireKJOrOwner();
   const supabase = await createClient();
 
   const { error } = await supabase
@@ -175,7 +208,7 @@ export async function toggleEvent(eventId: string, isActive: boolean) {
 }
 
 export async function deleteEvent(eventId: string) {
-  await requireVenueOwner();
+  await requireKJOrOwner();
   const supabase = await createClient();
 
   const { error } = await supabase.from("venue_events").delete().eq("id", eventId);
@@ -186,7 +219,7 @@ export async function deleteEvent(eventId: string) {
 }
 
 export async function handleBooking(bookingId: string, status: "confirmed" | "cancelled") {
-  await requireVenueOwner();
+  await requireKJOrOwner();
   const supabase = await createClient();
 
   const { error } = await supabase

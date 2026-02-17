@@ -24,16 +24,34 @@ export default function MediaPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
 
-  // Get venue and media
+  // Get venue and media (works for both owners and KJs)
   useEffect(() => {
     if (!user) return;
 
     const fetchData = async () => {
-      const { data: venue } = await supabase
+      // Try owner first
+      let venue: { id: string } | null = null;
+      const { data: ownedVenue } = await supabase
         .from("venues")
         .select("id")
         .eq("owner_id", user.id)
         .single();
+      venue = ownedVenue;
+
+      // If not an owner, check venue_staff (KJ)
+      if (!venue) {
+        const { data: staffRecord } = await supabase
+          .from("venue_staff")
+          .select("venue_id")
+          .eq("user_id", user.id)
+          .not("accepted_at", "is", null)
+          .limit(1)
+          .single();
+
+        if (staffRecord) {
+          venue = { id: staffRecord.venue_id };
+        }
+      }
 
       if (!venue) { setLoading(false); return; }
       setVenueId(venue.id);

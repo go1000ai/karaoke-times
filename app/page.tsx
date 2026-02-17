@@ -9,6 +9,7 @@ import { TubesBackground } from "@/components/ui/neon-flow";
 import { CardStack, type CardStackItem } from "@/components/ui/card-stack";
 import { createClient } from "@/lib/supabase/client";
 import { karaokeEvents, DAY_ORDER, getEventsByDay, searchKJs, getKJSlugForName, type KaraokeEvent, type KJProfile } from "@/lib/mock-data";
+import { extractYouTubeVideoId, getYouTubeThumbnail } from "@/lib/youtube";
 
 const DAY_ICONS: Record<string, string> = {
   Monday: "looks_one",
@@ -252,17 +253,40 @@ export default function HomePage() {
   const [searchFilter, setSearchFilter] = useState<"all" | "kjs" | "venues">("all");
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [venueCount, setVenueCount] = useState<number>(0);
+  const [featuredSingers, setFeaturedSingers] = useState<{
+    id: string;
+    title: string | null;
+    song_title: string | null;
+    song_artist: string | null;
+    highlight_type: string;
+    event_date: string | null;
+    video_url: string | null;
+    singer?: { display_name: string | null };
+    venue?: { name: string | null };
+  }[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const eventsByDay = getEventsByDay();
   const tabBarRef = useRef<HTMLDivElement>(null);
 
-  // Load favorites + venue count on mount
+  // Load favorites + venue count + featured singers on mount
   useEffect(() => {
     setFavorites(loadFavorites());
-    createClient()
+    const supabase = createClient();
+    supabase
       .from("venues")
       .select("id", { count: "exact", head: true })
       .then(({ count }) => setVenueCount(count ?? 0));
+    supabase
+      .from("singer_highlights")
+      .select("id, title, song_title, song_artist, highlight_type, event_date, video_url, singer:profiles!singer_user_id(display_name), venue:venues!venue_id(name)")
+      .eq("is_active", true)
+      .eq("consent_status", "approved")
+      .in("highlight_type", ["weekly_featured", "monthly_featured", "singer_of_night"])
+      .order("created_at", { ascending: false })
+      .limit(6)
+      .then(({ data }) => {
+        if (data) setFeaturedSingers(data as any);
+      });
   }, []);
 
   const toggleFavorite = useCallback((eventId: string) => {
@@ -553,6 +577,98 @@ export default function HomePage() {
           />
         </div>
       </section>
+
+      {/* ─── FEATURED SINGERS ─── */}
+      {featuredSingers.length > 0 && (
+        <section className="py-16 md:py-20 border-t border-border">
+          <div className="max-w-6xl mx-auto px-6 md:px-8">
+            <div className="text-center mb-10">
+              <p
+                className="reveal text-yellow-400 text-2xl mb-2"
+                style={{ fontFamily: "var(--font-script)", textShadow: "0 0 20px rgba(250,204,21,0.3)" }}
+              >
+                Shining Stars
+              </p>
+              <h2 className="reveal text-3xl md:text-5xl font-extrabold text-white uppercase tracking-tight mb-4">
+                Featured Singers
+              </h2>
+              <p className="reveal text-text-secondary leading-relaxed max-w-lg mx-auto">
+                Recognized by KJs for outstanding performances at venues across NYC.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {featuredSingers.map((singer) => {
+                const vidId = singer.video_url ? extractYouTubeVideoId(singer.video_url) : null;
+                return (
+                  <div key={singer.id} className="reveal glass-card rounded-2xl p-5 hover:border-yellow-400/20 transition-all group">
+                    <div className="flex items-start gap-4">
+                      {vidId ? (
+                        <div className="w-16 h-12 rounded-xl overflow-hidden bg-black flex-shrink-0 relative">
+                          <img
+                            src={getYouTubeThumbnail(vidId, "default")}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                            <span className="material-icons-round text-white text-lg">play_arrow</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="w-12 h-12 rounded-xl bg-yellow-400/10 flex items-center justify-center flex-shrink-0">
+                          <span className="material-icons-round text-yellow-400 text-2xl">star</span>
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white font-bold truncate">
+                          {singer.title || singer.singer?.display_name || "Featured Singer"}
+                        </p>
+                        {singer.song_title && (
+                          <p className="text-accent text-sm font-semibold truncate mt-0.5">
+                            &ldquo;{singer.song_title}&rdquo;
+                            {singer.song_artist && <span className="text-text-muted"> by {singer.song_artist}</span>}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            singer.highlight_type === "monthly_featured"
+                              ? "bg-purple-500/10 text-purple-400"
+                              : singer.highlight_type === "weekly_featured"
+                              ? "bg-blue-500/10 text-blue-400"
+                              : "bg-yellow-400/10 text-yellow-400"
+                          }`}>
+                            {singer.highlight_type === "monthly_featured"
+                              ? "Monthly Featured"
+                              : singer.highlight_type === "weekly_featured"
+                              ? "Weekly Featured"
+                              : "Singer of the Night"}
+                          </span>
+                          {singer.venue?.name && (
+                            <span className="text-[10px] text-text-muted truncate">
+                              at {singer.venue.name}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* View All link */}
+            <div className="text-center mt-8">
+              <Link
+                href="/featured-singers"
+                className="text-primary font-semibold text-sm hover:underline inline-flex items-center gap-1"
+              >
+                View All Featured Singers
+                <span className="material-icons-round text-base">arrow_forward</span>
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ─── KARAOKE LISTINGS ─── */}
       <section className="py-16 md:py-20" id="listings">

@@ -5,7 +5,12 @@ import FlyerGenerator from "./FlyerGenerator";
 import SavedFlyers from "./SavedFlyers";
 import FlyerTabs from "./FlyerTabs";
 
-export default async function FlyersPage() {
+export default async function FlyersPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
+  const params = await searchParams;
   const user = await requireVenueOwner();
   const { venue } = await getDashboardVenue(user.id);
   const supabase = await createClient();
@@ -61,6 +66,19 @@ export default async function FlyersPage() {
           <FlyerGenerator
             venues={allVenues}
             defaultVenueId={venue?.id || ""}
+            defaults={params.eventName ? {
+              eventName: params.eventName,
+              eventDate: params.eventDate,
+              startTime: params.startTime,
+              endTime: params.endTime,
+              coverCharge: params.coverCharge,
+              dressCode: params.dressCode,
+              drinkSpecials: params.drinkSpecials,
+              dj: params.dj,
+              notes: params.notes,
+              ageRestriction: params.ageRestriction,
+              promos: params.promos,
+            } : undefined}
           />
         }
         savedTab={<SavedFlyers />}
