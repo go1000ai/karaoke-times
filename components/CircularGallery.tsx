@@ -41,9 +41,9 @@ export default function CircularGallery({
   }, []);
 
   // Responsive sizing — proportional to screen on mobile
-  const radius = isMobile ? Math.min(220, window?.innerWidth * 0.55 || 220) : 500;
-  const cardW = isMobile ? 150 : 260;
-  const cardH = isMobile ? 220 : 380;
+  const radius = isMobile ? Math.min(250, window?.innerWidth * 0.6 || 250) : 500;
+  const cardW = isMobile ? 120 : 260;
+  const cardH = isMobile ? 170 : 380;
 
   // Auto-rotate + momentum when not dragging
   useEffect(() => {
@@ -145,7 +145,9 @@ export default function CircularGallery({
             relativeAngle > 180 ? 360 - relativeAngle : relativeAngle
           );
           const opacity = Math.max(0.1, 1 - normalizedAngle / 160);
-          const scale = Math.max(0.65, 1 - normalizedAngle / 500);
+          const scale = isMobile
+            ? Math.max(0.55, 1 - normalizedAngle / 400)
+            : Math.max(0.65, 1 - normalizedAngle / 500);
           // Only load video for cards near the front (within ~100°)
           const isFrontFacing = normalizedAngle < 100;
 
