@@ -59,13 +59,6 @@ export default function TopNav() {
 
           {/* Right Side — Desktop */}
           <div className="hidden md:flex items-center gap-3">
-            <Link
-              href="/add-event"
-              className="bg-primary text-black font-bold text-sm px-5 py-2.5 rounded-full flex items-center gap-1.5 hover:shadow-lg hover:shadow-primary/30 transition-all"
-            >
-              Add Karaoke Event
-            </Link>
-
             {!loading && user ? (
               <div className="flex items-center gap-3">
                 {hasDashboard && (

@@ -442,14 +442,6 @@ export default function HomePage() {
               </Link>
               <span className="text-white/20">|</span>
               <Link
-                href="/add-event"
-                className="inline-flex items-center gap-1.5 text-white/50 text-sm hover:text-primary transition-colors"
-              >
-                <span className="material-icons-round text-base">event</span>
-                Post Event
-              </Link>
-              <span className="text-white/20">|</span>
-              <Link
                 href="/favorites"
                 className="inline-flex items-center gap-1.5 text-white/50 text-sm hover:text-primary transition-colors"
               >

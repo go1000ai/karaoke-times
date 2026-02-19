@@ -10,6 +10,7 @@ import VenueSwitcher from "@/components/VenueSwitcher";
 const ownerLinks = [
   { href: "/dashboard", icon: "dashboard", label: "Overview" },
   { href: "/dashboard/listing", icon: "storefront", label: "Venue Listing" },
+  { href: "/dashboard/events", icon: "event", label: "Events" },
   { href: "/dashboard/staff", icon: "group", label: "Staff & KJs" },
   { href: "/dashboard/integrations", icon: "point_of_sale", label: "POS Integration" },
   { href: "/dashboard/my-profile", icon: "person", label: "My Profile" },
@@ -34,6 +35,7 @@ const kjLinks = [
 const adminLinks = [
   { href: "/dashboard", icon: "dashboard", label: "Overview" },
   { href: "/dashboard/listing", icon: "storefront", label: "Venue Listing" },
+  { href: "/dashboard/events", icon: "event", label: "Events" },
   { href: "/dashboard/staff", icon: "group", label: "Staff & KJs" },
   { href: "/dashboard/ads", icon: "campaign", label: "Sponsor Ads" },
   { href: "/dashboard/advertiser", icon: "business", label: "Advertisers" },
