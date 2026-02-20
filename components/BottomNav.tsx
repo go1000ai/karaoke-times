@@ -22,13 +22,13 @@ export default function BottomNav() {
 
   return (
     <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[92%] max-w-[400px] glass-card rounded-[2rem] py-2 px-2 z-50 shadow-2xl shadow-primary/10 md:hidden">
-      <ul className="flex justify-between items-center px-2">
+      <ul className="flex justify-evenly items-center">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
 
           if (item.isFab) {
             return (
-              <li key={item.href} className="relative">
+              <li key={item.href} className="relative flex-1 flex justify-center">
                 <Link
                   href={item.href}
                   className="bg-primary text-black w-14 h-14 rounded-full flex items-center justify-center shadow-lg shadow-primary/40 -mt-7 border-4 border-bg-dark"
@@ -40,10 +40,10 @@ export default function BottomNav() {
           }
 
           return (
-            <li key={item.href}>
+            <li key={item.href} className="flex-1 flex justify-center">
               <Link
                 href={item.href}
-                className={`flex flex-col items-center py-2 px-3 transition-colors ${
+                className={`flex flex-col items-center py-2 transition-colors ${
                   isActive ? "text-primary" : "text-text-muted"
                 }`}
               >
