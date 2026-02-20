@@ -6,6 +6,7 @@ export interface KaraokeEvent {
   address: string;
   city: string;
   state: string;
+  zipCode?: string;
   neighborhood: string;
   crossStreet: string;
   phone: string;
@@ -14,6 +15,7 @@ export interface KaraokeEvent {
   endTime: string;
   notes: string;
   image: string | null;
+  flyer?: string | null;
   isPrivateRoom: boolean;
   bookingUrl: string | null;
   website: string | null;

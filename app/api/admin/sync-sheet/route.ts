@@ -13,22 +13,31 @@ function sheetUrlToCsvExport(sheetUrl: string): string {
   return `https://docs.google.com/spreadsheets/d/${match[1]}/export?format=csv&gid=0`;
 }
 
-// Map user-facing column names to EventRow field keys
+// Map user-facing column names (lowercase) to EventRow field keys
+// Includes aliases for both short names and actual Google Sheet headers
 const COLUMN_NAME_TO_FIELD: Record<string, string> = {
+  "day of the week": "dayOfWeek",
   "day of week": "dayOfWeek",
   "event name": "eventName",
+  "event location": "venueName",
   "venue name": "venueName",
+  "event address": "address",
   "address": "address",
   "city": "city",
   "state": "state",
+  "zip code": "zipCode",
+  "zip": "zipCode",
   "neighborhood": "neighborhood",
   "cross street": "crossStreet",
+  "reservations": "phone",
   "phone": "phone",
+  "music by/dj": "dj",
   "dj": "dj",
   "start time": "startTime",
   "end time": "endTime",
   "notes": "notes",
   "website": "website",
+  "flyer": "flyer",
 };
 
 // Map event IDs or venue slugs to local images in /public/venues/
@@ -163,8 +172,8 @@ function generateMockData(csvText: string, columns?: string[]): { output: string
   // Build column index → field key mapping
   const fieldOrder = [
     "dayOfWeek", "eventName", "venueName", "address", "city", "state",
-    "neighborhood", "crossStreet", "phone", "dj", "startTime", "endTime",
-    "notes", "website",
+    "zipCode", "neighborhood", "crossStreet", "phone", "dj", "startTime",
+    "endTime", "notes", "website", "flyer",
   ];
 
   let colToField: Record<number, string>;
@@ -191,6 +200,7 @@ function generateMockData(csvText: string, columns?: string[]): { output: string
     address: string;
     city: string;
     state: string;
+    zipCode: string;
     neighborhood: string;
     crossStreet: string;
     phone: string;
@@ -199,6 +209,7 @@ function generateMockData(csvText: string, columns?: string[]): { output: string
     endTime: string;
     notes: string;
     website: string;
+    flyer: string;
   }
 
   const events: EventRow[] = [];
@@ -230,6 +241,7 @@ function generateMockData(csvText: string, columns?: string[]): { output: string
   address: string;
   city: string;
   state: string;
+  zipCode: string;
   neighborhood: string;
   crossStreet: string;
   phone: string;
@@ -238,6 +250,7 @@ function generateMockData(csvText: string, columns?: string[]): { output: string
   endTime: string;
   notes: string;
   image: string | null;
+  flyer: string | null;
   isPrivateRoom: boolean;
   bookingUrl: string | null;
   website: string | null;
@@ -272,6 +285,7 @@ export const karaokeEvents: KaraokeEvent[] = [
     address: "${escapeString(event.address)}",
     city: "${escapeString(event.city)}",
     state: "${escapeString(event.state)}",
+    zipCode: "${escapeString(event.zipCode)}",
     neighborhood: "${escapeString(event.neighborhood)}",
     crossStreet: "${escapeString(event.crossStreet)}",
     phone: "${escapeString(event.phone)}",
@@ -280,6 +294,7 @@ export const karaokeEvents: KaraokeEvent[] = [
     endTime: "${escapeString(event.endTime)}",
     notes: "${escapeString(event.notes)}",
     image: ${VENUE_IMAGES[id] ? `"${VENUE_IMAGES[id]}"` : "null"},
+    flyer: ${event.flyer ? `"${escapeString(event.flyer)}"` : "null"},
     isPrivateRoom: ${isPrivateRoom},
     bookingUrl: null,
     website: ${event.website ? `"${escapeString(event.website)}"` : "null"},

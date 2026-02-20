@@ -2,22 +2,35 @@
 
 import { useRef, useState } from "react";
 
+// Matches the actual Google Sheet column order (A–P)
 const DEFAULT_COLUMNS = [
-  "Day of Week",
+  "Day Of The Week",
   "Event Name",
-  "Venue Name",
-  "Address",
+  "Event Location",
+  "Event Address",
   "City",
   "State",
+  "Zip Code",
   "Neighborhood",
   "Cross Street",
-  "Phone",
-  "DJ",
+  "Reservations",
+  "Music By/DJ",
   "Start Time",
   "End Time",
   "Notes",
   "Website",
+  "Flyer",
 ];
+
+function columnLetter(index: number): string {
+  let letter = "";
+  let n = index;
+  while (n >= 0) {
+    letter = String.fromCharCode(65 + (n % 26)) + letter;
+    n = Math.floor(n / 26) - 1;
+  }
+  return letter;
+}
 
 const DEFAULT_SHEET_URL =
   "https://docs.google.com/spreadsheets/d/1Hjvo1uMhxtvTcnHNzHaCH9Qq-lbIqRV3Kag5vzSukFk/edit";
@@ -128,7 +141,7 @@ export default function SyncPage() {
           <div className="mt-4 space-y-2">
             {columns.map((col, i) => (
               <div key={i} className="flex items-center gap-2">
-                <span className="text-xs text-text-muted w-6 text-right flex-shrink-0">{i + 1}.</span>
+                <span className="text-xs text-text-muted w-6 text-right flex-shrink-0 font-mono">{columnLetter(i)}</span>
                 <input
                   type="text"
                   value={col}
