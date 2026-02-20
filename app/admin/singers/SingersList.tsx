@@ -64,7 +64,7 @@ export function SingersList({ singers: initial }: { singers: Singer[] }) {
       </div>
 
       {/* Search + Sort */}
-      <div className="flex gap-3 mb-6">
+      <div className="flex flex-col md:flex-row gap-3 mb-6">
         <div className="relative flex-1">
           <span className="material-icons-round absolute left-4 top-1/2 -translate-y-1/2 text-text-muted">
             search
