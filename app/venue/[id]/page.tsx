@@ -28,18 +28,60 @@ interface Review {
   profiles: { display_name: string | null } | null;
 }
 
+interface SupabaseVenue {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  neighborhood: string | null;
+  is_private_room: boolean;
+}
+
 export default function VenueDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const venue = venues.find((v) => v.id === id) || venues[0];
-  const venueEvents = karaokeEvents.filter((e) => e.venueName === venue.name);
+  const mockVenue = venues.find((v) => v.id === id);
+  const venueEvents = mockVenue ? karaokeEvents.filter((e) => e.venueName === mockVenue.name) : [];
   const event = karaokeEvents.find((e) => e.id === id) || venueEvents[0];
-  const phone = event?.phone || "";
   const { user } = useAuth();
   const router = useRouter();
   const [isFavorite, setIsFavorite] = useState(false);
   const [showSongRequest, setShowSongRequest] = useState(false);
   const [specials, setSpecials] = useState<FeaturedSpecial[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [dbVenue, setDbVenue] = useState<SupabaseVenue | null>(null);
+  const [loading, setLoading] = useState(!mockVenue);
+
+  // Resolved venue: mock data first, then Supabase fallback
+  const venue = mockVenue || (dbVenue ? {
+    id: dbVenue.id,
+    name: dbVenue.name,
+    address: dbVenue.address,
+    city: dbVenue.city,
+    state: dbVenue.state,
+    neighborhood: dbVenue.neighborhood || "",
+    image: null as string | null,
+    isPrivateRoom: dbVenue.is_private_room,
+    latitude: null as number | null,
+    longitude: null as number | null,
+  } : null);
+
+  const phone = event?.phone || "";
+
+  // Fetch venue from Supabase when not found in mock data
+  useEffect(() => {
+    if (mockVenue) return;
+    const supabase = createClient();
+    supabase
+      .from("venues")
+      .select("id, name, address, city, state, neighborhood, is_private_room")
+      .eq("id", id)
+      .single()
+      .then(({ data }) => {
+        if (data) setDbVenue(data as SupabaseVenue);
+        setLoading(false);
+      });
+  }, [id, mockVenue]);
 
   // Fetch featured specials from POS
   useEffect(() => {
@@ -93,9 +135,35 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
   };
 
   const handleDirections = () => {
+    if (!venue) return;
     const address = encodeURIComponent(`${venue.address}, ${venue.city}, ${venue.state}`);
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${address}`, "_blank");
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-bg-dark flex items-center justify-center">
+        <div className="text-center">
+          <span className="material-icons-round text-4xl text-primary animate-pulse">mic</span>
+          <p className="text-text-muted text-sm mt-2">Loading venue...</p>
+        </div>
+        <BottomNav />
+      </div>
+    );
+  }
+
+  if (!venue) {
+    return (
+      <div className="min-h-screen bg-bg-dark flex items-center justify-center">
+        <div className="text-center">
+          <span className="material-icons-round text-4xl text-text-muted">search_off</span>
+          <p className="text-white font-bold mt-2">Venue not found</p>
+          <Link href="/" className="text-primary text-sm mt-2 inline-block">Back to Home</Link>
+        </div>
+        <BottomNav />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen pb-44 md:pb-24 bg-bg-dark">
