@@ -53,16 +53,16 @@ export default async function AdminOverview() {
   ]);
 
   const keyMetrics = [
-    { label: "Total Users", value: userCount ?? 0, icon: "people", color: "text-primary", bg: "bg-primary/10" },
-    { label: "Active Venues", value: venueCount ?? 0, icon: "storefront", color: "text-accent", bg: "bg-accent/10" },
-    { label: "Live Queues", value: liveQueues ?? 0, icon: "queue_music", color: "text-purple-400", bg: "bg-purple-400/10" },
-    { label: "Pending Bookings", value: pendingBookings ?? 0, icon: "book_online", color: "text-blue-400", bg: "bg-blue-400/10" },
+    { label: "Total Users", value: userCount ?? 0, icon: "people", color: "text-primary", bg: "bg-primary/10", href: "/admin/users" },
+    { label: "Active Venues", value: venueCount ?? 0, icon: "storefront", color: "text-accent", bg: "bg-accent/10", href: "/admin/venues" },
+    { label: "Live Queues", value: liveQueues ?? 0, icon: "queue_music", color: "text-purple-400", bg: "bg-purple-400/10", href: "/admin/queue" },
+    { label: "Pending Bookings", value: pendingBookings ?? 0, icon: "book_online", color: "text-blue-400", bg: "bg-blue-400/10", href: "/admin/bookings" },
   ];
 
   const growthMetrics = [
-    { label: "New Users", value: newUsersWeek ?? 0, icon: "person_add", color: "text-green-400", bg: "bg-green-400/10", sub: "this week" },
-    { label: "New Reviews", value: newReviewsWeek ?? 0, icon: "rate_review", color: "text-orange-400", bg: "bg-orange-400/10", sub: "this week" },
-    { label: "New Bookings", value: newBookingsWeek ?? 0, icon: "event_available", color: "text-cyan-400", bg: "bg-cyan-400/10", sub: "this week" },
+    { label: "New Users", value: newUsersWeek ?? 0, icon: "person_add", color: "text-green-400", bg: "bg-green-400/10", sub: "this week", href: "/admin/users" },
+    { label: "New Reviews", value: newReviewsWeek ?? 0, icon: "rate_review", color: "text-orange-400", bg: "bg-orange-400/10", sub: "this week", href: "/admin/reviews" },
+    { label: "New Bookings", value: newBookingsWeek ?? 0, icon: "event_available", color: "text-cyan-400", bg: "bg-cyan-400/10", sub: "this week", href: "/admin/bookings" },
   ];
 
   const quickActions = [
@@ -86,7 +86,7 @@ export default async function AdminOverview() {
       {/* Key Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {keyMetrics.map((stat) => (
-          <div key={stat.label} className="glass-card rounded-2xl p-5">
+          <Link key={stat.label} href={stat.href} className="glass-card rounded-2xl p-5 hover:bg-white/[0.04] transition-colors group">
             <div className="flex items-center gap-3 mb-3">
               <div className={`w-10 h-10 rounded-xl ${stat.bg} flex items-center justify-center`}>
                 <span className={`material-icons-round ${stat.color}`}>{stat.icon}</span>
@@ -94,14 +94,14 @@ export default async function AdminOverview() {
             </div>
             <p className="text-2xl font-extrabold text-white">{stat.value}</p>
             <p className="text-xs text-text-muted mt-0.5">{stat.label}</p>
-          </div>
+          </Link>
         ))}
       </div>
 
       {/* Growth Metrics */}
       <div className="grid grid-cols-3 gap-4 mb-8">
         {growthMetrics.map((stat) => (
-          <div key={stat.label} className="glass-card rounded-2xl p-4 flex items-center gap-4">
+          <Link key={stat.label} href={stat.href} className="glass-card rounded-2xl p-4 flex items-center gap-4 hover:bg-white/[0.04] transition-colors group">
             <div className={`w-10 h-10 rounded-xl ${stat.bg} flex items-center justify-center flex-shrink-0`}>
               <span className={`material-icons-round ${stat.color} text-xl`}>{stat.icon}</span>
             </div>
@@ -109,7 +109,7 @@ export default async function AdminOverview() {
               <p className="text-lg font-extrabold text-white">{stat.value}</p>
               <p className="text-xs text-text-muted">{stat.label} <span className="text-text-muted/50">{stat.sub}</span></p>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
 
