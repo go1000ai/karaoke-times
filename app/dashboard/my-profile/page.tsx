@@ -130,7 +130,7 @@ export default async function DashboardProfilePage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 glass-card rounded-2xl overflow-hidden mb-6">
+      <div className="grid grid-cols-3 sm:grid-cols-3 glass-card rounded-2xl overflow-hidden mb-6">
         <div className="py-4 text-center border-r border-border">
           <p className="text-xl font-extrabold text-primary">{totalSongs || 0}</p>
           <p className="text-[10px] text-text-secondary uppercase tracking-wider font-semibold">Songs Sung</p>

@@ -889,8 +889,8 @@ function EventForm({
         </div>
       </div>
 
-      {/* Start & End Time — always side by side */}
-      <div className="grid grid-cols-2 gap-4">
+      {/* Start & End Time */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className={labelClass}>Start Time *</label>
           <select name="start_time" defaultValue={event?.start_time || ""} required className={selectClass}>

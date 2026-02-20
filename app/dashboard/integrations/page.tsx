@@ -320,7 +320,7 @@ export default function IntegrationsPage() {
                 <p className="text-text-muted text-xs mb-3">
                   These items show on your TV display and venue page.
                 </p>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {featuredItems.map((item) => (
                     <div
                       key={item.id}

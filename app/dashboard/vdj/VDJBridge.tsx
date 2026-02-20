@@ -117,7 +117,7 @@ export function VDJBridge({
             Make sure VirtualDJ is running with the Network Control Plugin enabled
             (Settings → Extensions → Network Control).
           </p>
-          <div className="grid grid-cols-3 gap-3 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
             <div>
               <label className="text-xs text-text-muted uppercase tracking-wider font-bold mb-1.5 block">
                 Host

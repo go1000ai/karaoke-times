@@ -180,7 +180,7 @@ export default async function DashboardOverview() {
       )}
 
       {/* KJ Stats */}
-      <div className="grid grid-cols-2 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
         <Link href="/dashboard/queue" className="glass-card rounded-2xl p-5 hover:border-accent/30 transition-all">
           <span className="material-icons-round text-3xl text-accent mb-2">queue_music</span>
           <p className="text-2xl font-extrabold text-white">{queueCount ?? 0}</p>
@@ -290,7 +290,7 @@ async function SingerDashboard({ userId, supabase }: { userId: string; supabase:
       </Link>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         <Link href="/dashboard/my-queue" className="glass-card rounded-2xl p-5 hover:border-accent/30 transition-all">
           <span className="material-icons-round text-3xl text-accent mb-2">format_list_numbered</span>
           <p className="text-2xl font-extrabold text-white">{activeSongsCount ?? 0}</p>

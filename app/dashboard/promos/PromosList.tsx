@@ -115,7 +115,7 @@ export function PromosList({
                 className="w-full bg-white/5 border border-border rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-text-muted focus:outline-none focus:border-primary/50 resize-none"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-text-muted font-semibold uppercase tracking-wider block mb-1.5">
                   Start Date
@@ -323,7 +323,7 @@ function EditPromoForm({
             className="w-full bg-white/5 border border-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary/50 resize-none"
           />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="text-xs text-text-muted font-semibold uppercase tracking-wider block mb-1.5">
               Start Date

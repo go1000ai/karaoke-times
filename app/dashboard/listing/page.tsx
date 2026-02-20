@@ -236,8 +236,8 @@ export default function ListingPage() {
               const parsed = !isClosed ? parseTime(typeof dayData === "object" ? dayData : { open: dayData, close: "" }) : { openHr: "7", openMin: "00", openPeriod: "PM", closeHr: "12", closeMin: "00", closePeriod: "AM" };
 
               return (
-                <div key={day} className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm text-text-secondary w-20 flex-shrink-0 font-medium">{day}</span>
+                <div key={day} className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <span className="text-sm text-text-secondary sm:w-20 flex-shrink-0 font-medium">{day}</span>
                   <button
                     type="button"
                     onClick={() => {
