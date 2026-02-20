@@ -89,6 +89,14 @@ export default function SyncPage() {
     setColumns(next);
   }
 
+  function removeColumn(index: number) {
+    setColumns((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function addColumn() {
+    setColumns((prev) => [...prev, `Column ${prev.length + 1}`]);
+  }
+
   return (
     <div>
       <h1 className="text-2xl font-extrabold text-white mb-1">Sync Data</h1>
@@ -141,14 +149,29 @@ export default function SyncPage() {
                 >
                   <span className="material-icons-round text-sm">arrow_downward</span>
                 </button>
+                <button
+                  onClick={() => removeColumn(i)}
+                  className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400 hover:bg-red-500/20 transition-colors"
+                >
+                  <span className="material-icons-round text-sm">close</span>
+                </button>
               </div>
             ))}
-            <button
-              onClick={() => setColumns(DEFAULT_COLUMNS)}
-              className="text-xs text-text-muted hover:text-white transition-colors mt-2"
-            >
-              Reset to defaults
-            </button>
+            <div className="flex items-center gap-3 mt-3 pt-3 border-t border-border/20">
+              <button
+                onClick={addColumn}
+                className="flex items-center gap-1.5 text-xs text-purple-400 hover:text-purple-300 transition-colors font-semibold"
+              >
+                <span className="material-icons-round text-sm">add_circle</span>
+                Add Column
+              </button>
+              <button
+                onClick={() => setColumns(DEFAULT_COLUMNS)}
+                className="text-xs text-text-muted hover:text-white transition-colors"
+              >
+                Reset to defaults
+              </button>
+            </div>
           </div>
         )}
       </div>
