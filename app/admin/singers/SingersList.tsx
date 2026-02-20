@@ -91,61 +91,61 @@ export function SingersList({ singers: initial }: { singers: Singer[] }) {
       {/* Singers List */}
       <div className="space-y-3">
         {filtered.map((singer) => (
-          <div key={singer.id} className="glass-card rounded-2xl p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  {singer.avatar_url ? (
-                    <img src={singer.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover" />
-                  ) : (
-                    <span className="material-icons-round text-primary">person</span>
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-white font-bold truncate">
-                    {singer.display_name || "Unnamed Singer"}
-                  </p>
-                  <p className="text-xs text-text-muted">
-                    Joined {new Date(singer.created_at).toLocaleDateString()}
-                  </p>
-                </div>
+          <div key={singer.id} className="glass-card rounded-2xl p-4 md:p-5">
+            {/* Name row */}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                {singer.avatar_url ? (
+                  <img src={singer.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover" />
+                ) : (
+                  <span className="material-icons-round text-primary">person</span>
+                )}
               </div>
-
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <select
-                  value={singer.role}
-                  onChange={(e) => handleRoleChange(singer.id, e.target.value)}
-                  disabled={isPending && processingId === singer.id}
-                  className="text-xs font-bold px-3 py-1.5 rounded-full bg-white/5 text-text-muted border-0 cursor-pointer disabled:opacity-50"
-                >
-                  <option value="user">user</option>
-                  <option value="venue_owner">venue_owner</option>
-                  <option value="admin">admin</option>
-                </select>
-                <button
-                  onClick={() => handleDelete(singer.id, singer.display_name || "singer")}
-                  disabled={isPending && processingId === singer.id}
-                  className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center hover:bg-red-500/20 transition-colors disabled:opacity-50"
-                >
-                  <span className="material-icons-round text-red-400 text-sm">delete</span>
-                </button>
+              <div className="min-w-0 flex-1">
+                <p className="text-white font-bold">
+                  {singer.display_name || "Unnamed Singer"}
+                </p>
+                <p className="text-xs text-text-muted">
+                  Joined {new Date(singer.created_at).toLocaleDateString()}
+                </p>
               </div>
             </div>
 
             {/* Activity Stats */}
-            <div className="flex gap-4 mt-3 pt-3 border-t border-border/20">
-              <div className="flex items-center gap-1.5">
+            <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-border/20">
+              <span className="inline-flex items-center gap-1.5 text-xs text-text-muted bg-white/5 px-2.5 py-1 rounded-full">
                 <span className="material-icons-round text-primary/60 text-sm">queue_music</span>
-                <span className="text-xs text-text-muted">{singer.songCount} songs</span>
-              </div>
-              <div className="flex items-center gap-1.5">
+                {singer.songCount} songs
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-xs text-text-muted bg-white/5 px-2.5 py-1 rounded-full">
                 <span className="material-icons-round text-blue-400/60 text-sm">book_online</span>
-                <span className="text-xs text-text-muted">{singer.bookingCount} bookings</span>
-              </div>
-              <div className="flex items-center gap-1.5">
+                {singer.bookingCount} bookings
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-xs text-text-muted bg-white/5 px-2.5 py-1 rounded-full">
                 <span className="material-icons-round text-accent/60 text-sm">favorite</span>
-                <span className="text-xs text-text-muted">{singer.favoriteCount} favorites</span>
-              </div>
+                {singer.favoriteCount} favorites
+              </span>
+            </div>
+
+            {/* Actions row */}
+            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/20">
+              <select
+                value={singer.role}
+                onChange={(e) => handleRoleChange(singer.id, e.target.value)}
+                disabled={isPending && processingId === singer.id}
+                className="text-xs font-bold px-3 py-1.5 rounded-full bg-white/5 text-text-muted border-0 cursor-pointer disabled:opacity-50"
+              >
+                <option value="user">user</option>
+                <option value="venue_owner">venue_owner</option>
+                <option value="admin">admin</option>
+              </select>
+              <button
+                onClick={() => handleDelete(singer.id, singer.display_name || "singer")}
+                disabled={isPending && processingId === singer.id}
+                className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center hover:bg-red-500/20 transition-colors disabled:opacity-50 ml-auto"
+              >
+                <span className="material-icons-round text-red-400 text-sm">delete</span>
+              </button>
             </div>
           </div>
         ))}

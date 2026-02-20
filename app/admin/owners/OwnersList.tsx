@@ -73,57 +73,36 @@ export function OwnersList({ owners: initial }: { owners: Owner[] }) {
       {/* Owners List */}
       <div className="space-y-3">
         {filtered.map((owner) => (
-          <div key={owner.id} className="glass-card rounded-2xl p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  {owner.avatar_url ? (
-                    <img src={owner.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover" />
-                  ) : (
-                    <span className="material-icons-round text-primary">store</span>
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-white font-bold truncate">
-                    {owner.display_name || "Unnamed Owner"}
-                  </p>
-                  <p className="text-xs text-text-muted">
-                    Joined {new Date(owner.created_at).toLocaleDateString()}
-                  </p>
-                </div>
+          <div key={owner.id} className="glass-card rounded-2xl p-4 md:p-5">
+            {/* Name row */}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                {owner.avatar_url ? (
+                  <img src={owner.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover" />
+                ) : (
+                  <span className="material-icons-round text-primary">store</span>
+                )}
               </div>
-
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <select
-                  value={owner.role}
-                  onChange={(e) => handleRoleChange(owner.id, e.target.value)}
-                  disabled={isPending && processingId === owner.id}
-                  className="text-xs font-bold px-3 py-1.5 rounded-full bg-primary/10 text-primary border-0 cursor-pointer disabled:opacity-50"
-                >
-                  <option value="user">user</option>
-                  <option value="venue_owner">venue_owner</option>
-                  <option value="admin">admin</option>
-                </select>
-                <button
-                  onClick={() => handleDelete(owner.id, owner.display_name || "owner")}
-                  disabled={isPending && processingId === owner.id}
-                  className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center hover:bg-red-500/20 transition-colors disabled:opacity-50"
-                >
-                  <span className="material-icons-round text-red-400 text-sm">delete</span>
-                </button>
+              <div className="min-w-0 flex-1">
+                <p className="text-white font-bold">
+                  {owner.display_name || "Unnamed Owner"}
+                </p>
+                <p className="text-xs text-text-muted">
+                  Joined {new Date(owner.created_at).toLocaleDateString()}
+                </p>
               </div>
             </div>
 
             {/* Venue Info */}
-            <div className="flex gap-4 mt-3 pt-3 border-t border-border/20">
-              <div className="flex items-center gap-1.5">
+            <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-border/20">
+              <span className="inline-flex items-center gap-1.5 text-xs text-text-muted bg-white/5 px-2.5 py-1 rounded-full">
                 <span className="material-icons-round text-primary/60 text-sm">storefront</span>
-                <span className="text-xs text-text-muted">{owner.venueCount} venue{owner.venueCount !== 1 ? "s" : ""}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
+                {owner.venueCount} venue{owner.venueCount !== 1 ? "s" : ""}
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-xs text-text-muted bg-white/5 px-2.5 py-1 rounded-full">
                 <span className="material-icons-round text-purple-400/60 text-sm">headphones</span>
-                <span className="text-xs text-text-muted">{owner.kjCount} KJ{owner.kjCount !== 1 ? "s" : ""}</span>
-              </div>
+                {owner.kjCount} KJ{owner.kjCount !== 1 ? "s" : ""}
+              </span>
             </div>
             {owner.venueNames.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1.5">
@@ -134,6 +113,27 @@ export function OwnersList({ owners: initial }: { owners: Owner[] }) {
                 ))}
               </div>
             )}
+
+            {/* Actions row */}
+            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/20">
+              <select
+                value={owner.role}
+                onChange={(e) => handleRoleChange(owner.id, e.target.value)}
+                disabled={isPending && processingId === owner.id}
+                className="text-xs font-bold px-3 py-1.5 rounded-full bg-primary/10 text-primary border-0 cursor-pointer disabled:opacity-50"
+              >
+                <option value="user">user</option>
+                <option value="venue_owner">venue_owner</option>
+                <option value="admin">admin</option>
+              </select>
+              <button
+                onClick={() => handleDelete(owner.id, owner.display_name || "owner")}
+                disabled={isPending && processingId === owner.id}
+                className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center hover:bg-red-500/20 transition-colors disabled:opacity-50 ml-auto"
+              >
+                <span className="material-icons-round text-red-400 text-sm">delete</span>
+              </button>
+            </div>
           </div>
         ))}
 

@@ -78,7 +78,7 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
       </div>
 
       {/* Search + Filters */}
-      <div className="flex gap-3 mb-6">
+      <div className="flex flex-col md:flex-row gap-3 mb-6">
         <div className="relative flex-1">
           <span className="material-icons-round absolute left-4 top-1/2 -translate-y-1/2 text-text-muted">search</span>
           <input
@@ -103,63 +103,59 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
       {/* Venues List */}
       <div className="space-y-3">
         {filteredVenues.map((venue) => (
-          <div key={venue.id} className="glass-card rounded-2xl p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-white font-bold truncate">{venue.name}</h3>
-                  {venue.is_private_room && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-400/10 text-purple-400">Private Room</span>
-                  )}
-                  {venue.queue_paused && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400">Queue Paused</span>
-                  )}
-                </div>
-                <p className="text-xs text-text-secondary mt-1">
-                  {venue.address} — {venue.neighborhood ? `${venue.neighborhood}, ` : ""}{venue.city}, {venue.state}
-                </p>
+          <div key={venue.id} className="glass-card rounded-2xl p-4 md:p-5">
+            {/* Venue name + badges */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-white font-bold">{venue.name}</h3>
+              {venue.is_private_room && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-400/10 text-purple-400">Private Room</span>
+              )}
+              {venue.queue_paused && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400">Queue Paused</span>
+              )}
+            </div>
+            <p className="text-xs text-text-secondary mt-1">
+              {venue.address} — {venue.neighborhood ? `${venue.neighborhood}, ` : ""}{venue.city}, {venue.state}
+            </p>
 
-                {/* Stats row */}
-                <div className="flex items-center gap-3 mt-2 flex-wrap">
-                  <span className="text-xs text-text-muted bg-white/5 px-2 py-0.5 rounded-full">
-                    {venue._event_count} events
-                  </span>
-                  {venue._review_count > 0 && (
-                    <span className="text-xs text-text-muted bg-white/5 px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <span className="material-icons-round text-yellow-400 text-xs">star</span>
-                      {venue._avg_rating} ({venue._review_count})
-                    </span>
-                  )}
-                  {venue._promo_count > 0 && (
-                    <span className="text-xs text-text-muted bg-white/5 px-2 py-0.5 rounded-full">
-                      {venue._promo_count} promos
-                    </span>
-                  )}
-                  {venue._media_count > 0 && (
-                    <span className="text-xs text-text-muted bg-white/5 px-2 py-0.5 rounded-full">
-                      {venue._media_count} media
-                    </span>
-                  )}
-                </div>
+            {/* Stats row */}
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              <span className="text-xs text-text-muted bg-white/5 px-2 py-0.5 rounded-full">
+                {venue._event_count} events
+              </span>
+              {venue._review_count > 0 && (
+                <span className="text-xs text-text-muted bg-white/5 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <span className="material-icons-round text-yellow-400 text-xs">star</span>
+                  {venue._avg_rating} ({venue._review_count})
+                </span>
+              )}
+              {venue._promo_count > 0 && (
+                <span className="text-xs text-text-muted bg-white/5 px-2 py-0.5 rounded-full">
+                  {venue._promo_count} promos
+                </span>
+              )}
+              {venue._media_count > 0 && (
+                <span className="text-xs text-text-muted bg-white/5 px-2 py-0.5 rounded-full">
+                  {venue._media_count} media
+                </span>
+              )}
+            </div>
 
-                {/* Owner Assignment */}
-                <div className="flex items-center gap-2 mt-3">
-                  <span className="text-xs text-text-muted">Owner:</span>
-                  <select
-                    value={venue.owner_id || ""}
-                    onChange={(e) => handleOwnerChange(venue.id, e.target.value)}
-                    disabled={isPending && processingId === venue.id}
-                    className="text-xs bg-card-dark border border-border rounded-lg px-2 py-1 text-white disabled:opacity-50"
-                  >
-                    <option value="">Unassigned</option>
-                    {owners.map((o) => (
-                      <option key={o.id} value={o.id}>{o.display_name || o.id.slice(0, 8)}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Owner + Actions */}
+            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/20 flex-wrap">
+              <span className="text-xs text-text-muted">Owner:</span>
+              <select
+                value={venue.owner_id || ""}
+                onChange={(e) => handleOwnerChange(venue.id, e.target.value)}
+                disabled={isPending && processingId === venue.id}
+                className="text-xs bg-card-dark border border-border rounded-lg px-2 py-1 text-white disabled:opacity-50"
+              >
+                <option value="">Unassigned</option>
+                {owners.map((o) => (
+                  <option key={o.id} value={o.id}>{o.display_name || o.id.slice(0, 8)}</option>
+                ))}
+              </select>
+              <div className="flex items-center gap-2 ml-auto">
                 <Link
                   href={`/venue/${venue.id}`}
                   className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center hover:bg-primary/20 transition-colors"

@@ -586,8 +586,6 @@ export default function RequestSongPage() {
                         isPrivateRoom: false,
                         bookingUrl: null,
                         website: null,
-                        latitude: null,
-                        longitude: null,
                       });
                       setDirectVenueUUID(venue.id);
                       setStep("confirm");

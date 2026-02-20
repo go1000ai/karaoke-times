@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import * as fs from "fs";
 import * as path from "path";
@@ -25,7 +25,6 @@ const VENUE_IMAGES: Record<string, string> = {
   "mo-s-bar-and-lounge-tuesday": "/venues/mos-bar.jpg",
   "ocho-rios-seafood-lounge-wednesday": "/venues/ocho-rios.jpg",
   "c-list-cocktail-bar-saturday": "/venues/c-list-cocktail-bar.jpg",
-  // Generated flyer images
   "saints-scholars-monday": "/venues/saints-scholars-monday.jpg",
   "pitch-tuesday": "/venues/pitch-tuesday.jpg",
   "waterfall-lounge-monday": "/venues/waterfall-lounge-monday.jpg",
@@ -55,7 +54,6 @@ const VENUE_IMAGES: Record<string, string> = {
   "irish-american-pub-saturday": "/venues/irish-american-pub-saturday.jpg",
   "333-lounge-and-restaurant-sunday": "/venues/333-lounge-and-restaurant-sunday.jpg",
   "lilah-s-bar-and-grill-bi-monthly-sundays": "/venues/lilah-s-bar-and-grill-bi-monthly-sundays.jpg",
-  // Private room venues
   "sing-sing-karaoke-private-room-karaoke": "/venues/sing-sing-avenue-a.jpg",
   "boho-karaoke-private-room-karaoke": "/venues/boho-karaoke.jpg",
   "aux-karaoke-private-room-karaoke": "/venues/aux-karaoke.jpg",
@@ -114,15 +112,12 @@ function escapeString(s: string): string {
   return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n");
 }
 
-export async function POST() {
-  // Verify admin role
+async function verifyAdmin() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ success: false, message: "Not authenticated" }, { status: 401 });
-  }
+  if (!user) return null;
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -130,78 +125,63 @@ export async function POST() {
     .eq("id", user.id)
     .single();
 
-  if (profile?.role !== "admin") {
-    return NextResponse.json({ success: false, message: "Admin access required" }, { status: 403 });
+  return profile?.role === "admin" ? user : null;
+}
+
+function generateMockData(csvText: string): { output: string; eventCount: number; dayCount: number } {
+  const rows = parseCSV(csvText);
+
+  if (rows.length < 2) {
+    throw new Error("CSV appears empty or has no data rows");
   }
 
-  try {
-    const response = await fetch(CSV_URL, { redirect: "follow" });
-    if (!response.ok) {
-      return NextResponse.json({
-        success: false,
-        message: `Failed to fetch sheet: ${response.status}`,
-      });
-    }
+  interface EventRow {
+    dayOfWeek: string;
+    eventName: string;
+    venueName: string;
+    address: string;
+    city: string;
+    state: string;
+    neighborhood: string;
+    crossStreet: string;
+    phone: string;
+    dj: string;
+    startTime: string;
+    endTime: string;
+    notes: string;
+    website: string;
+  }
 
-    const csvText = await response.text();
-    const rows = parseCSV(csvText);
+  const events: EventRow[] = [];
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row[0]) continue;
 
-    if (rows.length < 2) {
-      return NextResponse.json({
-        success: false,
-        message: "Sheet appears empty or has no data rows",
-      });
-    }
+    events.push({
+      dayOfWeek: row[0] || "",
+      eventName: row[1] || "Karaoke Night",
+      venueName: row[2] || "",
+      address: row[3] || "",
+      city: row[4] || "",
+      state: row[5] || "",
+      neighborhood: row[6] || "",
+      crossStreet: row[7] || "",
+      phone: row[8] || "",
+      dj: row[9] || "",
+      startTime: row[10] || "",
+      endTime: row[11] || "",
+      notes: row[12] || "",
+      website: row[13] || "",
+    });
+  }
 
-    interface EventRow {
-      dayOfWeek: string;
-      eventName: string;
-      venueName: string;
-      address: string;
-      city: string;
-      state: string;
-      neighborhood: string;
-      crossStreet: string;
-      phone: string;
-      dj: string;
-      startTime: string;
-      endTime: string;
-      notes: string;
-      website: string;
-    }
+  const daySet = new Set<string>();
+  events.forEach((e) => daySet.add(e.dayOfWeek));
+  const standardDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  const extraDays = [...daySet].filter((d) => !standardDays.includes(d));
+  const dayOrder = [...standardDays.filter((d) => daySet.has(d)), ...extraDays];
 
-    const events: EventRow[] = [];
-    for (let i = 1; i < rows.length; i++) {
-      const row = rows[i];
-      if (!row[0]) continue;
-
-      events.push({
-        dayOfWeek: row[0] || "",
-        eventName: row[1] || "Karaoke Night",
-        venueName: row[2] || "",
-        address: row[3] || "",
-        city: row[4] || "",
-        state: row[5] || "",
-        neighborhood: row[6] || "",
-        crossStreet: row[7] || "",
-        phone: row[8] || "",
-        dj: row[9] || "",
-        startTime: row[10] || "",
-        endTime: row[11] || "",
-        notes: row[12] || "",
-        website: row[13] || "",
-      });
-    }
-
-    // Collect unique days
-    const daySet = new Set<string>();
-    events.forEach((e) => daySet.add(e.dayOfWeek));
-    const standardDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-    const extraDays = [...daySet].filter((d) => !standardDays.includes(d));
-    const dayOrder = [...standardDays.filter((d) => daySet.has(d)), ...extraDays];
-
-    // Generate mock-data.ts
-    let output = `export interface KaraokeEvent {
+  let output = `export interface KaraokeEvent {
   id: string;
   dayOfWeek: string;
   eventName: string;
@@ -220,6 +200,8 @@ export async function POST() {
   isPrivateRoom: boolean;
   bookingUrl: string | null;
   website: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export const DAY_ORDER = [
@@ -229,19 +211,19 @@ ${dayOrder.map((d) => `  "${d}",`).join("\n")}
 export const karaokeEvents: KaraokeEvent[] = [
 `;
 
-    let currentDay = "";
-    for (const event of events) {
-      if (event.dayOfWeek !== currentDay) {
-        currentDay = event.dayOfWeek;
-        output += `  // ─── ${currentDay.toUpperCase()} ───\n`;
-      }
+  let currentDay = "";
+  for (const event of events) {
+    if (event.dayOfWeek !== currentDay) {
+      currentDay = event.dayOfWeek;
+      output += `  // ─── ${currentDay.toUpperCase()} ───\n`;
+    }
 
-      const id = slugify(`${event.venueName}-${event.dayOfWeek}`);
-      const isPrivateRoom =
-        event.dayOfWeek === "Private Room Karaoke" ||
-        event.notes.toLowerCase().includes("private room");
+    const id = slugify(`${event.venueName}-${event.dayOfWeek}`);
+    const isPrivateRoom =
+      event.dayOfWeek === "Private Room Karaoke" ||
+      event.notes.toLowerCase().includes("private room");
 
-      output += `  {
+    output += `  {
     id: "${escapeString(id)}",
     dayOfWeek: "${escapeString(event.dayOfWeek)}",
     eventName: "${escapeString(event.eventName)}",
@@ -262,9 +244,9 @@ export const karaokeEvents: KaraokeEvent[] = [
     website: ${event.website ? `"${escapeString(event.website)}"` : "null"},
   },
 `;
-    }
+  }
 
-    output += `];
+  output += `];
 
 // Helper: get events grouped by day, or for a specific day
 export function getEventsByDay(): Record<string, KaraokeEvent[]>;
@@ -290,6 +272,8 @@ export const venues = karaokeEvents.reduce<
     state: string;
     image: string | null;
     isPrivateRoom: boolean;
+    latitude: number | null;
+    longitude: number | null;
   }>
 >((acc, event) => {
   if (!acc.find((v) => v.name === event.venueName)) {
@@ -302,6 +286,8 @@ export const venues = karaokeEvents.reduce<
       state: event.state,
       image: event.image,
       isPrivateRoom: event.isPrivateRoom,
+      latitude: null,
+      longitude: null,
     });
   }
   return acc;
@@ -329,19 +315,170 @@ export const songSearchResults = [
     ],
   },
 ];
+
+// ─── KJ Profiles (derived from events) ───
+
+export interface KJProfile {
+  name: string;
+  slug: string;
+  venueCount: number;
+  events: Array<{
+    venueId: string;
+    venueName: string;
+    eventName: string;
+    dayOfWeek: string;
+    startTime: string;
+    endTime: string;
+    image: string | null;
+    neighborhood: string;
+    city: string;
+  }>;
+}
+
+const EXCLUDED_KJ_NAMES = new Set([
+  "", "n/a", "various kj's", "various kj's", "house dj's",
+  "private rooms and open karaoke bar", "open",
+]);
+
+function generateKJSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\\s-]/g, "")
+    .replace(/\\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function buildKJProfiles(): KJProfile[] {
+  const kjMap = new Map<string, KJProfile>();
+
+  for (const event of karaokeEvents) {
+    const kjName = event.startTime.trim();
+    if (!kjName || EXCLUDED_KJ_NAMES.has(kjName.toLowerCase())) continue;
+
+    const slug = generateKJSlug(kjName);
+    if (!slug) continue;
+
+    if (!kjMap.has(slug)) {
+      kjMap.set(slug, { name: kjName, slug, venueCount: 0, events: [] });
+    }
+
+    kjMap.get(slug)!.events.push({
+      venueId: event.id,
+      venueName: event.venueName,
+      eventName: event.eventName,
+      dayOfWeek: event.dayOfWeek,
+      startTime: event.startTime,
+      endTime: event.endTime,
+      image: event.image,
+      neighborhood: event.neighborhood,
+      city: event.city,
+    });
+  }
+
+  for (const profile of kjMap.values()) {
+    profile.venueCount = new Set(profile.events.map((e) => e.venueName)).size;
+  }
+
+  return Array.from(kjMap.values());
+}
+
+const kjProfiles = buildKJProfiles();
+export const kjs = kjProfiles;
+const kjBySlug = new Map(kjProfiles.map((kj) => [kj.slug, kj]));
+const kjByName = new Map(kjProfiles.map((kj) => [kj.name.toLowerCase(), kj]));
+
+export function getKJBySlug(slug: string): KJProfile | null {
+  return kjBySlug.get(slug) ?? null;
+}
+
+export function getKJSlugForName(name: string): string | null {
+  const profile = kjByName.get(name.toLowerCase());
+  return profile?.slug ?? null;
+}
+
+export function searchKJs(query: string): KJProfile[] {
+  const q = query.toLowerCase();
+  return kjProfiles.filter((kj) => kj.name.toLowerCase().includes(q));
+}
 `;
+
+  return { output, eventCount: events.length, dayCount: dayOrder.length };
+}
+
+// POST: Sync from Google Sheet
+export async function POST() {
+  const admin = await verifyAdmin();
+  if (!admin) {
+    return NextResponse.json({ success: false, message: "Admin access required" }, { status: 403 });
+  }
+
+  try {
+    const response = await fetch(CSV_URL, { redirect: "follow" });
+    if (!response.ok) {
+      return NextResponse.json({
+        success: false,
+        message: `Failed to fetch sheet: ${response.status}`,
+      });
+    }
+
+    const csvText = await response.text();
+    const { output, eventCount, dayCount } = generateMockData(csvText);
 
     const outPath = path.join(process.cwd(), "lib", "mock-data.ts");
     fs.writeFileSync(outPath, output, "utf-8");
 
     return NextResponse.json({
       success: true,
-      message: `Synced ${events.length} events across ${dayOrder.length} days. Redeploy to update production.`,
+      message: `Synced ${eventCount} events across ${dayCount} days from Google Sheet. Redeploy to update production.`,
     });
   } catch (err) {
     return NextResponse.json({
       success: false,
       message: `Sync failed: ${err instanceof Error ? err.message : "Unknown error"}`,
+    });
+  }
+}
+
+// PUT: Upload CSV file
+export async function PUT(request: NextRequest) {
+  const admin = await verifyAdmin();
+  if (!admin) {
+    return NextResponse.json({ success: false, message: "Admin access required" }, { status: 403 });
+  }
+
+  try {
+    const formData = await request.formData();
+    const file = formData.get("file");
+
+    if (!file || !(file instanceof File)) {
+      return NextResponse.json({
+        success: false,
+        message: "No CSV file provided",
+      }, { status: 400 });
+    }
+
+    if (!file.name.endsWith(".csv") && file.type !== "text/csv") {
+      return NextResponse.json({
+        success: false,
+        message: "Please upload a .csv file",
+      }, { status: 400 });
+    }
+
+    const csvText = await file.text();
+    const { output, eventCount, dayCount } = generateMockData(csvText);
+
+    const outPath = path.join(process.cwd(), "lib", "mock-data.ts");
+    fs.writeFileSync(outPath, output, "utf-8");
+
+    return NextResponse.json({
+      success: true,
+      message: `Uploaded ${eventCount} events across ${dayCount} days from "${file.name}". Redeploy to update production.`,
+    });
+  } catch (err) {
+    return NextResponse.json({
+      success: false,
+      message: `Upload failed: ${err instanceof Error ? err.message : "Unknown error"}`,
     });
   }
 }
