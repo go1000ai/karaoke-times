@@ -3,8 +3,33 @@ import { createClient } from "@/lib/supabase/server";
 import * as fs from "fs";
 import * as path from "path";
 
-const SHEET_ID = "1Hjvo1uMhxtvTcnHNzHaCH9Qq-lbIqRV3Kag5vzSukFk";
-const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
+const DEFAULT_SHEET_URL =
+  "https://docs.google.com/spreadsheets/d/1Hjvo1uMhxtvTcnHNzHaCH9Qq-lbIqRV3Kag5vzSukFk/edit";
+
+function sheetUrlToCsvExport(sheetUrl: string): string {
+  // Extract the sheet ID from various Google Sheets URL formats
+  const match = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+  if (!match) throw new Error("Invalid Google Sheet URL");
+  return `https://docs.google.com/spreadsheets/d/${match[1]}/export?format=csv&gid=0`;
+}
+
+// Map user-facing column names to EventRow field keys
+const COLUMN_NAME_TO_FIELD: Record<string, string> = {
+  "day of week": "dayOfWeek",
+  "event name": "eventName",
+  "venue name": "venueName",
+  "address": "address",
+  "city": "city",
+  "state": "state",
+  "neighborhood": "neighborhood",
+  "cross street": "crossStreet",
+  "phone": "phone",
+  "dj": "dj",
+  "start time": "startTime",
+  "end time": "endTime",
+  "notes": "notes",
+  "website": "website",
+};
 
 // Map event IDs or venue slugs to local images in /public/venues/
 const VENUE_IMAGES: Record<string, string> = {
@@ -128,11 +153,35 @@ async function verifyAdmin() {
   return profile?.role === "admin" ? user : null;
 }
 
-function generateMockData(csvText: string): { output: string; eventCount: number; dayCount: number } {
+function generateMockData(csvText: string, columns?: string[]): { output: string; eventCount: number; dayCount: number } {
   const rows = parseCSV(csvText);
 
   if (rows.length < 2) {
     throw new Error("CSV appears empty or has no data rows");
+  }
+
+  // Build column index → field key mapping
+  const fieldOrder = [
+    "dayOfWeek", "eventName", "venueName", "address", "city", "state",
+    "neighborhood", "crossStreet", "phone", "dj", "startTime", "endTime",
+    "notes", "website",
+  ];
+
+  let colToField: Record<number, string>;
+
+  if (columns && columns.length > 0) {
+    // Use the custom column mapping: columns[i] is the name for CSV column i
+    colToField = {};
+    columns.forEach((colName, i) => {
+      const field = COLUMN_NAME_TO_FIELD[colName.toLowerCase().trim()];
+      if (field) colToField[i] = field;
+    });
+  } else {
+    // Default: columns 0-13 map to fields in order
+    colToField = {};
+    fieldOrder.forEach((field, i) => {
+      colToField[i] = field;
+    });
   }
 
   interface EventRow {
@@ -157,22 +206,14 @@ function generateMockData(csvText: string): { output: string; eventCount: number
     const row = rows[i];
     if (!row[0]) continue;
 
-    events.push({
-      dayOfWeek: row[0] || "",
-      eventName: row[1] || "Karaoke Night",
-      venueName: row[2] || "",
-      address: row[3] || "",
-      city: row[4] || "",
-      state: row[5] || "",
-      neighborhood: row[6] || "",
-      crossStreet: row[7] || "",
-      phone: row[8] || "",
-      dj: row[9] || "",
-      startTime: row[10] || "",
-      endTime: row[11] || "",
-      notes: row[12] || "",
-      website: row[13] || "",
-    });
+    const event: Record<string, string> = {};
+    for (const field of fieldOrder) event[field] = "";
+    // Apply column mapping
+    for (const [colIdx, field] of Object.entries(colToField)) {
+      event[field] = row[Number(colIdx)] || (field === "eventName" ? "Karaoke Night" : "");
+    }
+
+    events.push(event as unknown as EventRow);
   }
 
   const daySet = new Set<string>();
@@ -407,14 +448,28 @@ export function searchKJs(query: string): KJProfile[] {
 }
 
 // POST: Sync from Google Sheet
-export async function POST() {
+export async function POST(request: NextRequest) {
   const admin = await verifyAdmin();
   if (!admin) {
     return NextResponse.json({ success: false, message: "Admin access required" }, { status: 403 });
   }
 
   try {
-    const response = await fetch(CSV_URL, { redirect: "follow" });
+    const body = await request.json().catch(() => ({}));
+    const sheetUrl = body.sheetUrl || DEFAULT_SHEET_URL;
+    const columns: string[] | undefined = body.columns;
+
+    let csvExportUrl: string;
+    try {
+      csvExportUrl = sheetUrlToCsvExport(sheetUrl);
+    } catch {
+      return NextResponse.json({
+        success: false,
+        message: "Invalid Google Sheet URL. Please provide a valid sheets.google.com link.",
+      }, { status: 400 });
+    }
+
+    const response = await fetch(csvExportUrl, { redirect: "follow" });
     if (!response.ok) {
       return NextResponse.json({
         success: false,
@@ -423,7 +478,7 @@ export async function POST() {
     }
 
     const csvText = await response.text();
-    const { output, eventCount, dayCount } = generateMockData(csvText);
+    const { output, eventCount, dayCount } = generateMockData(csvText, columns);
 
     const outPath = path.join(process.cwd(), "lib", "mock-data.ts");
     fs.writeFileSync(outPath, output, "utf-8");
@@ -465,8 +520,18 @@ export async function PUT(request: NextRequest) {
       }, { status: 400 });
     }
 
+    const columnsRaw = formData.get("columns");
+    let columns: string[] | undefined;
+    if (columnsRaw && typeof columnsRaw === "string") {
+      try {
+        columns = JSON.parse(columnsRaw);
+      } catch {
+        // Ignore invalid JSON, use default mapping
+      }
+    }
+
     const csvText = await file.text();
-    const { output, eventCount, dayCount } = generateMockData(csvText);
+    const { output, eventCount, dayCount } = generateMockData(csvText, columns);
 
     const outPath = path.join(process.cwd(), "lib", "mock-data.ts");
     fs.writeFileSync(outPath, output, "utf-8");

@@ -2,17 +2,45 @@
 
 import { useRef, useState } from "react";
 
+const DEFAULT_COLUMNS = [
+  "Day of Week",
+  "Event Name",
+  "Venue Name",
+  "Address",
+  "City",
+  "State",
+  "Neighborhood",
+  "Cross Street",
+  "Phone",
+  "DJ",
+  "Start Time",
+  "End Time",
+  "Notes",
+  "Website",
+];
+
+const DEFAULT_SHEET_URL =
+  "https://docs.google.com/spreadsheets/d/1Hjvo1uMhxtvTcnHNzHaCH9Qq-lbIqRV3Kag5vzSukFk/edit";
+
 export default function SyncPage() {
   const [syncing, setSyncing] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [sheetUrl, setSheetUrl] = useState(DEFAULT_SHEET_URL);
+  const [columns, setColumns] = useState<string[]>(DEFAULT_COLUMNS);
+  const [showColumnEditor, setShowColumnEditor] = useState(false);
 
   async function handleSync() {
+    if (!sheetUrl.trim()) return;
     setSyncing(true);
     setResult(null);
     try {
-      const res = await fetch("/api/admin/sync-sheet", { method: "POST" });
+      const res = await fetch("/api/admin/sync-sheet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sheetUrl: sheetUrl.trim(), columns }),
+      });
       const data = await res.json();
       setResult(data);
     } catch {
@@ -29,6 +57,7 @@ export default function SyncPage() {
     try {
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("columns", JSON.stringify(columns));
       const res = await fetch("/api/admin/sync-sheet", {
         method: "PUT",
         body: formData,
@@ -46,12 +75,83 @@ export default function SyncPage() {
     }
   }
 
+  function moveColumn(index: number, direction: -1 | 1) {
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= columns.length) return;
+    const next = [...columns];
+    [next[index], next[newIndex]] = [next[newIndex], next[index]];
+    setColumns(next);
+  }
+
+  function updateColumnName(index: number, value: string) {
+    const next = [...columns];
+    next[index] = value;
+    setColumns(next);
+  }
+
   return (
     <div>
-      <h1 className="text-2xl font-extrabold text-white mb-1">Sync Google Sheet</h1>
+      <h1 className="text-2xl font-extrabold text-white mb-1">Sync Data</h1>
       <p className="text-text-secondary text-sm mb-8">
-        Pull the latest karaoke event data from the master Google Sheet or upload a CSV file.
+        Import karaoke event data from a Google Sheet URL or upload a CSV file.
       </p>
+
+      {/* CSV Column Mapping */}
+      <div className="glass-card rounded-2xl p-6 mb-6">
+        <button
+          onClick={() => setShowColumnEditor(!showColumnEditor)}
+          className="w-full flex items-center justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-purple-400/10 flex items-center justify-center">
+              <span className="material-icons-round text-purple-400 text-xl">view_column</span>
+            </div>
+            <div className="text-left">
+              <h3 className="text-white font-bold text-sm">CSV Column Mapping</h3>
+              <p className="text-xs text-text-muted">{columns.length} columns — click to edit order & names</p>
+            </div>
+          </div>
+          <span className="material-icons-round text-text-muted">
+            {showColumnEditor ? "expand_less" : "expand_more"}
+          </span>
+        </button>
+
+        {showColumnEditor && (
+          <div className="mt-4 space-y-2">
+            {columns.map((col, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <span className="text-xs text-text-muted w-6 text-right flex-shrink-0">{i + 1}.</span>
+                <input
+                  type="text"
+                  value={col}
+                  onChange={(e) => updateColumnName(i, e.target.value)}
+                  className="flex-1 bg-card-dark border border-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-purple-400/50"
+                />
+                <button
+                  onClick={() => moveColumn(i, -1)}
+                  disabled={i === 0}
+                  className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-text-muted hover:text-white disabled:opacity-30 transition-colors"
+                >
+                  <span className="material-icons-round text-sm">arrow_upward</span>
+                </button>
+                <button
+                  onClick={() => moveColumn(i, 1)}
+                  disabled={i === columns.length - 1}
+                  className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-text-muted hover:text-white disabled:opacity-30 transition-colors"
+                >
+                  <span className="material-icons-round text-sm">arrow_downward</span>
+                </button>
+              </div>
+            ))}
+            <button
+              onClick={() => setColumns(DEFAULT_COLUMNS)}
+              className="text-xs text-text-muted hover:text-white transition-colors mt-2"
+            >
+              Reset to defaults
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Sync from Google Sheet */}
       <div className="glass-card rounded-2xl p-6 mb-6">
@@ -62,14 +162,27 @@ export default function SyncPage() {
           <div>
             <h3 className="text-white font-bold">Sync from Google Sheet</h3>
             <p className="text-xs text-text-muted">
-              Auto-fetch from the published Google Sheet
+              Paste a Google Sheet URL to fetch the latest data
             </p>
           </div>
         </div>
 
+        <div className="mb-4">
+          <label className="block text-xs text-text-muted mb-1.5 font-semibold uppercase tracking-wider">
+            Google Sheet URL
+          </label>
+          <input
+            type="url"
+            value={sheetUrl}
+            onChange={(e) => setSheetUrl(e.target.value)}
+            placeholder="https://docs.google.com/spreadsheets/d/..."
+            className="w-full bg-card-dark border border-border rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 placeholder:text-text-muted"
+          />
+        </div>
+
         <button
           onClick={handleSync}
-          disabled={syncing}
+          disabled={syncing || !sheetUrl.trim()}
           className="w-full bg-primary text-black font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-primary/30 transition-all disabled:opacity-50"
         >
           {syncing ? (
@@ -98,13 +211,6 @@ export default function SyncPage() {
               Upload a CSV file with karaoke event data
             </p>
           </div>
-        </div>
-
-        <div className="bg-card-dark border border-border rounded-xl p-4 mb-4">
-          <p className="text-xs text-text-muted mb-2">CSV columns (in order):</p>
-          <p className="text-xs text-text-secondary font-mono leading-relaxed">
-            Day of Week, Event Name, Venue Name, Address, City, State, Neighborhood, Cross Street, Phone, DJ, Start Time, End Time, Notes, Website
-          </p>
         </div>
 
         <label className="block mb-4">
@@ -137,7 +243,7 @@ export default function SyncPage() {
               <>
                 <span className="material-icons-round text-text-muted text-3xl mb-2 block">cloud_upload</span>
                 <p className="text-text-secondary text-sm font-semibold">Click to select a CSV file</p>
-                <p className="text-text-muted text-xs mt-1">or drag and drop</p>
+                <p className="text-text-muted text-xs mt-1">.csv files only</p>
               </>
             )}
           </div>
