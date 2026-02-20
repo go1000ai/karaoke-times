@@ -503,7 +503,7 @@ export default function HomePage() {
           </div>
 
           {/* About bullets + CTA */}
-          <div className="text-center mt-8 reveal">
+          <div className="flex flex-col items-center mt-8 reveal">
             <div className="inline-flex flex-col gap-4 mb-8">
               {[
                 { icon: "mic", text: `${venueCount}+ karaoke nights weekly` },
