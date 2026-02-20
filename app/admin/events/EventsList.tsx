@@ -89,7 +89,7 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <select
           value={dayFilter}
           onChange={(e) => setDayFilter(e.target.value)}

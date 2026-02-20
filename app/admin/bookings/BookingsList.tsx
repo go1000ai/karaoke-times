@@ -57,7 +57,7 @@ export function BookingsList({ bookings: initial, venues }: { bookings: Booking[
         </div>
       </div>
 
-      <div className="flex gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bg-card-dark border border-border rounded-xl px-4 py-3 text-sm text-white cursor-pointer">
           <option value="">All Status</option>
           <option value="pending">Pending</option>
@@ -73,16 +73,16 @@ export function BookingsList({ bookings: initial, venues }: { bookings: Booking[
       <div className="space-y-3">
         {filtered.map((booking) => (
           <div key={booking.id} className="glass-card rounded-2xl p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 mb-1">
+            <div className="flex flex-col gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <p className="text-white font-bold truncate">{booking.profiles?.display_name || "Unknown User"}</p>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_COLORS[booking.status] || "bg-white/5 text-text-muted"}`}>
                     {booking.status}
                   </span>
                 </div>
                 <p className="text-sm text-text-muted truncate">{booking.venues?.name || "Unknown Venue"}</p>
-                <div className="flex items-center gap-3 mt-2 text-xs text-text-muted">
+                <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-text-muted">
                   <span className="flex items-center gap-1">
                     <span className="material-icons-round text-sm">calendar_today</span>
                     {new Date(booking.date).toLocaleDateString()}
@@ -101,7 +101,7 @@ export function BookingsList({ bookings: initial, venues }: { bookings: Booking[
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex items-center gap-2">
                 {booking.status === "pending" && (
                   <>
                     <button onClick={() => handleStatusChange(booking.id, "confirmed")} disabled={isPending && processingId === booking.id} className="text-xs font-bold px-3 py-1.5 rounded-full bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-colors disabled:opacity-50">Confirm</button>

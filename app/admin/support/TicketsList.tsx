@@ -71,7 +71,7 @@ export function TicketsList({ tickets, openCount, thisWeekCount }: { tickets: Ti
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bg-card-dark border border-border rounded-xl px-4 py-3 text-sm text-white cursor-pointer">
           <option value="">All Status</option>
           <option value="open">Open</option>

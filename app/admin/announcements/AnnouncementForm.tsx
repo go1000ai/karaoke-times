@@ -53,7 +53,7 @@ export function AnnouncementForm({ pastAnnouncements }: { pastAnnouncements: Pas
         <div className="space-y-4">
           <div>
             <label className="text-xs text-text-muted uppercase tracking-wider font-bold mb-1.5 block">Audience</label>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {(Object.entries(AUDIENCE_LABELS) as [string, string][]).map(([value, label]) => (
                 <button
                   key={value}

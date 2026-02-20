@@ -70,7 +70,7 @@ export function QueueList({ entries: initial, venues }: { entries: QueueEntry[];
         </div>
       </div>
 
-      <div className="flex gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="bg-card-dark border border-border rounded-xl px-4 py-3 text-sm text-white cursor-pointer">
           <option value="">All Status</option>
           <option value="waiting">Waiting</option>
@@ -86,9 +86,9 @@ export function QueueList({ entries: initial, venues }: { entries: QueueEntry[];
       <div className="space-y-3">
         {filtered.map((entry) => (
           <div key={entry.id} className="glass-card rounded-2xl p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 mb-1">
+            <div className="flex flex-col gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <span className="text-xs text-text-muted bg-white/5 px-2 py-0.5 rounded-full font-mono">#{entry.position}</span>
                   <p className="text-white font-bold truncate">{entry.song_title}</p>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS_COLORS[entry.status] || "bg-white/5 text-text-muted"}`}>
@@ -98,7 +98,7 @@ export function QueueList({ entries: initial, venues }: { entries: QueueEntry[];
                 <p className="text-sm text-text-muted truncate">{entry.artist} — {entry.profiles?.display_name || "Unknown Singer"}</p>
                 <p className="text-xs text-text-muted/60 mt-1">{entry.venues?.name || "Unknown Venue"} — {new Date(entry.requested_at).toLocaleString()}</p>
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex items-center gap-2">
                 <select
                   value={entry.status}
                   onChange={(e) => handleStatusChange(entry.id, e.target.value)}

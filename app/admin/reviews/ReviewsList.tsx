@@ -76,7 +76,7 @@ export function ReviewsList({
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div className="glass-card rounded-2xl p-4 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-yellow-400/10 flex items-center justify-center">
             <span className="material-icons-round text-yellow-400">star</span>
@@ -107,7 +107,7 @@ export function ReviewsList({
       </div>
 
       {/* Tabs + Filter */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div className="flex gap-1">
           <button
             onClick={() => setTab("venue")}

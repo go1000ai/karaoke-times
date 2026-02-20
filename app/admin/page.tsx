@@ -84,7 +84,7 @@ export default async function AdminOverview() {
       <p className="text-text-secondary text-sm mb-8">Platform overview and management.</p>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {keyMetrics.map((stat) => (
           <Link key={stat.label} href={stat.href} className="glass-card rounded-2xl p-5 hover:bg-white/[0.04] transition-colors group">
             <div className="flex items-center gap-3 mb-3">
@@ -99,7 +99,7 @@ export default async function AdminOverview() {
       </div>
 
       {/* Growth Metrics */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         {growthMetrics.map((stat) => (
           <Link key={stat.label} href={stat.href} className="glass-card rounded-2xl p-4 flex items-center gap-4 hover:bg-white/[0.04] transition-colors group">
             <div className={`w-10 h-10 rounded-xl ${stat.bg} flex items-center justify-center flex-shrink-0`}>
@@ -114,9 +114,9 @@ export default async function AdminOverview() {
       </div>
 
       {/* Recent Signups + Recent Reviews */}
-      <div className="grid md:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         {/* Recent Signups */}
-        <div className="glass-card rounded-2xl p-5">
+        <div className="glass-card rounded-2xl p-5 overflow-hidden">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-white">Recent Signups</h2>
             <Link href="/admin/users" className="text-xs text-primary hover:text-primary/80 transition-colors">
@@ -148,7 +148,7 @@ export default async function AdminOverview() {
         </div>
 
         {/* Recent Reviews */}
-        <div className="glass-card rounded-2xl p-5">
+        <div className="glass-card rounded-2xl p-5 overflow-hidden">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-white">Recent Reviews</h2>
             <Link href="/admin/reviews" className="text-xs text-primary hover:text-primary/80 transition-colors">
@@ -198,7 +198,7 @@ export default async function AdminOverview() {
 
       {/* Quick Actions */}
       <h2 className="text-lg font-bold text-white mb-4">Quick Actions</h2>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         {quickActions.map((action) => (
           <Link
             key={action.href}
