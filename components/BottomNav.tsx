@@ -21,8 +21,8 @@ export default function BottomNav() {
   ];
 
   return (
-    <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[92%] max-w-[400px] glass-card rounded-[2rem] py-2 px-2 z-50 shadow-2xl shadow-primary/10 md:hidden">
-      <ul className="flex justify-evenly items-center">
+    <nav className="fixed bottom-0 left-0 right-0 glass-card rounded-t-2xl py-2 px-1 z-50 shadow-2xl shadow-primary/10 md:hidden">
+      <ul className="flex items-center">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
 
@@ -31,7 +31,7 @@ export default function BottomNav() {
               <li key={item.href} className="relative flex-1 flex justify-center">
                 <Link
                   href={item.href}
-                  className="bg-primary text-black w-14 h-14 rounded-full flex items-center justify-center shadow-lg shadow-primary/40 -mt-7 border-4 border-bg-dark"
+                  className="bg-primary text-black w-14 h-14 rounded-full flex items-center justify-center shadow-lg shadow-primary/40 -mt-8 border-4 border-bg-dark"
                 >
                   <span className="material-icons-round text-3xl">add</span>
                 </Link>
