@@ -2245,6 +2245,8 @@ export function getEventsByDay(day?: string): Record<string, KaraokeEvent[]> | K
 }
 
 // Helper: venues derived from events (unique by name)
+import { getVenueCoordinates } from "./venue-coordinates";
+
 export const venues = karaokeEvents.reduce<
   Array<{
     id: string;
@@ -2260,6 +2262,7 @@ export const venues = karaokeEvents.reduce<
   }>
 >((acc, event) => {
   if (!acc.find((v) => v.name === event.venueName)) {
+    const coords = getVenueCoordinates(event.address);
     acc.push({
       id: event.id,
       name: event.venueName,
@@ -2269,8 +2272,8 @@ export const venues = karaokeEvents.reduce<
       state: event.state,
       image: event.image,
       isPrivateRoom: event.isPrivateRoom,
-      latitude: null,
-      longitude: null,
+      latitude: coords?.lat ?? null,
+      longitude: coords?.lng ?? null,
     });
   }
   return acc;
