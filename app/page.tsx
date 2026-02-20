@@ -504,16 +504,16 @@ export default function HomePage() {
 
           {/* About bullets + CTA */}
           <div className="text-center mt-8 reveal">
-            <div className="flex flex-wrap justify-center gap-6 mb-8">
+            <div className="inline-flex flex-col gap-4 mb-8">
               {[
                 { icon: "mic", text: `${venueCount}+ karaoke nights weekly` },
                 { icon: "headphones", text: "Top KJs, all boroughs" },
                 { icon: "local_bar", text: "Drink specials & happy hours" },
                 { icon: "door_sliding", text: "Private rooms for groups" },
               ].map((item, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <span className="material-icons-round text-primary text-base">{item.icon}</span>
+                <div key={i} className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <span className="material-icons-round text-primary text-lg">{item.icon}</span>
                   </div>
                   <p className="text-white/80 text-sm font-medium">{item.text}</p>
                 </div>
