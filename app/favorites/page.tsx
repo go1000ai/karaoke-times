@@ -191,6 +191,15 @@ export default function FavoritesPage() {
                 </button>
               </div>
             ))}
+
+            {/* Add More button */}
+            <Link
+              href="/map"
+              className="mt-4 flex items-center justify-center gap-2 glass-card rounded-2xl p-4 text-primary font-bold text-sm hover:border-primary/30 transition-all"
+            >
+              <span className="material-icons-round text-lg">add_circle_outline</span>
+              Add More Favorites
+            </Link>
           </section>
         ) : (
           <section className="px-5 py-20 text-center">

@@ -202,6 +202,15 @@ export default function DashboardFavoritesPage() {
               </div>
             </div>
           ))}
+
+          {/* Add More button */}
+          <Link
+            href="/map"
+            className="mt-4 flex items-center justify-center gap-2 glass-card rounded-2xl p-4 text-primary font-bold text-sm hover:border-primary/30 transition-all"
+          >
+            <span className="material-icons-round text-lg">add_circle_outline</span>
+            Add More Favorites
+          </Link>
         </div>
       ) : (
         <div className="glass-card rounded-2xl p-10 text-center">
