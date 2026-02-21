@@ -304,15 +304,46 @@ export default function HomePage() {
   const toggleFavorite = useCallback((eventId: string) => {
     setFavorites((prev) => {
       const next = new Set(prev);
-      if (next.has(eventId)) {
-        next.delete(eventId);
-      } else {
+      const isAdding = !next.has(eventId);
+      if (isAdding) {
         next.add(eventId);
+      } else {
+        next.delete(eventId);
       }
       saveFavorites(next);
+
+      // Also sync to Supabase for logged-in users (best-effort, non-blocking)
+      if (user) {
+        const event = karaokeEvents.find((e) => e.id === eventId);
+        if (event) {
+          const supabase = createClient();
+          supabase
+            .from("venues")
+            .select("id")
+            .ilike("name", event.venueName)
+            .limit(1)
+            .single()
+            .then(({ data: venueRow }) => {
+              if (!venueRow) return;
+              if (isAdding) {
+                supabase.from("favorites").upsert(
+                  { user_id: user.id, venue_id: venueRow.id },
+                  { onConflict: "user_id,venue_id" }
+                ).then(() => {});
+              } else {
+                supabase.from("favorites")
+                  .delete()
+                  .eq("user_id", user.id)
+                  .eq("venue_id", venueRow.id)
+                  .then(() => {});
+              }
+            });
+        }
+      }
+
       return next;
     });
-  }, []);
+  }, [user]);
 
   const shareEvent = useCallback((event: KaraokeEvent) => {
     if (navigator.share) {

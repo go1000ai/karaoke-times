@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useAuth } from "@/components/AuthProvider";
+import { createClient } from "@/lib/supabase/client";
 import { karaokeEvents, type KaraokeEvent } from "@/lib/mock-data";
 
 const FAVORITES_KEY = "kt-favorites";
 
-function loadFavorites(): Set<string> {
+function loadLocalFavorites(): Set<string> {
   try {
     const raw = localStorage.getItem(FAVORITES_KEY);
     return raw ? new Set(JSON.parse(raw)) : new Set();
@@ -15,31 +17,118 @@ function loadFavorites(): Set<string> {
   }
 }
 
-function saveFavorites(favs: Set<string>) {
+function saveLocalFavorites(favs: Set<string>) {
   localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favs]));
 }
 
+interface SupabaseFavorite {
+  id: string;
+  venue_id: string;
+  venues: {
+    id: string;
+    name: string;
+    address: string | null;
+    neighborhood: string | null;
+    city: string;
+    state: string;
+  };
+}
+
+// Unified favorite item for display
+interface FavoriteItem {
+  key: string;
+  name: string;
+  subtitle: string;
+  detail: string;
+  image: string | null;
+  href: string;
+  singHref: string;
+  source: "local" | "supabase";
+  sourceId: string; // localStorage event ID or Supabase favorite row ID
+}
+
 export default function DashboardFavoritesPage() {
-  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const { user } = useAuth();
+  const [localFavIds, setLocalFavIds] = useState<Set<string>>(new Set());
+  const [supabaseFavs, setSupabaseFavs] = useState<SupabaseFavorite[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    setFavoriteIds(loadFavorites());
-    setLoaded(true);
-  }, []);
+    // Load localStorage favorites
+    setLocalFavIds(loadLocalFavorites());
 
-  const removeFavorite = useCallback((eventId: string) => {
-    setFavoriteIds((prev) => {
-      const next = new Set(prev);
-      next.delete(eventId);
-      saveFavorites(next);
-      return next;
+    // Load Supabase favorites for logged-in users
+    if (user) {
+      const supabase = createClient();
+      supabase
+        .from("favorites")
+        .select("id, venue_id, venues(id, name, address, neighborhood, city, state)")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .then(({ data }) => {
+          if (data) setSupabaseFavs(data as unknown as SupabaseFavorite[]);
+          setLoaded(true);
+        });
+    } else {
+      setLoaded(true);
+    }
+  }, [user]);
+
+  // Build unified list: localStorage mock events + Supabase venues (deduplicated by venue name)
+  const allFavorites: FavoriteItem[] = [];
+  const seenNames = new Set<string>();
+
+  // Add Supabase favorites first (these are the "real" persistent ones)
+  for (const fav of supabaseFavs) {
+    if (!fav.venues) continue;
+    const name = fav.venues.name.toLowerCase();
+    seenNames.add(name);
+    allFavorites.push({
+      key: `sb-${fav.id}`,
+      name: fav.venues.name,
+      subtitle: "",
+      detail: `${fav.venues.neighborhood ? `${fav.venues.neighborhood}, ` : ""}${fav.venues.city}`,
+      image: null,
+      href: `/venue/${fav.venues.id}`,
+      singHref: `/dashboard/request-song?venue=${fav.venues.id}`,
+      source: "supabase",
+      sourceId: fav.id,
     });
-  }, []);
+  }
 
-  const favoriteEvents: KaraokeEvent[] = karaokeEvents.filter((e) =>
-    favoriteIds.has(e.id)
-  );
+  // Add localStorage mock-data favorites (skip if already in Supabase by name)
+  const localEvents: KaraokeEvent[] = karaokeEvents.filter((e) => localFavIds.has(e.id));
+  for (const event of localEvents) {
+    const name = event.venueName.toLowerCase();
+    if (seenNames.has(name)) continue; // avoid duplicate if same venue in both
+    seenNames.add(name);
+    allFavorites.push({
+      key: `local-${event.id}`,
+      name: event.venueName,
+      subtitle: event.eventName,
+      detail: `${event.dayOfWeek}${event.startTime ? ` at ${event.startTime}` : ""}${event.neighborhood ? ` \u2022 ${event.neighborhood}` : ""}`,
+      image: event.image || null,
+      href: `/venue/${event.id}`,
+      singHref: `/dashboard/request-song?venue=${event.id}`,
+      source: "local",
+      sourceId: event.id,
+    });
+  }
+
+  const removeFavorite = useCallback(async (item: FavoriteItem) => {
+    if (item.source === "local") {
+      setLocalFavIds((prev) => {
+        const next = new Set(prev);
+        next.delete(item.sourceId);
+        saveLocalFavorites(next);
+        return next;
+      });
+    } else if (item.source === "supabase" && user) {
+      const supabase = createClient();
+      await supabase.from("favorites").delete().eq("id", item.sourceId);
+      setSupabaseFavs((prev) => prev.filter((f) => f.id !== item.sourceId));
+    }
+  }, [user]);
 
   if (!loaded) {
     return (
@@ -53,27 +142,27 @@ export default function DashboardFavoritesPage() {
     <div>
       <h1 className="text-2xl font-extrabold text-white mb-1">My Favorite Venues</h1>
       <p className="text-sm text-text-secondary mb-6">
-        {favoriteEvents.length > 0
-          ? `${favoriteEvents.length} saved venue${favoriteEvents.length === 1 ? "" : "s"}`
+        {allFavorites.length > 0
+          ? `${allFavorites.length} saved venue${allFavorites.length === 1 ? "" : "s"}`
           : "Venues you\u2019ve saved"}
       </p>
 
-      {favoriteEvents.length > 0 ? (
+      {allFavorites.length > 0 ? (
         <div className="space-y-3">
-          {favoriteEvents.map((event) => (
+          {allFavorites.map((item) => (
             <div
-              key={event.id}
+              key={item.key}
               className="flex gap-4 glass-card p-4 rounded-2xl items-center hover:border-primary/30 transition-all"
             >
               {/* Image */}
               <Link
-                href={`/venue/${event.id}`}
+                href={item.href}
                 className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0"
               >
-                {event.image ? (
+                {item.image ? (
                   <img
-                    src={event.image}
-                    alt={event.venueName}
+                    src={item.image}
+                    alt={item.name}
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -84,28 +173,27 @@ export default function DashboardFavoritesPage() {
               </Link>
 
               {/* Info */}
-              <Link href={`/venue/${event.id}`} className="flex-grow min-w-0">
-                <h4 className="font-bold text-sm text-white">{event.venueName}</h4>
-                <p className="text-xs text-accent font-bold uppercase tracking-wider">
-                  {event.eventName}
-                </p>
-                <p className="text-xs text-text-muted mt-0.5">
-                  {event.dayOfWeek} {event.startTime ? `at ${event.startTime}` : ""}
-                  {event.neighborhood ? ` \u2022 ${event.neighborhood}` : ""}
-                </p>
+              <Link href={item.href} className="flex-grow min-w-0">
+                <h4 className="font-bold text-sm text-white">{item.name}</h4>
+                {item.subtitle && (
+                  <p className="text-xs text-accent font-bold uppercase tracking-wider">
+                    {item.subtitle}
+                  </p>
+                )}
+                <p className="text-xs text-text-muted mt-0.5">{item.detail}</p>
               </Link>
 
               {/* Actions */}
               <div className="flex items-center gap-2 flex-shrink-0">
                 <Link
-                  href={`/dashboard/request-song?venue=${event.id}`}
+                  href={item.singHref}
                   className="bg-accent text-white font-bold text-xs px-3 py-2 rounded-lg flex items-center gap-1 hover:shadow-lg hover:shadow-accent/20 transition-all"
                 >
                   <span className="material-icons-round text-sm">queue_music</span>
                   Sing
                 </Link>
                 <button
-                  onClick={() => removeFavorite(event.id)}
+                  onClick={() => removeFavorite(item)}
                   className="w-9 h-9 rounded-full bg-red-500/10 flex items-center justify-center hover:bg-red-500/20 transition-colors"
                   title="Remove from favorites"
                 >

@@ -184,7 +184,18 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
               <span className="material-icons-round text-white">arrow_back</span>
             </button>
             <div className="flex gap-2">
-              <button className="w-10 h-10 rounded-full glass-card flex items-center justify-center">
+              <button
+                onClick={() => {
+                  const url = `https://karaoketimes.net/venue/${id}`;
+                  if (navigator.share) {
+                    navigator.share({ title: venue?.name || "Karaoke Venue", text: `Check out ${venue?.name || "this venue"} on Karaoke Times!`, url });
+                  } else {
+                    navigator.clipboard.writeText(url);
+                    alert("Link copied to clipboard!");
+                  }
+                }}
+                className="w-10 h-10 rounded-full glass-card flex items-center justify-center"
+              >
                 <span className="material-icons-round text-white">share</span>
               </button>
               <button
@@ -463,7 +474,14 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
           <p className="text-xs text-text-muted text-center mb-2">
             Something not right with this listing?
           </p>
-          <button className="text-accent text-xs font-semibold flex items-center justify-center gap-1 w-full">
+          <button
+            onClick={() => {
+              const subject = encodeURIComponent(`Report: ${venue?.name || "Venue"} (ID: ${id})`);
+              const body = encodeURIComponent(`I'd like to report an issue with the listing for ${venue?.name || "this venue"}.\n\nIssue:\n\n`);
+              window.open(`mailto:info@go1000.ai?subject=${subject}&body=${body}`, "_self");
+            }}
+            className="text-accent text-xs font-semibold flex items-center justify-center gap-1 w-full"
+          >
             <span className="material-icons-round text-sm">flag</span>
             Report a Problem
           </button>
