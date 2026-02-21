@@ -26,7 +26,9 @@ function SignInContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [isOwner, setIsOwner] = useState(defaultRole === "owner");
+  const [selectedRole, setSelectedRole] = useState<"user" | "kj" | "venue_owner">(
+    defaultRole === "owner" ? "venue_owner" : "user"
+  );
   const [venueName, setVenueName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(urlError ? "Sign in failed. Please try again." : "");
@@ -73,7 +75,7 @@ function SignInContent() {
         options: {
           data: {
             full_name: displayName || email.split("@")[0],
-            role: isOwner ? "venue_owner" : "user",
+            role: selectedRole,
           },
         },
       });
@@ -86,17 +88,17 @@ function SignInContent() {
 
       // If email confirmation is disabled, user is immediately available
       if (data.user && data.session) {
-        // Set role and display name
+        // Set role and display name in profiles table
         await supabase
           .from("profiles")
           .update({
-            role: isOwner ? "venue_owner" : "user",
+            role: selectedRole,
             display_name: displayName || email.split("@")[0],
           })
           .eq("id", data.user.id);
 
         // Create venue for owners
-        if (isOwner && venueName.trim()) {
+        if (selectedRole === "venue_owner" && venueName.trim()) {
           await supabase.from("venues").insert({
             owner_id: data.user.id,
             name: venueName.trim(),
@@ -203,31 +205,52 @@ function SignInContent() {
                 className="w-full bg-card-dark border border-border rounded-2xl py-3.5 px-5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary placeholder:text-text-muted"
               />
 
-              {/* Owner toggle */}
-              <button
-                type="button"
-                onClick={() => setIsOwner(!isOwner)}
-                className={`w-full flex items-center gap-3 rounded-2xl py-3.5 px-5 text-sm font-semibold transition-all border ${
-                  isOwner
-                    ? "bg-accent/10 border-accent/30 text-accent"
-                    : "bg-card-dark border-border text-text-muted hover:text-white hover:border-white/20"
-                }`}
-              >
-                <span className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
-                  isOwner ? "bg-accent border-accent" : "border-text-muted"
-                }`}>
-                  {isOwner && (
-                    <span className="material-icons-round text-white text-sm">check</span>
-                  )}
-                </span>
-                <span className="material-icons-round text-lg">
-                  {isOwner ? "star" : "star_border"}
-                </span>
-                I&apos;m a KJ or Venue Owner
-              </button>
+              {/* Role selection */}
+              <p className="text-xs text-text-muted uppercase tracking-wider font-bold pt-1">I am a...</p>
+              <div className="space-y-2">
+                {([
+                  { id: "user" as const, label: "Singer", icon: "mic", desc: "Find karaoke nights & join the queue" },
+                  { id: "kj" as const, label: "KJ (Karaoke Jockey)", icon: "headphones", desc: "Manage queues, events & connect with venues" },
+                  { id: "venue_owner" as const, label: "Venue / Bar Owner", icon: "storefront", desc: "List your venue, manage events & invite KJs" },
+                ]).map((role) => (
+                  <button
+                    key={role.id}
+                    type="button"
+                    onClick={() => setSelectedRole(role.id)}
+                    className={`w-full flex items-center gap-3 rounded-2xl py-3 px-4 text-left transition-all border cursor-pointer ${
+                      selectedRole === role.id
+                        ? role.id === "user"
+                          ? "bg-primary/10 border-primary/40 ring-1 ring-primary/20"
+                          : "bg-accent/10 border-accent/40 ring-1 ring-accent/20"
+                        : "bg-card-dark border-border hover:border-white/20"
+                    }`}
+                  >
+                    <span className={`material-icons-round text-lg ${
+                      selectedRole === role.id
+                        ? role.id === "user" ? "text-primary" : "text-accent"
+                        : "text-text-muted"
+                    }`}>{role.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-semibold ${selectedRole === role.id ? "text-white" : "text-text-secondary"}`}>
+                        {role.label}
+                      </p>
+                      <p className="text-[10px] text-text-muted">{role.desc}</p>
+                    </div>
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                      selectedRole === role.id
+                        ? role.id === "user" ? "border-primary bg-primary" : "border-accent bg-accent"
+                        : "border-text-muted"
+                    }`}>
+                      {selectedRole === role.id && (
+                        <span className="material-icons-round text-white text-[10px]">check</span>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
 
-              {/* Venue name — shows when owner is checked */}
-              {isOwner && (
+              {/* Venue name — shows when venue owner is selected */}
+              {selectedRole === "venue_owner" && (
                 <input
                   type="text"
                   value={venueName}
@@ -258,21 +281,26 @@ function SignInContent() {
           />
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || (mode === "signup" && selectedRole === "venue_owner" && !venueName.trim())}
             className={`w-full font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:shadow-lg transition-all disabled:opacity-50 cursor-pointer ${
-              mode === "signup" && isOwner
+              mode === "signup" && selectedRole !== "user"
                 ? "bg-accent text-white hover:shadow-accent/30"
                 : "bg-primary text-black hover:shadow-primary/30"
             }`}
           >
             {submitting ? (
-              <div className={`w-5 h-5 border-2 ${mode === "signup" && isOwner ? "border-white" : "border-black"} border-t-transparent rounded-full animate-spin`} />
+              <div className={`w-5 h-5 border-2 ${mode === "signup" && selectedRole !== "user" ? "border-white" : "border-black"} border-t-transparent rounded-full animate-spin`} />
             ) : mode === "login" ? (
               "Log In"
-            ) : isOwner ? (
+            ) : selectedRole === "venue_owner" ? (
               <>
                 <span className="material-icons-round text-xl">rocket_launch</span>
                 Create Business Account
+              </>
+            ) : selectedRole === "kj" ? (
+              <>
+                <span className="material-icons-round text-xl">headphones</span>
+                Create KJ Account
               </>
             ) : (
               "Create Account"
