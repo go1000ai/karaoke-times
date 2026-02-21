@@ -265,10 +265,10 @@ export default async function ProfilePage() {
                 No songs yet. Find a venue and request your first song!
               </p>
               <Link
-                href="/"
+                href="/map"
                 className="mt-3 inline-flex items-center gap-1 text-primary text-sm font-semibold hover:underline"
               >
-                Explore Venues
+                View Map
                 <span className="material-icons-round text-sm">
                   arrow_forward
                 </span>

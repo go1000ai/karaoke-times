@@ -248,8 +248,8 @@ export default async function DashboardProfilePage() {
           <div className="glass-card rounded-2xl p-8 text-center">
             <span className="material-icons-round text-3xl text-text-muted mb-2">mic_off</span>
             <p className="text-text-secondary text-sm">No songs yet. Find a venue and request your first song!</p>
-            <Link href="/" className="mt-3 inline-flex items-center gap-1 text-primary text-sm font-semibold hover:underline">
-              Explore Venues
+            <Link href="/map" className="mt-3 inline-flex items-center gap-1 text-primary text-sm font-semibold hover:underline">
+              View Map
               <span className="material-icons-round text-sm">arrow_forward</span>
             </Link>
           </div>

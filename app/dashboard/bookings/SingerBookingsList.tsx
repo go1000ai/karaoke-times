@@ -245,11 +245,11 @@ export function SingerBookingsList({
             Book a private karaoke room or hire a KJ for your event!
           </p>
           <Link
-            href="/"
+            href="/map"
             className="inline-flex items-center gap-1.5 bg-primary text-black font-bold px-5 py-2.5 rounded-xl text-sm"
           >
-            <span className="material-icons-round text-lg">explore</span>
-            Explore Venues
+            <span className="material-icons-round text-lg">map</span>
+            View Map
           </Link>
         </div>
       )}
