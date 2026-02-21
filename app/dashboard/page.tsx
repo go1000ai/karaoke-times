@@ -308,9 +308,8 @@ async function SingerDashboard({ userId, supabase }: { userId: string; supabase:
       <h2 className="text-lg font-bold text-white mb-4">Quick Actions</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {[
-          { icon: "explore", label: "Explore Venues", desc: "Discover karaoke spots near you", href: "/" },
-          { icon: "search", label: "Search by Zip", desc: "Find venues by location", href: "/search" },
           { icon: "map", label: "View Map", desc: "See all venues on a map", href: "/map" },
+          { icon: "search", label: "Search Venues", desc: "Find venues by location or name", href: "/search" },
           { icon: "music_note", label: "My Favorite Songs", desc: "Your saved songs to sing", href: "/dashboard/my-songs" },
           { icon: "favorite", label: "My Favorite Venues", desc: "Your saved karaoke spots", href: "/dashboard/favorites" },
           { icon: "person", label: "Edit Profile", desc: "Update your account info", href: "/dashboard/my-profile/edit" },
