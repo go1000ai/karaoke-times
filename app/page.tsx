@@ -888,11 +888,11 @@ export default function HomePage() {
       <footer className="py-12 pb-36 md:pb-12">
         <div className="max-w-2xl mx-auto px-6">
           {/* Logo */}
-          <div className="flex justify-center mb-4">
+          <div className="flex justify-center mb-5">
             <img
               src="/logo.png"
               alt="Karaoke Times"
-              className="h-6 w-auto"
+              className="h-12 w-auto"
             />
           </div>
 
