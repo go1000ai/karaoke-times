@@ -288,7 +288,7 @@ export default async function ProfilePage() {
             </h2>
             {(favCount || 0) > 6 && (
               <Link
-                href="/favorites"
+                href="/dashboard/favorites"
                 className="text-xs text-primary font-semibold"
               >
                 View All

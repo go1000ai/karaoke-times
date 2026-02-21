@@ -38,11 +38,33 @@ interface SupabaseVenue {
   is_private_room: boolean;
 }
 
+const FAVORITES_KEY = "kt-favorites";
+
+function loadLocalFavorites(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(FAVORITES_KEY);
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function saveLocalFavorites(favs: Set<string>) {
+  localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favs]));
+}
+
+// Check if an ID looks like a UUID
+function isUUID(id: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+}
+
 export default function VenueDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const mockVenue = venues.find((v) => v.id === id);
   const venueEvents = mockVenue ? karaokeEvents.filter((e) => e.venueName === mockVenue.name) : [];
-  const event = karaokeEvents.find((e) => e.id === id) || venueEvents[0];
+  const mockEvent = karaokeEvents.find((e) => e.id === id);
+  const event = mockEvent || venueEvents[0];
   const { user } = useAuth();
   const router = useRouter();
   const [isFavorite, setIsFavorite] = useState(false);
@@ -108,8 +130,8 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
         if (data?.length) setReviews(data as unknown as Review[]);
       });
 
-    // Check favorite status
-    if (user) {
+    // Check favorite status from Supabase (for UUID venues)
+    if (user && isUUID(id)) {
       supabase
         .from("favorites")
         .select("id")
@@ -122,15 +144,81 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
     }
   }, [id, user]);
 
-  const toggleFavorite = async () => {
-    if (!user) return;
-    const supabase = createClient();
-    if (isFavorite) {
-      await supabase.from("favorites").delete().eq("user_id", user.id).eq("venue_id", id);
-      setIsFavorite(false);
-    } else {
-      await supabase.from("favorites").insert({ user_id: user.id, venue_id: id });
+  // Check localStorage favorite status (for mock data venues)
+  useEffect(() => {
+    const localFavs = loadLocalFavorites();
+    // Check if this exact ID is favorited, or if any event for this venue is favorited
+    if (localFavs.has(id)) {
       setIsFavorite(true);
+    } else if (mockVenue) {
+      // Check if any event for this venue is in localStorage favorites
+      const venueEventIds = karaokeEvents
+        .filter((e) => e.venueName === mockVenue.name)
+        .map((e) => e.id);
+      if (venueEventIds.some((eid) => localFavs.has(eid))) {
+        setIsFavorite(true);
+      }
+    }
+  }, [id, mockVenue]);
+
+  const toggleFavorite = async () => {
+    const newFavoriteState = !isFavorite;
+    setIsFavorite(newFavoriteState);
+
+    // Always save to localStorage using the appropriate ID
+    // For mock data: use the mock event ID (e.g., "fusion-east-monday")
+    // For Supabase venues: use the UUID
+    const localId = mockEvent?.id || id;
+    const localFavs = loadLocalFavorites();
+    if (newFavoriteState) {
+      localFavs.add(localId);
+    } else {
+      localFavs.delete(localId);
+      // Also remove any other event IDs for the same venue
+      if (mockVenue) {
+        karaokeEvents
+          .filter((e) => e.venueName === mockVenue.name)
+          .forEach((e) => localFavs.delete(e.id));
+      }
+    }
+    saveLocalFavorites(localFavs);
+
+    // Also sync to Supabase if user is logged in
+    if (user) {
+      const supabase = createClient();
+
+      if (isUUID(id)) {
+        // Direct UUID — save directly to Supabase favorites
+        if (newFavoriteState) {
+          await supabase.from("favorites").upsert(
+            { user_id: user.id, venue_id: id },
+            { onConflict: "user_id,venue_id" }
+          );
+        } else {
+          await supabase.from("favorites").delete().eq("user_id", user.id).eq("venue_id", id);
+        }
+      } else {
+        // Mock data venue — try to find matching Supabase venue by name
+        const venueName = mockVenue?.name || event?.venueName;
+        if (venueName) {
+          const { data: venueRow } = await supabase
+            .from("venues")
+            .select("id")
+            .ilike("name", venueName)
+            .limit(1)
+            .single();
+          if (venueRow) {
+            if (newFavoriteState) {
+              await supabase.from("favorites").upsert(
+                { user_id: user.id, venue_id: venueRow.id },
+                { onConflict: "user_id,venue_id" }
+              );
+            } else {
+              await supabase.from("favorites").delete().eq("user_id", user.id).eq("venue_id", venueRow.id);
+            }
+          }
+        }
+      }
     }
   };
 

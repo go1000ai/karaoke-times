@@ -16,7 +16,7 @@ export default function TopNav() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const navLinks = user
-    ? [...publicNavLinks, { label: "Favorites", href: "/favorites", icon: "favorite" }]
+    ? [...publicNavLinks, { label: "Favorites", href: "/dashboard/favorites", icon: "favorite" }]
     : publicNavLinks;
 
   return (
