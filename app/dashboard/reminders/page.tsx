@@ -20,11 +20,28 @@ interface Reminder {
   created_at: string;
 }
 
+const WEEK_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const DAY_SHORT: Record<string, string> = {
+  Monday: "Mon",
+  Tuesday: "Tue",
+  Wednesday: "Wed",
+  Thursday: "Thu",
+  Friday: "Fri",
+  Saturday: "Sat",
+  Sunday: "Sun",
+};
+
+function getTodayDayName(): string {
+  return new Date().toLocaleDateString("en-US", { weekday: "long" });
+}
+
 export default function DashboardRemindersPage() {
   const { user } = useAuth();
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const supabase = createClient();
+  const today = getTodayDayName();
 
   useEffect(() => {
     if (!user) return;
@@ -46,6 +63,26 @@ export default function DashboardRemindersPage() {
     setReminders((prev) => prev.filter((r) => r.id !== id));
   }
 
+  // Group reminders by day of week
+  const remindersByDay: Record<string, Reminder[]> = {};
+  for (const day of WEEK_DAYS) {
+    remindersByDay[day] = [];
+  }
+  for (const r of reminders) {
+    const day = WEEK_DAYS.find((d) => r.day_of_week.toLowerCase().includes(d.toLowerCase()));
+    if (day) {
+      remindersByDay[day].push(r);
+    }
+  }
+
+  // Filter list if a day is selected
+  const displayedReminders = selectedDay
+    ? reminders.filter((r) => {
+        const day = WEEK_DAYS.find((d) => r.day_of_week.toLowerCase().includes(d.toLowerCase()));
+        return day === selectedDay;
+      })
+    : reminders;
+
   return (
     <div>
       <div className="flex items-center gap-3 mb-2">
@@ -55,6 +92,112 @@ export default function DashboardRemindersPage() {
       <p className="text-sm text-text-secondary mb-6">
         Calendar reminders for your favorite karaoke nights.
       </p>
+
+      {/* Weekly Calendar Strip */}
+      {!loading && reminders.length > 0 && (
+        <div className="glass-card rounded-2xl p-4 mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="material-icons-round text-primary text-lg">date_range</span>
+            <h3 className="text-sm font-bold text-white">My Week</h3>
+            {selectedDay && (
+              <button
+                onClick={() => setSelectedDay(null)}
+                className="ml-auto text-xs text-primary font-semibold hover:underline"
+              >
+                Show All
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-7 gap-1.5">
+            {WEEK_DAYS.map((day) => {
+              const dayReminders = remindersByDay[day];
+              const isToday = day === today;
+              const hasEvents = dayReminders.length > 0;
+              const isSelected = selectedDay === day;
+
+              return (
+                <button
+                  key={day}
+                  onClick={() => setSelectedDay(isSelected ? null : day)}
+                  className={`flex flex-col items-center rounded-xl py-2.5 px-1 transition-all ${
+                    isSelected
+                      ? "bg-primary/20 border border-primary/40"
+                      : isToday
+                      ? "bg-accent/10 border border-accent/30"
+                      : hasEvents
+                      ? "bg-card-dark border border-border hover:border-primary/30"
+                      : "bg-transparent border border-transparent"
+                  }`}
+                >
+                  <span
+                    className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${
+                      isSelected
+                        ? "text-primary"
+                        : isToday
+                        ? "text-accent"
+                        : "text-text-muted"
+                    }`}
+                  >
+                    {DAY_SHORT[day]}
+                  </span>
+
+                  {hasEvents ? (
+                    <div className="flex flex-col items-center gap-0.5">
+                      {dayReminders.length <= 2 ? (
+                        dayReminders.map((r) => (
+                          <div
+                            key={r.id}
+                            className={`w-2 h-2 rounded-full ${
+                              isToday ? "bg-accent" : "bg-primary"
+                            }`}
+                          />
+                        ))
+                      ) : (
+                        <>
+                          <div
+                            className={`w-2 h-2 rounded-full ${
+                              isToday ? "bg-accent" : "bg-primary"
+                            }`}
+                          />
+                          <span className="text-[9px] text-text-muted font-bold">
+                            +{dayReminders.length - 1}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="w-2 h-2 rounded-full bg-border/30" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Selected day detail strip */}
+          {selectedDay && remindersByDay[selectedDay].length > 0 && (
+            <div className="mt-3 pt-3 border-t border-border space-y-2">
+              {remindersByDay[selectedDay].map((r) => (
+                <Link
+                  key={r.id}
+                  href={`/venue/${r.venue_id}`}
+                  className="flex items-center gap-2 text-xs group"
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                    selectedDay === today ? "bg-accent" : "bg-primary"
+                  }`} />
+                  <span className="text-white font-semibold group-hover:text-primary transition-colors truncate">
+                    {r.venue_name || r.event_name}
+                  </span>
+                  <span className="text-text-muted ml-auto flex-shrink-0">
+                    {r.start_time}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Info banner */}
       <div className="glass-card rounded-2xl p-4 mb-6 flex items-start gap-3">
@@ -74,9 +217,14 @@ export default function DashboardRemindersPage() {
             </div>
           ))}
         </div>
-      ) : reminders.length > 0 ? (
+      ) : displayedReminders.length > 0 ? (
         <div className="space-y-3">
-          {reminders.map((reminder) => (
+          {selectedDay && (
+            <p className="text-xs text-text-muted font-semibold uppercase tracking-wider">
+              {selectedDay} reminders ({displayedReminders.length})
+            </p>
+          )}
+          {displayedReminders.map((reminder) => (
             <div key={reminder.id} className="glass-card rounded-2xl p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
@@ -97,7 +245,7 @@ export default function DashboardRemindersPage() {
                     <span className="flex items-center gap-1 text-xs text-text-muted">
                       <span className="material-icons-round text-xs">schedule</span>
                       {reminder.start_time}
-                      {reminder.end_time ? ` – ${reminder.end_time}` : ""}
+                      {reminder.end_time ? ` \u2013 ${reminder.end_time}` : ""}
                     </span>
                   </div>
                 </div>
@@ -123,6 +271,13 @@ export default function DashboardRemindersPage() {
               </div>
             </div>
           ))}
+        </div>
+      ) : reminders.length > 0 && selectedDay ? (
+        <div className="glass-card rounded-2xl p-8 text-center">
+          <span className="material-icons-round text-3xl text-text-muted mb-2 block">event_busy</span>
+          <p className="text-text-secondary text-sm">
+            No karaoke nights on {selectedDay}. Try another day!
+          </p>
         </div>
       ) : (
         <div className="glass-card rounded-2xl p-10 text-center">

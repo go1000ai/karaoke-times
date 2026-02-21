@@ -17,6 +17,8 @@ interface ProfileData {
     tiktok?: string;
     facebook?: string;
   };
+  featured_singer_opt_in: boolean;
+  contest_opt_in: boolean;
 }
 
 export default function DashboardEditProfilePage() {
@@ -24,13 +26,15 @@ export default function DashboardEditProfilePage() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [featuredOptIn, setFeaturedOptIn] = useState(false);
+  const [contestOptIn, setContestOptIn] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
     if (!user) return;
     supabase
       .from("profiles")
-      .select("display_name, avatar_url, address, phone, website, social_links")
+      .select("display_name, avatar_url, address, phone, website, social_links, featured_singer_opt_in, contest_opt_in")
       .eq("id", user.id)
       .single()
       .then(({ data }) => {
@@ -38,7 +42,11 @@ export default function DashboardEditProfilePage() {
           setProfile({
             ...data,
             social_links: data.social_links || {},
+            featured_singer_opt_in: data.featured_singer_opt_in || false,
+            contest_opt_in: data.contest_opt_in || false,
           } as ProfileData);
+          setFeaturedOptIn(data.featured_singer_opt_in || false);
+          setContestOptIn(data.contest_opt_in || false);
         }
       });
   }, [user, supabase]);
@@ -61,15 +69,27 @@ export default function DashboardEditProfilePage() {
       Object.entries(rawLinks).filter(([, v]) => v)
     );
 
+    const updateData: Record<string, unknown> = {
+      display_name: (form.get("display_name") as string)?.trim() || null,
+      address: (form.get("address") as string)?.trim() || null,
+      phone: (form.get("phone") as string)?.trim() || null,
+      website: (form.get("website") as string)?.trim() || null,
+      social_links,
+      featured_singer_opt_in: featuredOptIn,
+      contest_opt_in: contestOptIn,
+    };
+
+    // Set agreed_at timestamps when opting in for the first time
+    if (featuredOptIn && !profile?.featured_singer_opt_in) {
+      updateData.featured_singer_agreed_at = new Date().toISOString();
+    }
+    if (contestOptIn && !profile?.contest_opt_in) {
+      updateData.contest_agreed_at = new Date().toISOString();
+    }
+
     const { error } = await supabase
       .from("profiles")
-      .update({
-        display_name: (form.get("display_name") as string)?.trim() || null,
-        address: (form.get("address") as string)?.trim() || null,
-        phone: (form.get("phone") as string)?.trim() || null,
-        website: (form.get("website") as string)?.trim() || null,
-        social_links,
-      })
+      .update(updateData)
       .eq("id", user.id);
 
     setSaving(false);
@@ -204,6 +224,84 @@ export default function DashboardEditProfilePage() {
               />
             </div>
           ))}
+        </section>
+
+        {/* Opportunities — Featured Singer & Contest Opt-In */}
+        <section className="glass-card rounded-2xl p-5 space-y-4 border-yellow-400/10">
+          <h3 className="text-sm font-bold text-white flex items-center gap-2">
+            <span className="material-icons-round text-yellow-400 text-lg">star</span>
+            Opportunities
+          </h3>
+          <p className="text-xs text-text-secondary leading-relaxed">
+            Opt in to be featured on Karaoke Times and compete in singing contests.
+            Read the full{" "}
+            <Link href="/terms/featured-singer" className="text-primary hover:underline font-semibold" target="_blank">
+              Terms &amp; Conditions
+            </Link>{" "}
+            before opting in.
+          </p>
+
+          {/* Featured Singer Opt-In */}
+          <label className="flex items-start gap-3 cursor-pointer group">
+            <div className="relative flex-shrink-0 mt-0.5">
+              <input
+                type="checkbox"
+                checked={featuredOptIn}
+                onChange={(e) => setFeaturedOptIn(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-5 h-5 rounded-md border-2 border-border bg-bg-dark peer-checked:bg-yellow-400 peer-checked:border-yellow-400 transition-all flex items-center justify-center">
+                {featuredOptIn && (
+                  <span className="material-icons-round text-black text-sm">check</span>
+                )}
+              </div>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-white group-hover:text-yellow-400 transition-colors">
+                I want to be a Featured Singer
+              </p>
+              <p className="text-xs text-text-muted mt-0.5 leading-relaxed">
+                Get featured on Karaoke Times, YouTube, and social media. Your performances, name,
+                and likeness may be used for promotion across our platforms.
+              </p>
+            </div>
+          </label>
+
+          {/* Contest Opt-In */}
+          <label className="flex items-start gap-3 cursor-pointer group">
+            <div className="relative flex-shrink-0 mt-0.5">
+              <input
+                type="checkbox"
+                checked={contestOptIn}
+                onChange={(e) => setContestOptIn(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-5 h-5 rounded-md border-2 border-border bg-bg-dark peer-checked:bg-yellow-400 peer-checked:border-yellow-400 transition-all flex items-center justify-center">
+                {contestOptIn && (
+                  <span className="material-icons-round text-black text-sm">check</span>
+                )}
+              </div>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-white group-hover:text-yellow-400 transition-colors">
+                I want to join singing contests
+              </p>
+              <p className="text-xs text-text-muted mt-0.5 leading-relaxed">
+                Compete in borough-level, city-wide, and national singing contests. Winners get
+                featured and promoted across all Karaoke Times platforms.
+              </p>
+            </div>
+          </label>
+
+          {(featuredOptIn || contestOptIn) && (
+            <p className="text-[11px] text-yellow-400/70 flex items-start gap-1.5">
+              <span className="material-icons-round text-xs mt-0.5">info</span>
+              By saving, you agree to the{" "}
+              <Link href="/terms/featured-singer" className="underline hover:text-yellow-400" target="_blank">
+                Featured Singer &amp; Contest Terms
+              </Link>.
+            </p>
+          )}
         </section>
 
         {/* Save */}

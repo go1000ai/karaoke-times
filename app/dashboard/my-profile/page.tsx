@@ -9,7 +9,7 @@ export default async function DashboardProfilePage() {
   // Fetch profile
   const { data: profile } = await supabase
     .from("profiles")
-    .select("display_name, avatar_url, role, website, address, social_links")
+    .select("display_name, avatar_url, role, website, address, social_links, featured_singer_opt_in, contest_opt_in")
     .eq("id", user.id)
     .single();
 
@@ -87,6 +87,22 @@ export default async function DashboardProfilePage() {
           <span className="mt-2 bg-primary/10 text-primary text-[10px] font-bold px-3 py-1 rounded-full flex items-center gap-1">
             <span className="material-icons-round text-xs">storefront</span> Venue Owner
           </span>
+        )}
+
+        {/* Opt-in badges */}
+        {(profile?.featured_singer_opt_in || profile?.contest_opt_in) && (
+          <div className="flex flex-wrap gap-2 mt-2 justify-center">
+            {profile?.featured_singer_opt_in && (
+              <span className="bg-yellow-400/10 text-yellow-400 text-[10px] font-bold px-3 py-1 rounded-full flex items-center gap-1">
+                <span className="material-icons-round text-xs">star</span> Featured Singer
+              </span>
+            )}
+            {profile?.contest_opt_in && (
+              <span className="bg-purple-500/10 text-purple-400 text-[10px] font-bold px-3 py-1 rounded-full flex items-center gap-1">
+                <span className="material-icons-round text-xs">emoji_events</span> Contest Participant
+              </span>
+            )}
+          </div>
         )}
 
         {/* Social links */}
