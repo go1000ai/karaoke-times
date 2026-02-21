@@ -19,7 +19,7 @@ export async function GET(request: Request) {
       const user = data.user;
 
       if (user) {
-        // Check if profile already exists
+        // Check if profile already exists (may have been created by DB trigger)
         const { data: profile } = await supabase
           .from("profiles")
           .select("role")
@@ -27,7 +27,7 @@ export async function GET(request: Request) {
           .single();
 
         if (!profile) {
-          // Brand new user — create a temporary profile and send to role selection
+          // No profile yet — create one and send to onboarding
           const meta = user.user_metadata || {};
           await supabase.from("profiles").upsert({
             id: user.id,
@@ -35,7 +35,16 @@ export async function GET(request: Request) {
             avatar_url: meta.avatar_url || meta.picture || null,
             role: "user",
           });
-          // Redirect new OAuth users to choose their role
+          return NextResponse.redirect(`${origin}/onboarding`);
+        }
+
+        // Check if this is a brand-new user (account created in the last 60 seconds)
+        // The DB trigger may have already created a profile with default role "user"
+        const createdAt = new Date(user.created_at);
+        const now = new Date();
+        const isNewUser = now.getTime() - createdAt.getTime() < 60000; // 60 seconds
+
+        if (isNewUser && profile.role === "user") {
           return NextResponse.redirect(`${origin}/onboarding`);
         }
 
