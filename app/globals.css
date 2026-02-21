@@ -29,6 +29,20 @@ body {
   color: var(--color-text-primary);
 }
 
+/* Material Icons base styles + FOUT prevention.
+   font-display:block in the Google Fonts URL (layout.tsx) hides text during load.
+   The overflow:hidden ensures long ligature names (e.g. "door_sliding") don't
+   break layout even if the font is still loading. */
+.material-icons-round {
+  font-family: "Material Icons Round";
+  font-style: normal;
+  font-weight: normal;
+  font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+
 .neon-glow-green {
   text-shadow: 0 0 10px rgba(0, 255, 194, 0.5), 0 0 20px rgba(0, 255, 194, 0.3);
 }

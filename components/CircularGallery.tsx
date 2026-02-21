@@ -40,8 +40,8 @@ export default function CircularGallery({
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  // Responsive sizing — proportional to screen on mobile
-  const radius = isMobile ? Math.min(250, window?.innerWidth * 0.6 || 250) : 500;
+  // Responsive sizing
+  const radius = isMobile ? 250 : 500;
   const cardW = isMobile ? 120 : 260;
   const cardH = isMobile ? 170 : 380;
 
@@ -144,12 +144,20 @@ export default function CircularGallery({
           const normalizedAngle = Math.abs(
             relativeAngle > 180 ? 360 - relativeAngle : relativeAngle
           );
-          const opacity = Math.max(0.1, 1 - normalizedAngle / 160);
+          // On mobile: only the single front card is visible (within ~20° of center)
+          // This prevents any overlap since only 1 card shows at a time
+          const opacity = isMobile
+            ? normalizedAngle > 20 ? 0 : Math.max(0, 1 - normalizedAngle / 18)
+            : Math.max(0.1, 1 - normalizedAngle / 160);
           const scale = isMobile
             ? Math.max(0.55, 1 - normalizedAngle / 400)
             : Math.max(0.65, 1 - normalizedAngle / 500);
           // Only load video for cards near the front (within ~100°)
           const isFrontFacing = normalizedAngle < 100;
+          // Skip rendering hidden cards on mobile for performance
+          const shouldRender = !isMobile || normalizedAngle <= 25;
+
+          if (!shouldRender) return null;
 
           return (
             <div
@@ -166,6 +174,7 @@ export default function CircularGallery({
                 opacity,
                 backfaceVisibility: "hidden",
                 willChange: "transform, opacity",
+                transition: isMobile ? "opacity 0.3s ease" : undefined,
               }}
             >
               <div className="relative w-full h-full rounded-2xl shadow-2xl overflow-hidden border border-white/10">

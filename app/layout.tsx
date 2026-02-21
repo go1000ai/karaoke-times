@@ -38,11 +38,25 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <head>
         <link
+          rel="preconnect"
+          href="https://fonts.googleapis.com"
+        />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        <link
           href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Mr+Dafoe&display=swap"
           rel="stylesheet"
         />
         <link
-          href="https://fonts.googleapis.com/icon?family=Material+Icons+Round"
+          rel="preload"
+          href="https://fonts.googleapis.com/icon?family=Material+Icons+Round&display=block"
+          as="style"
+        />
+        <link
+          href="https://fonts.googleapis.com/icon?family=Material+Icons+Round&display=block"
           rel="stylesheet"
         />
       </head>
