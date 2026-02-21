@@ -212,13 +212,22 @@ export default function DashboardFavoritesPage() {
           <p className="text-text-secondary text-sm mb-4">
             Explore venues and tap the heart to save your picks!
           </p>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 bg-primary text-black font-bold px-5 py-2.5 rounded-xl text-sm"
-          >
-            <span className="material-icons-round text-lg">explore</span>
-            Explore Venues
-          </Link>
+          <div className="flex items-center justify-center gap-3">
+            <Link
+              href="/map"
+              className="inline-flex items-center gap-1.5 bg-primary text-black font-bold px-5 py-2.5 rounded-xl text-sm"
+            >
+              <span className="material-icons-round text-lg">map</span>
+              View Map
+            </Link>
+            <Link
+              href="/search"
+              className="inline-flex items-center gap-1.5 bg-accent text-white font-bold px-5 py-2.5 rounded-xl text-sm"
+            >
+              <span className="material-icons-round text-lg">search</span>
+              Search
+            </Link>
+          </div>
         </div>
       )}
     </div>
