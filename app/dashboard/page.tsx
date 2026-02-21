@@ -56,8 +56,8 @@ export default async function DashboardOverview() {
             ? "Your account needs to be linked to a venue to use the dashboard."
             : "You haven't been connected to any venues yet. Ask a bar owner to invite you."}
         </p>
-        <Link href="/" className="text-primary font-semibold hover:underline">
-          Go to Homepage
+        <Link href="/map" className="text-primary font-semibold hover:underline">
+          View Map
         </Link>
       </div>
     );
