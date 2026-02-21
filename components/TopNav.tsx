@@ -7,7 +7,6 @@ import { useAuth } from "@/components/AuthProvider";
 
 const publicNavLinks = [
   { label: "Explore", href: "/", icon: "home" },
-  { label: "Search", href: "/search", icon: "search" },
   { label: "Map", href: "/map", icon: "map" },
 ];
 

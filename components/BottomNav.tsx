@@ -10,7 +10,7 @@ export default function BottomNav() {
 
   const navItems = [
     { icon: "home", label: "Explore", href: "/" },
-    { icon: "search", label: "Search", href: "/search" },
+    { icon: "map", label: "Map", href: "/map" },
     { icon: "mic", label: "", href: "/dashboard", isFab: true },
     ...(user
       ? [
