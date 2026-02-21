@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo, memo } from "react";
 import { useRouter } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
 import { useAuth } from "@/components/AuthProvider";
@@ -72,7 +72,7 @@ function useScrollReveal() {
   return ref;
 }
 
-function VenueCard({
+const VenueCard = memo(function VenueCard({
   event,
   onClick,
   isFavorited,
@@ -224,7 +224,7 @@ function VenueCard({
       </div>
     </div>
   );
-}
+});
 
 function isZipCode(value: string): boolean {
   return /^\d{5}$/.test(value.trim());
@@ -235,8 +235,10 @@ function useIsMobile(breakpoint = 640) {
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < breakpoint);
     check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
+    let timer: ReturnType<typeof setTimeout>;
+    const debounced = () => { clearTimeout(timer); timer = setTimeout(check, 150); };
+    window.addEventListener("resize", debounced);
+    return () => { clearTimeout(timer); window.removeEventListener("resize", debounced); };
   }, [breakpoint]);
   return isMobile;
 }
@@ -357,38 +359,42 @@ export default function HomePage() {
     }
   }, []);
 
-  // Search logic — filters across all fields
-  const searchResults = searchQuery.trim().length > 0
-    ? karaokeEvents.filter((e) => {
-        const q = searchQuery.toLowerCase();
-        return (
-          e.venueName.toLowerCase().includes(q) ||
-          e.eventName.toLowerCase().includes(q) ||
-          e.neighborhood.toLowerCase().includes(q) ||
-          e.city.toLowerCase().includes(q) ||
-          e.dj.toLowerCase().includes(q) ||
-          e.address.toLowerCase().includes(q) ||
-          e.dayOfWeek.toLowerCase().includes(q) ||
-          e.notes.toLowerCase().includes(q)
-        );
-      })
-    : [];
+  // Search logic — filters across all fields (memoized)
+  const searchResults = useMemo(() => {
+    if (searchQuery.trim().length === 0) return [];
+    const q = searchQuery.toLowerCase();
+    return karaokeEvents.filter((e) =>
+      e.venueName.toLowerCase().includes(q) ||
+      e.eventName.toLowerCase().includes(q) ||
+      e.neighborhood.toLowerCase().includes(q) ||
+      e.city.toLowerCase().includes(q) ||
+      e.dj.toLowerCase().includes(q) ||
+      e.address.toLowerCase().includes(q) ||
+      e.dayOfWeek.toLowerCase().includes(q) ||
+      e.notes.toLowerCase().includes(q)
+    );
+  }, [searchQuery]);
 
-  // KJ search results
-  const kjResults: KJProfile[] = searchQuery.trim().length >= 2
-    ? searchKJs(searchQuery)
-    : [];
+  // KJ search results (memoized)
+  const kjResults: KJProfile[] = useMemo(() => {
+    return searchQuery.trim().length >= 2 ? searchKJs(searchQuery) : [];
+  }, [searchQuery]);
 
-  const filteredEvents =
+  const filteredEvents = useMemo(() =>
     activeDay === "All"
       ? karaokeEvents
-      : karaokeEvents.filter((e) => e.dayOfWeek === activeDay);
+      : karaokeEvents.filter((e) => e.dayOfWeek === activeDay),
+    [activeDay]
+  );
 
-  // Count by day for badges
-  const countByDay: Record<string, number> = {};
-  for (const day of DAY_ORDER) {
-    countByDay[day] = eventsByDay[day]?.length ?? 0;
-  }
+  // Count by day for badges (memoized — eventsByDay is stable module-level data)
+  const countByDay = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const day of DAY_ORDER) {
+      counts[day] = eventsByDay[day]?.length ?? 0;
+    }
+    return counts;
+  }, [eventsByDay]);
 
   return (
     <div ref={scrollRef} className="min-h-screen bg-bg-dark overflow-x-hidden">
@@ -398,7 +404,7 @@ export default function HomePage() {
         <TubesBackground
           className="h-full"
           enableClickInteraction
-          backgroundImage="/karaoke-hero-2.png"
+          backgroundImage="/karaoke-hero-2-optimized.jpg"
         >
           <div className="flex flex-col items-center justify-center h-full text-center px-6 max-w-3xl mx-auto pointer-events-auto">
             <div className="mb-8 animate-[fadeSlideUp_1s_ease-out_0.2s_both] relative">

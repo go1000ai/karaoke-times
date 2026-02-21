@@ -115,14 +115,12 @@ export default async function DashboardLayout({
   const user = await requireAuth();
   const supabase = await createClient();
 
-  // Get user profile
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("display_name, role")
-    .eq("id", user.id)
-    .single();
+  // Parallelize profile + role queries
+  const [{ data: profile }, role] = await Promise.all([
+    supabase.from("profiles").select("display_name, role").eq("id", user.id).single(),
+    getUserRole(user.id, supabase),
+  ]);
 
-  const role = await getUserRole(user.id, supabase);
   const isVenueRole = role === "venue_owner" || role === "kj" || role === "admin";
 
   // Only fetch venue data for venue-related roles
