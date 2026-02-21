@@ -4,24 +4,49 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
+  const error_param = searchParams.get("error");
+
+  // If Google/Supabase returned an error (e.g. user denied consent)
+  if (error_param) {
+    return NextResponse.redirect(`${origin}/signin?error=auth`);
+  }
 
   if (code) {
     const supabase = await createClient();
     const { error, data } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) {
-      // Check if admin to redirect to admin panel
-      if (data.user) {
+
+    if (!error && data.session) {
+      const user = data.user;
+
+      if (user) {
+        // Ensure profile exists (DB trigger may not have fired yet)
         const { data: profile } = await supabase
           .from("profiles")
           .select("role")
-          .eq("id", data.user.id)
+          .eq("id", user.id)
           .single();
+
+        // If no profile yet, create one from OAuth metadata
+        if (!profile) {
+          const meta = user.user_metadata || {};
+          await supabase.from("profiles").upsert({
+            id: user.id,
+            display_name: meta.full_name || meta.name || user.email?.split("@")[0] || "User",
+            avatar_url: meta.avatar_url || meta.picture || null,
+            role: "user",
+          });
+        }
+
         if (profile?.role === "admin") {
           return NextResponse.redirect(`${origin}/admin`);
         }
       }
+
       return NextResponse.redirect(`${origin}/dashboard`);
     }
+
+    // Log error for debugging
+    console.error("OAuth code exchange failed:", error?.message);
   }
 
   // Return the user to the sign-in page with an error

@@ -25,7 +25,7 @@ export default function TermsOfServicePage() {
             <h2 className="text-lg font-bold text-white mb-3">1. Acceptance of Terms</h2>
             <p>
               By accessing or using Karaoke Times (&quot;the Service&quot;), operated at
-              karaoke-times.vercel.app, you agree to be bound by these Terms of Service. If you do not
+              karaoketimes.net, you agree to be bound by these Terms of Service. If you do not
               agree to these terms, please do not use the Service.
             </p>
           </section>

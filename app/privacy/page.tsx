@@ -25,7 +25,7 @@ export default function PrivacyPolicyPage() {
             <h2 className="text-lg font-bold text-white mb-3">1. Introduction</h2>
             <p>
               Karaoke Times (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) operates the website at
-              karaoke-times.vercel.app and related services (the &quot;Service&quot;). This Privacy Policy
+              karaoketimes.net and related services (the &quot;Service&quot;). This Privacy Policy
               explains how we collect, use, disclose, and safeguard your information when you use our Service.
             </p>
           </section>

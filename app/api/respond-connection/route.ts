@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
           try {
             const resend = new Resend(process.env.RESEND_API_KEY);
             await resend.emails.send({
-              from: "Karaoke Times <reminders@karaoke-times.vercel.app>",
+              from: "Karaoke Times <reminders@karaoketimes.net>",
               to: targetUser.email,
               subject: `🎤 Connection accepted — ${venue.name}`,
               html: `
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
                       Your connection to <strong style="color: #d4a017;">${venue.name}</strong> has been accepted.
                       You can now manage the song queue and TV display.
                     </p>
-                    <a href="https://karaoke-times.vercel.app/dashboard" style="display: inline-block; background: #d4a017; color: #000; font-weight: 700; padding: 12px 24px; border-radius: 12px; text-decoration: none;">Go to Dashboard</a>
+                    <a href="https://karaoketimes.net/dashboard" style="display: inline-block; background: #d4a017; color: #000; font-weight: 700; padding: 12px 24px; border-radius: 12px; text-decoration: none;">Go to Dashboard</a>
                   </div>
                 </div>
               `,

@@ -246,7 +246,7 @@ export default function KJProfileEditPage() {
           <div>
             <p className="text-xs text-text-muted font-bold uppercase tracking-wider">Your Public Profile</p>
             <p className="text-sm text-primary font-semibold mt-0.5">
-              karaoke-times.vercel.app/kj/{profile.slug}
+              karaoketimes.net/kj/{profile.slug}
             </p>
           </div>
           <a

@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
         try {
           const resend = new Resend(process.env.RESEND_API_KEY);
           await resend.emails.send({
-            from: "Karaoke Times <reminders@karaoke-times.vercel.app>",
+            from: "Karaoke Times <reminders@karaoketimes.net>",
             to: ownerUser.email,
             subject: `🎤 ${kjName} wants to KJ at ${venue.name}`,
             html: `
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
                     <strong style="color: #d4a017;">${kjName}</strong> wants to connect to
                     <strong>${venue.name}</strong> as a KJ. Review the request from your dashboard.
                   </p>
-                  <a href="https://karaoke-times.vercel.app/dashboard/staff" style="display: inline-block; background: #d4a017; color: #000; font-weight: 700; padding: 12px 24px; border-radius: 12px; text-decoration: none;">Review Request</a>
+                  <a href="https://karaoketimes.net/dashboard/staff" style="display: inline-block; background: #d4a017; color: #000; font-weight: 700; padding: 12px 24px; border-radius: 12px; text-decoration: none;">Review Request</a>
                 </div>
               </div>
             `,

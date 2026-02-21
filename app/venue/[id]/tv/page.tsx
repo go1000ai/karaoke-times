@@ -337,7 +337,7 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
     );
   }
 
-  const queueUrl = `https://karaoke-times.vercel.app/venue/${id}/queue`;
+  const queueUrl = `https://karaoketimes.net/venue/${id}/queue`;
   const currentSlide = slides[slideIndex % Math.max(slides.length, 1)] ?? null;
 
   return (
@@ -610,7 +610,7 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
                     <p className="text-text-muted text-xs leading-snug mt-1 break-words">
                       Join the queue at{" "}
                       <span className="text-primary font-semibold">
-                        karaoke-times.vercel.app
+                        karaoketimes.net
                       </span>
                     </p>
                   </div>

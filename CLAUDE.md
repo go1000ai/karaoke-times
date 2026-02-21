@@ -29,7 +29,7 @@ npx tsx scripts/dedup-venues.ts      # Remove duplicate venues
 - **Database/Auth**: Supabase (PostgreSQL + Auth + Real-time + RLS)
 - **UI**: Radix UI primitives, Framer Motion, Lucide React + Material Icons (`material-icons-round`)
 - **Email**: Resend | **Maps**: MapLibre GL | **POS**: Toast API | **PWA**: web-push + VAPID
-- **Deployment**: Vercel at karaoke-times.vercel.app
+- **Deployment**: Vercel at karaoketimes.net
 
 ## Architecture
 

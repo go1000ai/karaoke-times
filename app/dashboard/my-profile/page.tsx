@@ -165,7 +165,7 @@ export default async function DashboardProfilePage() {
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="text-white font-bold truncate">{kjProfile.stage_name}</p>
-                  <p className="text-text-muted text-xs">karaoke-times.vercel.app/kj/{kjProfile.slug}</p>
+                  <p className="text-text-muted text-xs">karaoketimes.net/kj/{kjProfile.slug}</p>
                 </div>
               </div>
               {kjProfile.bio && (

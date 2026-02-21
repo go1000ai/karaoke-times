@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
   try {
     const resend = new Resend(process.env.RESEND_API_KEY);
     const { data, error } = await resend.emails.send({
-      from: "Karaoke Times <reminders@karaoke-times.vercel.app>",
+      from: "Karaoke Times <reminders@karaoketimes.net>",
       to: email,
       subject: `🎤 Reminder: ${eventTitle}`,
       html: `
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
               </table>
             </div>
 
-            <a href="https://karaoke-times.vercel.app" style="display: block; background: #d4a017; color: #000; text-align: center; padding: 14px 24px; border-radius: 12px; font-weight: 700; font-size: 14px; text-decoration: none;">
+            <a href="https://karaoketimes.net" style="display: block; background: #d4a017; color: #000; text-align: center; padding: 14px 24px; border-radius: 12px; font-weight: 700; font-size: 14px; text-decoration: none;">
               View on Karaoke Times
             </a>
           </div>
