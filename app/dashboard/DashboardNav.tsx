@@ -12,7 +12,7 @@ type NavLink = {
   label: string;
 };
 
-export function DashboardNav({ links }: { links: NavLink[] }) {
+export function DashboardNav({ links, isAdmin = false }: { links: NavLink[]; isAdmin?: boolean }) {
   const pathname = usePathname();
 
   return (
@@ -43,6 +43,18 @@ export function DashboardNav({ links }: { links: NavLink[] }) {
           </Link>
         );
       })}
+
+      {isAdmin && (
+        <div className="mt-3 pt-3 border-t border-border">
+          <Link
+            href="/admin"
+            className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-400 hover:bg-red-500/10 transition-colors"
+          >
+            <span className="material-icons-round text-xl text-red-400">admin_panel_settings</span>
+            Admin Panel
+          </Link>
+        </div>
+      )}
     </nav>
   );
 }
@@ -54,6 +66,7 @@ export function MobileDrawer({
   venues = [],
   activeVenueId = null,
   isVenueRole = false,
+  isAdmin = false,
   userName,
   userEmail,
 }: {
@@ -63,6 +76,7 @@ export function MobileDrawer({
   venues?: { id: string; name: string }[];
   activeVenueId?: string | null;
   isVenueRole?: boolean;
+  isAdmin?: boolean;
   userName?: string;
   userEmail?: string;
 }) {
@@ -171,6 +185,19 @@ export function MobileDrawer({
                   </Link>
                 );
               })}
+
+              {isAdmin && (
+                <div className="mt-3 pt-3 border-t border-border">
+                  <Link
+                    href="/admin"
+                    onClick={() => setOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-400 hover:bg-red-500/10 transition-colors"
+                  >
+                    <span className="material-icons-round text-xl text-red-400">admin_panel_settings</span>
+                    Admin Panel
+                  </Link>
+                </div>
+              )}
             </nav>
 
             {/* User Info + Sign Out */}

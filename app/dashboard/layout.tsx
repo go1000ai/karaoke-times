@@ -183,7 +183,7 @@ export default async function DashboardLayout({
           )}
         </div>
 
-        <DashboardNav links={sidebarLinks} />
+        <DashboardNav links={sidebarLinks} isAdmin={role === "admin"} />
 
         <div className="p-4 border-t border-border">
           <div className="px-3 py-2">
@@ -204,6 +204,7 @@ export default async function DashboardLayout({
         venues={isVenueRole ? allVenues : []}
         activeVenueId={venue?.id || null}
         isVenueRole={isVenueRole}
+        isAdmin={role === "admin"}
         userName={profile?.display_name || user.email?.split("@")[0]}
         userEmail={user.email}
       />
