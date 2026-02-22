@@ -93,8 +93,8 @@ export async function GET(request: NextRequest) {
     const nextOccurrence = getNextOccurrence(reminder.day_of_week, reminder.start_time);
     const hoursUntil = (nextOccurrence.getTime() - nyNow.getTime()) / (1000 * 60 * 60);
 
-    // 24-hour reminder (23-25 hour window)
-    if (hoursUntil >= 23 && hoursUntil <= 25) {
+    // 24-hour reminder (20-28 hour window — daily cron, wider window)
+    if (hoursUntil >= 20 && hoursUntil <= 28) {
       const lastSent = reminder.last_24h_reminder_at
         ? new Date(reminder.last_24h_reminder_at)
         : null;
@@ -119,8 +119,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 4-hour reminder (3-5 hour window)
-    if (hoursUntil >= 3 && hoursUntil <= 5) {
+    // 4-hour reminder (1-7 hour window — daily cron, wider window)
+    if (hoursUntil >= 1 && hoursUntil <= 7) {
       const lastSent = reminder.last_4h_reminder_at
         ? new Date(reminder.last_4h_reminder_at)
         : null;
