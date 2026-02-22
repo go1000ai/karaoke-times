@@ -192,19 +192,57 @@ export function AddToCalendar({
             </span>
           </button>
 
-          {/* Email Reminder — Coming Soon */}
+          {/* Email Reminder */}
           <div className="border-t border-border/50">
-            <div className="flex items-center gap-3 px-4 py-3 opacity-30 cursor-not-allowed w-full">
-              <span className="material-icons-round text-xl flex-shrink-0">
-                email
-              </span>
-              <span className="text-sm font-medium">
-                Email Reminder
-              </span>
-              <span className="ml-auto text-[10px] bg-white/10 px-2 py-0.5 rounded-full">
-                Soon
-              </span>
-            </div>
+            {sent ? (
+              <div className="flex items-center gap-3 px-4 py-3 text-green-400">
+                <span className="material-icons-round text-xl flex-shrink-0">check_circle</span>
+                <span className="text-sm font-medium">Reminder saved!</span>
+              </div>
+            ) : showEmailForm ? (
+              <div className="px-4 py-3 space-y-2">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Your email address"
+                  className="w-full bg-card-dark border border-border rounded-lg py-2 px-3 text-sm text-white placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-primary/30"
+                />
+                <button
+                  onClick={handleSendEmail}
+                  disabled={sending || !email}
+                  className="w-full bg-primary/10 text-primary text-sm font-semibold py-2 rounded-lg hover:bg-primary/20 transition-colors disabled:opacity-50"
+                >
+                  {sending ? "Saving..." : "Get Reminders (24h & 4h before)"}
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  if (user) {
+                    // Logged-in user: save reminder directly
+                    setSending(true);
+                    saveReminder().then(() => {
+                      setSent(true);
+                      setTimeout(() => {
+                        setSent(false);
+                        setOpen(false);
+                      }, 2000);
+                    }).finally(() => setSending(false));
+                  } else {
+                    // Guest: show email input
+                    setShowEmailForm(true);
+                  }
+                }}
+                className="flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors w-full text-left"
+              >
+                <span className="material-icons-round text-primary text-xl flex-shrink-0">email</span>
+                <div>
+                  <span className="text-sm text-white font-medium block">Email Reminders</span>
+                  <span className="text-[10px] text-text-muted">Get notified 24h & 4h before</span>
+                </div>
+              </button>
+            )}
           </div>
         </div>
       )}

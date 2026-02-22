@@ -52,6 +52,7 @@ export const adminNavSections: NavSection[] = [
     links: [
       { href: "/admin/support", icon: "support_agent", label: "Tickets" },
       { href: "/admin/announcements", icon: "campaign", label: "Announcements" },
+      { href: "/admin/newsletter", icon: "newspaper", label: "Newsletter" },
     ],
   },
   {

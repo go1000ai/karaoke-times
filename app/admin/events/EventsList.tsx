@@ -13,8 +13,15 @@ interface VenueEvent {
   end_time: string | null;
   is_active: boolean;
   notes: string | null;
+  recurrence_type?: string;
   venues: { name: string } | null;
 }
+
+const RECURRENCE_BADGES: Record<string, { label: string; cls: string }> = {
+  biweekly: { label: "Bi-weekly", cls: "bg-blue-500/10 text-blue-400" },
+  monthly: { label: "Monthly", cls: "bg-purple-500/10 text-purple-400" },
+  one_time: { label: "One-time", cls: "bg-white/5 text-text-muted" },
+};
 
 interface Props {
   groupedEvents: Record<string, VenueEvent[]>;
@@ -152,6 +159,11 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
                           <p className="text-sm text-white font-semibold truncate">{event.event_name}</p>
                           {event.is_active === false && (
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/10 text-red-400">Inactive</span>
+                          )}
+                          {event.recurrence_type && RECURRENCE_BADGES[event.recurrence_type] && (
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${RECURRENCE_BADGES[event.recurrence_type].cls}`}>
+                              {RECURRENCE_BADGES[event.recurrence_type].label}
+                            </span>
                           )}
                         </div>
                         <p className="text-xs text-text-muted truncate">

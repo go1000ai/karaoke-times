@@ -14,6 +14,7 @@ interface Venue {
   owner_id: string | null;
   is_private_room: boolean;
   queue_paused: boolean;
+  accessibility: string | null;
   created_at: string;
   profiles: any;
   _event_count: number;
@@ -34,6 +35,7 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [ownerFilter, setOwnerFilter] = useState<"all" | "assigned" | "unassigned">("all");
+  const [accessFilter, setAccessFilter] = useState("");
 
   const filteredVenues = venues.filter((v) => {
     const matchesSearch =
@@ -42,6 +44,8 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
       v.neighborhood.toLowerCase().includes(search.toLowerCase());
     if (ownerFilter === "assigned" && !v.owner_id) return false;
     if (ownerFilter === "unassigned" && v.owner_id) return false;
+    if (accessFilter === "unknown" && v.accessibility) return false;
+    if (accessFilter && accessFilter !== "unknown" && v.accessibility !== accessFilter) return false;
     return matchesSearch;
   });
 
@@ -98,6 +102,17 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
           <option value="assigned">Has Owner</option>
           <option value="unassigned">Unassigned</option>
         </select>
+        <select
+          value={accessFilter}
+          onChange={(e) => setAccessFilter(e.target.value)}
+          className="bg-card-dark border border-border rounded-xl px-4 py-3 text-sm text-white cursor-pointer"
+        >
+          <option value="">All Accessibility</option>
+          <option value="full">Full Access</option>
+          <option value="partial">Partial Access</option>
+          <option value="none">No Access</option>
+          <option value="unknown">Unknown</option>
+        </select>
       </div>
 
       {/* Venues List */}
@@ -112,6 +127,24 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
               )}
               {venue.queue_paused && (
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400">Queue Paused</span>
+              )}
+              {venue.accessibility === "full" && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 flex items-center gap-0.5">
+                  <span className="material-icons-round text-[10px]">accessible</span>
+                  Full
+                </span>
+              )}
+              {venue.accessibility === "partial" && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 flex items-center gap-0.5">
+                  <span className="material-icons-round text-[10px]">accessible</span>
+                  Partial
+                </span>
+              )}
+              {venue.accessibility === "none" && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 flex items-center gap-0.5">
+                  <span className="material-icons-round text-[10px]">not_accessible</span>
+                  None
+                </span>
               )}
             </div>
             <p className="text-xs text-text-secondary mt-1">

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { EventsList } from "./EventsList";
+import { CreateEventForm } from "./CreateEventForm";
 
 const DAY_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -30,12 +31,15 @@ export default async function AdminEventsPage() {
   const venueSet = new Set((events ?? []).map((e: any) => e.venue_id));
 
   return (
-    <EventsList
-      groupedEvents={grouped}
-      venues={(venues ?? []) as { id: string; name: string }[]}
-      totalActive={activeCount}
-      totalVenues={venueSet.size}
-      dayOrder={DAY_ORDER}
-    />
+    <>
+      <CreateEventForm venues={(venues ?? []) as { id: string; name: string }[]} />
+      <EventsList
+        groupedEvents={grouped}
+        venues={(venues ?? []) as { id: string; name: string }[]}
+        totalActive={activeCount}
+        totalVenues={venueSet.size}
+        dayOrder={DAY_ORDER}
+      />
+    </>
   );
 }

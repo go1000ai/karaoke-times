@@ -1,12 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { VenuesList } from "./VenuesList";
+import { CreateVenueForm } from "./CreateVenueForm";
 
 export default async function AdminVenuesPage() {
   const supabase = await createClient();
 
   const { data: venues } = await supabase
     .from("venues")
-    .select("id, name, address, city, state, neighborhood, owner_id, is_private_room, queue_paused, created_at, profiles(display_name)")
+    .select("id, name, address, city, state, neighborhood, owner_id, is_private_room, queue_paused, accessibility, created_at, profiles(display_name)")
     .order("name");
 
   // Event counts
@@ -48,5 +49,10 @@ export default async function AdminVenuesPage() {
     .select("id, display_name")
     .in("role", ["venue_owner", "admin"]);
 
-  return <VenuesList venues={venuesEnhanced} owners={owners ?? []} />;
+  return (
+    <>
+      <CreateVenueForm owners={owners ?? []} />
+      <VenuesList venues={venuesEnhanced} owners={owners ?? []} />
+    </>
+  );
 }

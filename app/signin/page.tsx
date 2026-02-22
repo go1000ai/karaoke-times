@@ -97,6 +97,16 @@ function SignInContent() {
           })
           .eq("id", data.user.id);
 
+        // Send welcome email (non-blocking)
+        fetch("/api/welcome-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email,
+            displayName: displayName || email.split("@")[0],
+          }),
+        }).catch(() => {});
+
         // Create venue for owners
         if (selectedRole === "venue_owner" && venueName.trim()) {
           await supabase.from("venues").insert({

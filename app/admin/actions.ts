@@ -262,6 +262,80 @@ export async function addTicketMessage(ticketId: string, message: string) {
   return { success: true };
 }
 
+// ─── Create Venue ────────────────────────────────────────────
+
+export async function createVenue(params: {
+  name: string;
+  address: string;
+  city?: string;
+  state?: string;
+  neighborhood?: string;
+  cross_street?: string;
+  phone?: string;
+  website?: string | null;
+  description?: string | null;
+  is_private_room?: boolean;
+  accessibility?: string | null;
+  owner_id?: string | null;
+}) {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("venues")
+    .insert({
+      name: params.name,
+      address: params.address || "",
+      city: params.city || "New York",
+      state: params.state || "New York",
+      neighborhood: params.neighborhood || "",
+      cross_street: params.cross_street || "",
+      phone: params.phone || "",
+      website: params.website || null,
+      description: params.description || null,
+      is_private_room: params.is_private_room || false,
+      accessibility: params.accessibility || null,
+      owner_id: params.owner_id || null,
+    })
+    .select("id")
+    .single();
+
+  if (error) return { error: error.message };
+  revalidatePath("/admin/venues");
+  return { success: true, venueId: data.id };
+}
+
+// ─── Create Event ────────────────────────────────────────────
+
+export async function createEvent(params: {
+  venue_id: string;
+  day_of_week: string;
+  event_name: string;
+  dj?: string;
+  start_time?: string;
+  end_time?: string;
+  notes?: string;
+  recurrence_type?: string;
+}) {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("venue_events").insert({
+    venue_id: params.venue_id,
+    day_of_week: params.day_of_week,
+    event_name: params.event_name || "",
+    dj: params.dj || "",
+    start_time: params.start_time || "",
+    end_time: params.end_time || "",
+    notes: params.notes || "",
+    recurrence_type: params.recurrence_type || "weekly",
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath("/admin/events");
+  return { success: true };
+}
+
 // ─── Announcements ──────────────────────────────────────────
 
 export async function sendAnnouncement(params: {

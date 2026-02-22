@@ -12,6 +12,21 @@ interface CalendarEvent {
   startTime: string;
   /** End time string, e.g. "2:00 AM" */
   endTime: string;
+  /** Recurrence type: weekly (default), biweekly, monthly, one_time */
+  recurrenceType?: string;
+}
+
+function getRecurrenceRule(type?: string): string | null {
+  switch (type) {
+    case "one_time":
+      return null;
+    case "biweekly":
+      return "RRULE:FREQ=WEEKLY;INTERVAL=2";
+    case "monthly":
+      return "RRULE:FREQ=MONTHLY";
+    default:
+      return "RRULE:FREQ=WEEKLY";
+  }
 }
 
 /**
@@ -111,13 +126,14 @@ export function getGoogleCalendarUrl(event: CalendarEvent): string {
     startParsed.hours
   );
 
+  const rrule = getRecurrenceRule(event.recurrenceType);
   const params = new URLSearchParams({
     action: "TEMPLATE",
     text: event.title,
     dates: `${toGoogleCalDate(start)}/${toGoogleCalDate(end)}`,
     details: event.description || `Karaoke night — ${event.startTime} to ${event.endTime}`,
     location: event.location || "",
-    recur: "RRULE:FREQ=WEEKLY", // Repeats weekly
+    ...(rrule ? { recur: rrule } : {}),
   });
 
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
@@ -166,7 +182,8 @@ export function downloadICSFile(event: CalendarEvent): void {
 
   const description = event.description || `Karaoke night — ${event.startTime} to ${event.endTime}`;
 
-  const icsContent = [
+  const rrule = getRecurrenceRule(event.recurrenceType);
+  const icsLines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
     "PRODID:-//Karaoke Times//EN",
@@ -176,11 +193,14 @@ export function downloadICSFile(event: CalendarEvent): void {
     `SUMMARY:${event.title}`,
     `DESCRIPTION:${description.replace(/\n/g, "\\n")}`,
     `LOCATION:${event.location || ""}`,
-    "RRULE:FREQ=WEEKLY",
+  ];
+  if (rrule) icsLines.push(rrule);
+  icsLines.push(
     `UID:${Date.now()}@karaoke-times`,
     "END:VEVENT",
-    "END:VCALENDAR",
-  ].join("\r\n");
+    "END:VCALENDAR"
+  );
+  const icsContent = icsLines.join("\r\n");
 
   const blob = new Blob([icsContent], { type: "text/calendar;charset=utf-8" });
   const url = URL.createObjectURL(blob);

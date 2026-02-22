@@ -106,6 +106,23 @@ export default function AddEventPage() {
             </div>
           </div>
 
+          {/* Recurrence */}
+          <div>
+            <label className="text-xs uppercase tracking-wider text-primary font-bold mb-2 block">
+              Recurrence
+            </label>
+            <div className="flex items-center gap-2 mb-1">
+              <input type="checkbox" id="recurring" className="w-4 h-4 rounded accent-primary" />
+              <label htmlFor="recurring" className="text-sm text-text-secondary cursor-pointer">This is a recurring event</label>
+            </div>
+            <select className="w-full bg-card-dark border border-border rounded-2xl py-3.5 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary">
+              <option value="weekly">Every Week</option>
+              <option value="biweekly">Every 2 Weeks</option>
+              <option value="monthly">Monthly</option>
+              <option value="one_time">One-Time Event</option>
+            </select>
+          </div>
+
           {/* Event Flyer Upload */}
           <div>
             <label className="text-xs uppercase tracking-wider text-primary font-bold mb-2 block">

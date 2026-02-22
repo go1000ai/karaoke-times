@@ -36,6 +36,7 @@ interface SupabaseVenue {
   state: string;
   neighborhood: string | null;
   is_private_room: boolean;
+  accessibility: string | null;
 }
 
 const FAVORITES_KEY = "kt-favorites";
@@ -96,7 +97,7 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
     const supabase = createClient();
     supabase
       .from("venues")
-      .select("id, name, address, city, state, neighborhood, is_private_room")
+      .select("id, name, address, city, state, neighborhood, is_private_room, accessibility")
       .eq("id", id)
       .single()
       .then(({ data }) => {
@@ -305,12 +306,32 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
             <span className="material-icons-round text-sm">location_on</span>
             {venue.neighborhood ? `${venue.neighborhood}, ` : ""}{venue.city}
           </p>
-          {venue.isPrivateRoom && (
-            <span className="inline-flex items-center gap-1 mt-2 bg-purple-500/10 text-purple-400 text-xs px-3 py-1 rounded-full font-bold">
-              <span className="material-icons-round text-sm">door_sliding</span>
-              Private Room
-            </span>
-          )}
+          <div className="flex flex-wrap gap-2 mt-2">
+            {venue.isPrivateRoom && (
+              <span className="inline-flex items-center gap-1 bg-purple-500/10 text-purple-400 text-xs px-3 py-1 rounded-full font-bold">
+                <span className="material-icons-round text-sm">door_sliding</span>
+                Private Room
+              </span>
+            )}
+            {dbVenue?.accessibility === "full" && (
+              <span className="inline-flex items-center gap-1 bg-green-500/10 text-green-400 text-xs px-3 py-1 rounded-full font-bold">
+                <span className="material-icons-round text-sm">accessible</span>
+                Fully Accessible
+              </span>
+            )}
+            {dbVenue?.accessibility === "partial" && (
+              <span className="inline-flex items-center gap-1 bg-yellow-500/10 text-yellow-400 text-xs px-3 py-1 rounded-full font-bold">
+                <span className="material-icons-round text-sm">accessible</span>
+                Partial Access
+              </span>
+            )}
+            {dbVenue?.accessibility === "none" && (
+              <span className="inline-flex items-center gap-1 bg-red-500/10 text-red-400 text-xs px-3 py-1 rounded-full font-bold">
+                <span className="material-icons-round text-sm">not_accessible</span>
+                Not Accessible
+              </span>
+            )}
+          </div>
         </div>
 
         {/* About / Event Info */}
