@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
-import { getReminderEmailHtml } from "@/lib/email-templates";
+import { getReminderEmailHtml, getNewsletterEmailHtml } from "@/lib/email-templates";
+import { gatherNewsletterData, generateNewsletter } from "@/lib/newsletter-ai";
+
+export const maxDuration = 60;
 
 /**
  * Parse a time string like "9:00 PM" into hours (24h format).
@@ -70,6 +73,68 @@ export async function GET(request: NextRequest) {
   );
 
   const resend = new Resend(process.env.RESEND_API_KEY);
+
+  // ─── Monthly Newsletter (1st of each month) ───
+  let newsletterResult: any = null;
+  const nyDate = new Date(
+    new Date().toLocaleString("en-US", { timeZone: "America/New_York" })
+  );
+
+  if (nyDate.getDate() === 1 && process.env.ANTHROPIC_API_KEY) {
+    try {
+      const monthStart = new Date(nyDate.getFullYear(), nyDate.getMonth(), 1);
+      const { data: existingNewsletter } = await adminSupabase
+        .from("newsletters")
+        .select("id")
+        .gte("created_at", monthStart.toISOString())
+        .limit(1);
+
+      if (!existingNewsletter || existingNewsletter.length === 0) {
+        const data = await gatherNewsletterData();
+        const { subject, bodyHtml } = await generateNewsletter(data);
+        const html = getNewsletterEmailHtml(subject, bodyHtml);
+
+        const { data: authData } = await adminSupabase.auth.admin.listUsers({
+          perPage: 1000,
+        });
+        const emails = (authData?.users ?? [])
+          .map((u) => u.email)
+          .filter((e): e is string => !!e);
+
+        let totalSent = 0;
+        for (let i = 0; i < emails.length; i += 50) {
+          const batch = emails.slice(i, i + 50);
+          const batchEmails = batch.map((to) => ({
+            from: "Karaoke Times <reminders@karaoketimes.net>",
+            to,
+            subject,
+            html,
+          }));
+          try {
+            await resend.batch.send(batchEmails);
+            totalSent += batch.length;
+          } catch (batchErr) {
+            console.error(`Newsletter batch ${i} failed:`, batchErr);
+          }
+        }
+
+        await adminSupabase.from("newsletters").insert({
+          subject,
+          body_html: bodyHtml,
+          sent_by: null,
+          recipient_count: totalSent,
+          source: "ai_auto",
+        });
+
+        newsletterResult = { sent: totalSent, subject };
+      } else {
+        newsletterResult = { skipped: "Already sent this month" };
+      }
+    } catch (err) {
+      console.error("Auto newsletter failed:", err);
+      newsletterResult = { error: err instanceof Error ? err.message : "Unknown error" };
+    }
+  }
 
   // Get all active reminders
   const { data: reminders } = await adminSupabase
@@ -146,5 +211,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ sent24h, sent4h, total: reminders.length });
+  return NextResponse.json({ sent24h, sent4h, total: reminders.length, newsletter: newsletterResult });
 }

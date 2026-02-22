@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Admin only" }, { status: 403 });
   }
 
-  const { subject, bodyHtml } = await request.json();
+  const { subject, bodyHtml, source } = await request.json();
   if (!subject || !bodyHtml) {
     return NextResponse.json({ error: "Subject and body are required" }, { status: 400 });
   }
@@ -89,6 +89,7 @@ export async function POST(request: NextRequest) {
       body_html: bodyHtml,
       sent_by: user.id,
       recipient_count: totalSent,
+      source: source || "manual",
     });
 
     return NextResponse.json({ success: true, count: totalSent });
