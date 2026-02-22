@@ -29,6 +29,16 @@ body {
   color: var(--color-text-primary);
 }
 
+/* Prevent raw icon text from showing when Material Icons font fails to load */
+.material-icons-round {
+  overflow: hidden;
+  width: 1em;
+  height: 1em;
+  display: inline-block;
+  vertical-align: middle;
+  line-height: 1;
+}
+
 /* Material Icons base styles + FOUT prevention.
    font-display:block in the Google Fonts URL (layout.tsx) hides text during load.
    The overflow:hidden ensures long ligature names (e.g. "door_sliding") don't
