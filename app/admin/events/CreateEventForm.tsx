@@ -77,31 +77,19 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
   const [venueFeedback, setVenueFeedback] = useState<string | null>(null);
   const [selectedVenueId, setSelectedVenueId] = useState("");
 
-  // Prompt generator state
-  const [generatedPrompt, setGeneratedPrompt] = useState<string | null>(null);
-  const [copiedPrompt, setCopiedPrompt] = useState(false);
-
-  // Flyer prompt extras (shown after event creation)
+  // Flyer & Prompt section
   const [promptTheme, setPromptTheme] = useState("");
   const [promptMood, setPromptMood] = useState("");
   const [promptColors, setPromptColors] = useState<string[]>([]);
   const [promptFeatures, setPromptFeatures] = useState<string[]>([]);
+  const [generatedPrompt, setGeneratedPrompt] = useState<string | null>(null);
+  const [copiedPrompt, setCopiedPrompt] = useState(false);
 
   const selectClass =
     "w-full bg-card-dark border border-border rounded-xl py-3 px-4 text-sm text-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50";
   const inputClass =
     "w-full bg-card-dark border border-border rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 placeholder:text-text-muted";
   const labelClass = "text-xs text-text-muted uppercase tracking-wider font-bold mb-1.5 block";
-
-  function handleVenueSelect(value: string) {
-    if (value === "__new__") {
-      setShowNewVenue(true);
-      setSelectedVenueId("");
-    } else {
-      setShowNewVenue(false);
-      setSelectedVenueId(value);
-    }
-  }
 
   async function handleCreateVenue(formData: FormData) {
     const name = (formData.get("new_venue_name") as string)?.trim();
@@ -175,11 +163,7 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
 
       if (result.success) {
         const venueName = venues.find((v) => v.id === venueId)?.name || "";
-        const flyerParams = new URLSearchParams({
-          eventName,
-          startTime,
-          endTime,
-        });
+        const flyerParams = new URLSearchParams({ eventName, startTime, endTime });
         if (dj) flyerParams.set("dj", dj);
         if (notes) flyerParams.set("notes", notes);
         if (happyHour) flyerParams.set("drinkSpecials", happyHour);
@@ -191,11 +175,12 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
           eventData: { eventName, venueName, startTime, endTime, dj, notes, happyHour, dressCode, coverCharge },
         });
         setSelectedRestrictions([]);
-        setGeneratedPrompt(null);
-        setPromptTheme("");
-        setPromptMood("");
-        setPromptColors([]);
-        setPromptFeatures([]);
+
+        // Auto-generate prompt if flyer options were filled in
+        if (promptTheme || promptMood || promptColors.length > 0 || promptFeatures.length > 0) {
+          generatePromptFromData({ eventName, venueName, startTime, endTime, dj, notes, happyHour, dressCode, coverCharge });
+        }
+
         router.refresh();
       } else {
         setFeedback({ type: "error", text: result.error || "Failed to create event" });
@@ -203,60 +188,54 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
     });
   }
 
-  function buildPrompt() {
-    if (!feedback?.eventData) return;
-    const { eventName, venueName, startTime, endTime, dj, notes, happyHour, dressCode, coverCharge } = feedback.eventData;
-
+  function generatePromptFromData(data: { eventName: string; venueName: string; startTime: string; endTime: string; dj: string; notes: string; happyHour: string; dressCode: string; coverCharge: string }) {
     const lines: string[] = [];
 
-    lines.push(`Design a professional, eye-catching event flyer for "${eventName}" at ${venueName || "a karaoke venue"}.`);
+    lines.push(`Design a professional, eye-catching event flyer for "${data.eventName}" at ${data.venueName || "a karaoke venue"}.`);
 
-    if (promptTheme) {
-      lines.push(`Theme: ${promptTheme}.`);
-    }
-    if (promptMood) {
-      lines.push(`Mood/atmosphere: ${promptMood}.`);
-    }
+    if (promptTheme) lines.push(`Theme: ${promptTheme}.`);
+    if (promptMood) lines.push(`Mood/atmosphere: ${promptMood}.`);
 
-    const timeParts: string[] = [];
-    if (startTime) {
-      timeParts.push(endTime ? `${startTime} - ${endTime}` : `Starting at ${startTime}`);
-    }
-    if (timeParts.length > 0) {
-      lines.push(`The flyer should prominently display: ${timeParts.join(", ")}.`);
+    if (data.startTime) {
+      lines.push(`The flyer should prominently display: ${data.endTime ? `${data.startTime} - ${data.endTime}` : `Starting at ${data.startTime}`}.`);
     }
 
-    const colorNames = promptColors.map((hex) => {
-      const preset = COLOR_PRESETS.find((c) => c.hex === hex);
-      return preset ? preset.name : hex;
-    });
-    if (colorNames.length > 0) {
-      lines.push(`Color palette: ${colorNames.join(", ")}. Use these as the dominant colors.`);
-    }
+    const colorNames = promptColors.map((hex) => COLOR_PRESETS.find((c) => c.hex === hex)?.name || hex);
+    if (colorNames.length > 0) lines.push(`Color palette: ${colorNames.join(", ")}. Use these as the dominant colors.`);
 
-    if (dressCode && dressCode !== "casual") {
-      lines.push(`Dress code: ${dressCode}.`);
-    }
-
-    if (promptFeatures.length > 0) {
-      lines.push(`Special features to highlight: ${promptFeatures.join(", ")}.`);
-    }
+    if (data.dressCode && data.dressCode !== "casual") lines.push(`Dress code: ${data.dressCode}.`);
+    if (promptFeatures.length > 0) lines.push(`Special features to highlight: ${promptFeatures.join(", ")}.`);
 
     const specials: string[] = [];
-    if (happyHour) specials.push(`Drink specials: ${happyHour}`);
-    if (dj) specials.push(`KJ/DJ: ${dj}`);
-    if (notes) specials.push(notes);
-    if (specials.length > 0) {
-      lines.push(`Include these details on the flyer: ${specials.join(". ")}.`);
-    }
+    if (data.happyHour) specials.push(`Drink specials: ${data.happyHour}`);
+    if (data.dj) specials.push(`KJ/DJ: ${data.dj}`);
+    if (data.notes) specials.push(data.notes);
+    if (specials.length > 0) lines.push(`Include these details on the flyer: ${specials.join(". ")}.`);
 
-    if (coverCharge && coverCharge !== "free") {
-      lines.push(`Cover charge: ${coverCharge}.`);
-    }
+    if (data.coverCharge && data.coverCharge !== "free") lines.push(`Cover charge: ${data.coverCharge}.`);
 
     lines.push("Style: Bold typography, vibrant nightlife aesthetic, suitable for social media and print. Include a microphone or karaoke visual element. Make the text legible and the layout clean.");
 
     setGeneratedPrompt(lines.join("\n\n"));
+  }
+
+  function buildPromptNow() {
+    // Build prompt from whatever form data is currently filled in
+    const form = document.querySelector("form") as HTMLFormElement;
+    if (!form) return;
+    const fd = new FormData(form);
+
+    const eventName = (fd.get("event_name") as string)?.trim() || "Karaoke Night";
+    const venueName = venues.find((v) => v.id === (selectedVenueId || fd.get("venue_id")))?.name || "";
+    const startTime = (fd.get("start_time") as string) || "";
+    const endTime = (fd.get("end_time") as string) || "";
+    const dj = (fd.get("dj") as string) || "";
+    const notes = (fd.get("notes") as string) || "";
+    const happyHour = (fd.get("happy_hour_details") as string) || "";
+    const dressCode = (fd.get("dress_code") as string) || "casual";
+    const coverCharge = (fd.get("cover_charge") as string) || "free";
+
+    generatePromptFromData({ eventName, venueName, startTime, endTime, dj, notes, happyHour, dressCode, coverCharge });
   }
 
   return (
@@ -277,24 +256,36 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
       {open && (
         <div className="border-t border-border/20 p-5">
           <form action={handleSubmit} className="space-y-4">
-            {/* Venue & Day */}
+            {/* ── Venue Selection + Add New ── */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>Venue *</label>
-                <select
-                  name="venue_id"
-                  required={!selectedVenueId}
-                  value={showNewVenue ? "__new__" : selectedVenueId}
-                  onChange={(e) => handleVenueSelect(e.target.value)}
-                  className={selectClass}
-                >
-                  <option value="">Select venue...</option>
-                  {venues.map((v) => (
-                    <option key={v.id} value={v.id}>{v.name}</option>
-                  ))}
-                  <option value="__new__">+ Add New Venue</option>
-                </select>
-                {/* Hidden input to pass the selected venue id when using state */}
+                <div className="flex gap-2">
+                  <select
+                    name="venue_id"
+                    required={!selectedVenueId}
+                    value={selectedVenueId}
+                    onChange={(e) => { setSelectedVenueId(e.target.value); setShowNewVenue(false); }}
+                    className={`${selectClass} flex-1`}
+                  >
+                    <option value="">Select venue...</option>
+                    {venues.map((v) => (
+                      <option key={v.id} value={v.id}>{v.name}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setShowNewVenue(!showNewVenue)}
+                    className={`shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold transition-colors ${
+                      showNewVenue
+                        ? "bg-accent text-black"
+                        : "bg-accent/20 text-accent border border-accent/30 hover:bg-accent/30"
+                    }`}
+                  >
+                    <span className="material-icons-round text-lg">add_business</span>
+                    <span className="hidden sm:inline">New Venue</span>
+                  </button>
+                </div>
                 {selectedVenueId && <input type="hidden" name="venue_id" value={selectedVenueId} />}
               </div>
               <div>
@@ -308,17 +299,17 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
               </div>
             </div>
 
-            {/* Inline New Venue Fields */}
+            {/* ── Inline New Venue Form ── */}
             {showNewVenue && (
-              <div className="rounded-xl border border-accent/30 bg-accent/5 p-4 space-y-3">
-                <div className="flex items-center gap-2 mb-2">
+              <div className="rounded-xl border border-accent/30 bg-accent/5 p-4 space-y-3 animate-[fadeIn_0.2s_ease-out]">
+                <div className="flex items-center gap-2 mb-1">
                   <span className="material-icons-round text-accent text-lg">add_business</span>
-                  <h3 className="text-sm font-bold text-white">New Venue Details</h3>
+                  <h3 className="text-sm font-bold text-white">Add New Venue</h3>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className={labelClass}>Venue Name *</label>
-                    <input name="new_venue_name" type="text" required placeholder="e.g. Fusion East" className={inputClass} />
+                    <input name="new_venue_name" type="text" placeholder="e.g. Fusion East" className={inputClass} />
                   </div>
                   <div>
                     <label className={labelClass}>Address</label>
@@ -366,7 +357,7 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setShowNewVenue(false); setSelectedVenueId(""); }}
+                    onClick={() => setShowNewVenue(false)}
                     className="px-4 py-2 rounded-xl bg-white/5 text-text-secondary text-sm font-semibold hover:bg-white/10 transition-colors"
                   >
                     Cancel
@@ -375,7 +366,7 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
               </div>
             )}
 
-            {/* Event Name & KJ */}
+            {/* ── Event Name & KJ ── */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>Event Name</label>
@@ -387,7 +378,7 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
               </div>
             </div>
 
-            {/* Start Time, End Time, Recurrence */}
+            {/* ── Start Time, End Time, Recurrence ── */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className={labelClass}>Start Time *</label>
@@ -417,7 +408,7 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
               </div>
             </div>
 
-            {/* Event Date & Happy Hour */}
+            {/* ── Event Date & Happy Hour ── */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>Event Date</label>
@@ -429,7 +420,7 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
               </div>
             </div>
 
-            {/* Notes */}
+            {/* ── Notes ── */}
             <div>
               <label className={labelClass}>Notes</label>
               <textarea
@@ -440,7 +431,7 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
               />
             </div>
 
-            {/* Event Rules */}
+            {/* ── Event Rules ── */}
             <div className="border-t border-border pt-4 mt-4">
               <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
                 <span className="material-icons-round text-base text-red-400">rule</span>
@@ -508,21 +499,115 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
               </div>
             </div>
 
+            {/* ── Flyer & Prompt Options ── */}
+            <div className="border-t border-border pt-4 mt-4">
+              <h4 className="text-sm font-bold text-white mb-1 flex items-center gap-2">
+                <span className="material-icons-round text-base text-accent">auto_awesome</span>
+                Flyer & Prompt Generator
+              </h4>
+              <p className="text-text-muted text-xs mb-3">
+                Customize flyer options here. After creating the event, you can generate an AI flyer or copy a prompt for Nano Banana / DALL-E.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                <div>
+                  <label className={labelClass}>Theme / Genre</label>
+                  <select
+                    value={promptTheme}
+                    onChange={(e) => setPromptTheme(e.target.value)}
+                    className={selectClass}
+                  >
+                    <option value="">Select a theme...</option>
+                    {THEME_OPTIONS.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelClass}>Mood / Atmosphere</label>
+                  <input
+                    type="text"
+                    value={promptMood}
+                    onChange={(e) => setPromptMood(e.target.value)}
+                    placeholder="e.g. High-energy, neon vibes"
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <label className={labelClass}>Flyer Colors</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {COLOR_PRESETS.map((color) => (
+                    <button
+                      key={color.hex}
+                      type="button"
+                      onClick={() =>
+                        setPromptColors((prev) =>
+                          prev.includes(color.hex)
+                            ? prev.filter((c) => c !== color.hex)
+                            : [...prev, color.hex]
+                        )
+                      }
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-colors ${
+                        promptColors.includes(color.hex)
+                          ? "bg-white/15 text-white border-2 border-white/60"
+                          : "bg-white/5 text-text-muted border border-border hover:border-white/30"
+                      }`}
+                    >
+                      <span
+                        className="w-2.5 h-2.5 rounded-full inline-block border border-white/20"
+                        style={{ backgroundColor: color.hex }}
+                      />
+                      {color.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className={labelClass}>Features to Highlight</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {FEATURE_OPTIONS.map((feature) => (
+                    <button
+                      key={feature}
+                      type="button"
+                      onClick={() =>
+                        setPromptFeatures((prev) =>
+                          prev.includes(feature)
+                            ? prev.filter((f) => f !== feature)
+                            : [...prev, feature]
+                        )
+                      }
+                      className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-colors border ${
+                        promptFeatures.includes(feature)
+                          ? "bg-accent/20 text-accent border-accent/40"
+                          : "bg-white/5 text-text-muted border-border hover:border-accent/30"
+                      }`}
+                    >
+                      {promptFeatures.includes(feature) && <span className="mr-0.5">&#10003;</span>}
+                      {feature}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* ── Error ── */}
             {feedback && feedback.type === "error" && (
               <div className="rounded-xl p-3 text-sm bg-red-500/10 text-red-400">
                 {feedback.text}
               </div>
             )}
 
-            {/* Success State with Flyer + Prompt Generator */}
+            {/* ── Success State ── */}
             {feedback && feedback.type === "success" && (
-              <div className="rounded-2xl border border-green-500/30 bg-green-500/5 p-5 space-y-5">
+              <div className="rounded-2xl border border-green-500/30 bg-green-500/5 p-5 space-y-4">
                 <div className="flex items-center gap-2">
                   <span className="material-icons-round text-green-400">check_circle</span>
                   <span className="text-green-400 font-bold">{feedback.text}</span>
                 </div>
 
-                {/* Primary actions: Create Flyer / Create Another */}
                 <div className="flex flex-col sm:flex-row gap-3">
                   {feedback.flyerUrl && (
                     <Link
@@ -530,12 +615,12 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
                       className="flex items-center justify-center gap-2 bg-accent hover:bg-accent/90 text-black font-bold px-6 py-3 rounded-xl transition-colors text-sm"
                     >
                       <span className="material-icons-round text-lg">auto_awesome</span>
-                      Create Flyer for This Event
+                      Create Flyer
                     </Link>
                   )}
                   <button
                     type="button"
-                    onClick={() => { setFeedback(null); setOpen(false); setTimeout(() => setOpen(true), 50); }}
+                    onClick={() => { setFeedback(null); setGeneratedPrompt(null); setOpen(false); setTimeout(() => setOpen(true), 50); }}
                     className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-text-secondary font-semibold px-6 py-3 rounded-xl transition-colors text-sm"
                   >
                     <span className="material-icons-round text-lg">add</span>
@@ -543,159 +628,118 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
                   </button>
                 </div>
 
-                {/* Prompt Generator Section */}
-                <div className="border-t border-border/30 pt-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="material-icons-round text-accent text-lg">description</span>
-                    <h4 className="text-sm font-bold text-white">Generate AI Flyer Prompt</h4>
-                    <span className="text-text-muted text-xs">(for Nano Banana, DALL-E, etc.)</span>
-                  </div>
-
-                  {!generatedPrompt ? (
-                    <div className="space-y-3">
-                      {/* Optional customization for the prompt */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className={labelClass}>Theme / Genre</label>
-                          <select
-                            value={promptTheme}
-                            onChange={(e) => setPromptTheme(e.target.value)}
-                            className={selectClass}
-                          >
-                            <option value="">Select a theme...</option>
-                            {THEME_OPTIONS.map((t) => (
-                              <option key={t} value={t}>{t}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className={labelClass}>Mood / Atmosphere</label>
-                          <input
-                            type="text"
-                            value={promptMood}
-                            onChange={(e) => setPromptMood(e.target.value)}
-                            placeholder="e.g. High-energy, neon vibes"
-                            className={inputClass}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Color picks */}
-                      <div>
-                        <label className={labelClass}>Flyer Colors (Optional)</label>
-                        <div className="flex flex-wrap gap-1.5">
-                          {COLOR_PRESETS.map((color) => (
-                            <button
-                              key={color.hex}
-                              type="button"
-                              onClick={() =>
-                                setPromptColors((prev) =>
-                                  prev.includes(color.hex)
-                                    ? prev.filter((c) => c !== color.hex)
-                                    : [...prev, color.hex]
-                                )
-                              }
-                              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-colors ${
-                                promptColors.includes(color.hex)
-                                  ? "bg-white/15 text-white border-2 border-white/60"
-                                  : "bg-white/5 text-text-muted border border-border hover:border-white/30"
-                              }`}
-                            >
-                              <span
-                                className="w-2.5 h-2.5 rounded-full inline-block border border-white/20"
-                                style={{ backgroundColor: color.hex }}
-                              />
-                              {color.name}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Feature tags */}
-                      <div>
-                        <label className={labelClass}>Features to Highlight (Optional)</label>
-                        <div className="flex flex-wrap gap-1.5">
-                          {FEATURE_OPTIONS.map((feature) => (
-                            <button
-                              key={feature}
-                              type="button"
-                              onClick={() =>
-                                setPromptFeatures((prev) =>
-                                  prev.includes(feature)
-                                    ? prev.filter((f) => f !== feature)
-                                    : [...prev, feature]
-                                )
-                              }
-                              className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-colors border ${
-                                promptFeatures.includes(feature)
-                                  ? "bg-accent/20 text-accent border-accent/40"
-                                  : "bg-white/5 text-text-muted border-border hover:border-accent/30"
-                              }`}
-                            >
-                              {promptFeatures.includes(feature) && <span className="mr-0.5">&#10003;</span>}
-                              {feature}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={buildPrompt}
-                        className="flex items-center gap-2 bg-accent/20 hover:bg-accent/30 text-accent font-bold px-5 py-2.5 rounded-xl transition-colors border border-accent/30 text-sm"
-                      >
-                        <span className="material-icons-round text-lg">description</span>
-                        Generate Prompt
-                      </button>
+                {/* Generated Prompt */}
+                {generatedPrompt && (
+                  <div className="border-t border-border/30 pt-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="material-icons-round text-accent text-lg">description</span>
+                      <h4 className="text-sm font-bold text-white">Your AI Flyer Prompt</h4>
                     </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="bg-white/5 border border-border rounded-xl p-4">
-                        <p className="text-text-secondary text-sm whitespace-pre-line leading-relaxed">
-                          {generatedPrompt}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            navigator.clipboard.writeText(generatedPrompt);
-                            setCopiedPrompt(true);
-                            setTimeout(() => setCopiedPrompt(false), 2000);
-                          }}
-                          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 transition-colors"
-                        >
-                          <span className="material-icons-round text-sm">
-                            {copiedPrompt ? "check" : "content_copy"}
-                          </span>
-                          {copiedPrompt ? "Copied!" : "Copy Prompt"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setGeneratedPrompt(null)}
-                          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold bg-white/5 text-text-secondary hover:bg-white/10 transition-colors"
-                        >
-                          <span className="material-icons-round text-sm">refresh</span>
-                          Edit & Regenerate
-                        </button>
-                      </div>
-                      <p className="text-text-muted text-xs">
-                        Copy this prompt and paste it into Nano Banana, DALL-E, Midjourney, or any AI image generator.
+                    <div className="bg-white/5 border border-border rounded-xl p-4">
+                      <p className="text-text-secondary text-sm whitespace-pre-line leading-relaxed">
+                        {generatedPrompt}
                       </p>
                     </div>
-                  )}
-                </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(generatedPrompt);
+                          setCopiedPrompt(true);
+                          setTimeout(() => setCopiedPrompt(false), 2000);
+                        }}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 transition-colors"
+                      >
+                        <span className="material-icons-round text-sm">
+                          {copiedPrompt ? "check" : "content_copy"}
+                        </span>
+                        {copiedPrompt ? "Copied!" : "Copy Prompt"}
+                      </button>
+                    </div>
+                    <p className="text-text-muted text-xs">
+                      Paste this into Nano Banana, DALL-E, Midjourney, or any AI image generator.
+                    </p>
+                  </div>
+                )}
+
+                {/* Manual prompt generation if flyer options were empty */}
+                {!generatedPrompt && feedback.eventData && (
+                  <div className="border-t border-border/30 pt-3">
+                    <button
+                      type="button"
+                      onClick={() => { if (feedback.eventData) generatePromptFromData(feedback.eventData); }}
+                      className="flex items-center gap-2 text-accent hover:text-accent/80 text-sm font-bold transition-colors"
+                    >
+                      <span className="material-icons-round text-lg">description</span>
+                      Generate AI Prompt for Nano Banana / DALL-E
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
+            {/* ── Submit Buttons ── */}
             {(!feedback || feedback.type !== "success") && (
-              <button
-                type="submit"
-                disabled={isPending || (showNewVenue && !selectedVenueId)}
-                className="px-6 py-3 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition-colors disabled:opacity-50"
-              >
-                {isPending ? "Creating..." : "Create Event"}
-              </button>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  type="submit"
+                  disabled={isPending || (showNewVenue && !selectedVenueId)}
+                  className="flex-1 px-6 py-3 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition-colors disabled:opacity-50"
+                >
+                  {isPending ? "Creating..." : "Create Event"}
+                </button>
+                <button
+                  type="button"
+                  onClick={buildPromptNow}
+                  className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-accent/20 text-accent text-sm font-bold border border-accent/30 hover:bg-accent/30 transition-colors"
+                >
+                  <span className="material-icons-round text-lg">description</span>
+                  Generate Prompt Only
+                </button>
+              </div>
+            )}
+
+            {/* Prompt-only output (shown without creating event) */}
+            {generatedPrompt && (!feedback || feedback.type !== "success") && (
+              <div className="rounded-2xl border border-accent/30 bg-accent/5 p-5 space-y-3 animate-[fadeIn_0.2s_ease-out]">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="material-icons-round text-accent text-lg">description</span>
+                    <h4 className="text-sm font-bold text-white">Your AI Flyer Prompt</h4>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setGeneratedPrompt(null)}
+                    className="p-1 rounded-lg text-text-muted hover:text-white hover:bg-white/10 transition-colors"
+                  >
+                    <span className="material-icons-round text-sm">close</span>
+                  </button>
+                </div>
+                <div className="bg-white/5 border border-border rounded-xl p-4">
+                  <p className="text-text-secondary text-sm whitespace-pre-line leading-relaxed">
+                    {generatedPrompt}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(generatedPrompt);
+                      setCopiedPrompt(true);
+                      setTimeout(() => setCopiedPrompt(false), 2000);
+                    }}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 transition-colors"
+                  >
+                    <span className="material-icons-round text-sm">
+                      {copiedPrompt ? "check" : "content_copy"}
+                    </span>
+                    {copiedPrompt ? "Copied!" : "Copy Prompt"}
+                  </button>
+                </div>
+                <p className="text-text-muted text-xs">
+                  Paste this into Nano Banana, DALL-E, Midjourney, or any AI image generator.
+                </p>
+              </div>
             )}
           </form>
         </div>
