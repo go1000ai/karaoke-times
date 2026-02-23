@@ -1,8 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { EventsList } from "./EventsList";
 import { CreateEventForm } from "./CreateEventForm";
-import { CreateVenueQuickForm } from "@/components/CreateVenueQuickForm";
-import { createVenue } from "../actions";
 
 const DAY_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -34,7 +32,6 @@ export default async function AdminEventsPage() {
 
   return (
     <>
-      <CreateVenueQuickForm onCreateVenue={createVenue} />
       <CreateEventForm venues={(venues ?? []) as { id: string; name: string }[]} />
       <EventsList
         groupedEvents={grouped}
