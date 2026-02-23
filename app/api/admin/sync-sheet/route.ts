@@ -523,6 +523,7 @@ async function saveToSupabase(parsedEvents: ParsedEvent[], eventCount: number, d
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
+  // Save the raw synced_events blob (existing behavior)
   const { error } = await adminSupabase
     .from("synced_events")
     .upsert({
@@ -534,6 +535,131 @@ async function saveToSupabase(parsedEvents: ParsedEvent[], eventCount: number, d
     });
 
   if (error) throw new Error(`Database save failed: ${error.message}`);
+
+  // --- Also sync to venues + venue_events tables ---
+
+  // 1. Extract unique venues by name
+  const uniqueVenues = new Map<string, ParsedEvent>();
+  for (const event of parsedEvents) {
+    if (event.venueName && !uniqueVenues.has(event.venueName.toLowerCase())) {
+      uniqueVenues.set(event.venueName.toLowerCase(), event);
+    }
+  }
+
+  // 2. Fetch existing venues from database
+  const { data: existingVenues } = await adminSupabase
+    .from("venues")
+    .select("id, name");
+
+  const venueNameToId = new Map<string, string>();
+  for (const v of existingVenues ?? []) {
+    venueNameToId.set(v.name.toLowerCase(), v.id);
+  }
+
+  // 3. Insert missing venues + update existing ones
+  const newVenues: Array<{
+    name: string;
+    address: string;
+    city: string;
+    state: string;
+    neighborhood: string;
+    cross_street: string;
+    phone: string;
+    website: string | null;
+    is_private_room: boolean;
+  }> = [];
+
+  for (const [lowerName, event] of uniqueVenues) {
+    if (!venueNameToId.has(lowerName)) {
+      newVenues.push({
+        name: event.venueName,
+        address: event.address || "",
+        city: event.city || "New York",
+        state: event.state || "New York",
+        neighborhood: event.neighborhood || "",
+        cross_street: event.crossStreet || "",
+        phone: event.phone || "",
+        website: event.website || null,
+        is_private_room: event.isPrivateRoom,
+      });
+    } else {
+      // Update existing venue details from the sheet
+      const venueId = venueNameToId.get(lowerName)!;
+      await adminSupabase
+        .from("venues")
+        .update({
+          address: event.address || "",
+          city: event.city || "New York",
+          state: event.state || "New York",
+          neighborhood: event.neighborhood || "",
+          cross_street: event.crossStreet || "",
+          phone: event.phone || "",
+          website: event.website || null,
+          is_private_room: event.isPrivateRoom,
+        })
+        .eq("id", venueId);
+    }
+  }
+
+  if (newVenues.length > 0) {
+    const { data: inserted, error: insertError } = await adminSupabase
+      .from("venues")
+      .insert(newVenues)
+      .select("id, name");
+
+    if (insertError) {
+      console.error("Failed to insert venues:", insertError.message);
+    } else if (inserted) {
+      for (const v of inserted) {
+        venueNameToId.set(v.name.toLowerCase(), v.id);
+      }
+    }
+  }
+
+  // 4. Upsert venue_events
+  const eventRows: Array<{
+    venue_id: string;
+    day_of_week: string;
+    event_name: string;
+    dj: string;
+    start_time: string;
+    end_time: string;
+    notes: string;
+    is_active: boolean;
+    recurrence_type: string;
+  }> = [];
+
+  for (const event of parsedEvents) {
+    const venueId = venueNameToId.get(event.venueName.toLowerCase());
+    if (!venueId) continue;
+    if (!event.dayOfWeek) continue;
+
+    eventRows.push({
+      venue_id: venueId,
+      day_of_week: event.dayOfWeek,
+      event_name: event.eventName || "Karaoke Night",
+      dj: event.dj || "",
+      start_time: event.startTime || "",
+      end_time: event.endTime || "",
+      notes: event.notes || "",
+      is_active: true,
+      recurrence_type: "weekly",
+    });
+  }
+
+  if (eventRows.length > 0) {
+    // Use upsert with the unique constraint (venue_id, day_of_week, event_name, start_time)
+    const { error: eventError } = await adminSupabase
+      .from("venue_events")
+      .upsert(eventRows, {
+        onConflict: "venue_id,day_of_week,event_name,start_time",
+        ignoreDuplicates: false,
+      });
+
+    if (eventError) {
+      console.error("Failed to upsert venue_events:", eventError.message);
+    }
+  }
 }
 
 // POST: Sync from Google Sheet

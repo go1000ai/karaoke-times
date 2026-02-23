@@ -221,8 +221,8 @@ export function EventsList({
 
   function canEditEvent(event: VenueEvent): boolean {
     if (!canEdit) return false;
-    if (!isKJ) return true;
-    return event.kj_user_id === currentUserId;
+    if (!isKJ) return true; // owners can edit all
+    return event.kj_user_id === currentUserId; // KJs can only edit their own
   }
 
   return (
