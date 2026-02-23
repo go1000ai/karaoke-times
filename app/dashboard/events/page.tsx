@@ -1,6 +1,8 @@
 import { requireKJOrOwner } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { EventsList } from "./EventsList";
+import { CreateVenueQuickForm } from "@/components/CreateVenueQuickForm";
+import { createVenueFromDashboard } from "../actions";
 
 export default async function EventsPage() {
   const ctx = await requireKJOrOwner();
@@ -73,6 +75,8 @@ export default async function EventsPage() {
           ? "Manage your karaoke nights and their promos."
           : "Manage all karaoke event nights at your venue."}
       </p>
+
+      <CreateVenueQuickForm onCreateVenue={createVenueFromDashboard} />
 
       <EventsList
         events={events ?? []}

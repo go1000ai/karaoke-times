@@ -220,6 +220,53 @@ export async function deleteEvent(eventId: string) {
   return { success: true };
 }
 
+export async function createVenueFromDashboard(params: {
+  name: string;
+  address: string;
+  city?: string;
+  state?: string;
+  neighborhood?: string;
+  cross_street?: string;
+  phone?: string;
+  website?: string | null;
+  description?: string | null;
+}) {
+  const ctx = await requireKJOrOwner();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("venues")
+    .insert({
+      name: params.name,
+      address: params.address || "",
+      city: params.city || "New York",
+      state: params.state || "New York",
+      neighborhood: params.neighborhood || "",
+      cross_street: params.cross_street || "",
+      phone: params.phone || "",
+      website: params.website || null,
+      description: params.description || null,
+      owner_id: ctx.role === "owner" ? ctx.user.id : null,
+    })
+    .select("id")
+    .single();
+
+  if (error) return { error: error.message };
+
+  // Auto-link KJ to the new venue via venue_staff
+  if (ctx.role === "kj") {
+    await supabase.from("venue_staff").insert({
+      venue_id: data.id,
+      user_id: ctx.user.id,
+      role: "kj",
+      accepted_at: new Date().toISOString(),
+    });
+  }
+
+  revalidatePath("/dashboard/events");
+  return { success: true, venueId: data.id };
+}
+
 export async function handleBooking(bookingId: string, status: "confirmed" | "cancelled") {
   await requireKJOrOwner();
   const supabase = await createClient();

@@ -302,6 +302,7 @@ export async function createVenue(params: {
 
   if (error) return { error: error.message };
   revalidatePath("/admin/venues");
+  revalidatePath("/admin/events");
   return { success: true, venueId: data.id };
 }
 

@@ -141,6 +141,7 @@ export default function FlyerGenerator({
   const [error, setError] = useState("");
   const [loadingMsgIndex, setLoadingMsgIndex] = useState(0);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [generatedPrompt, setGeneratedPrompt] = useState<string | null>(null);
 
   // Rotate loading messages
   useEffect(() => {
@@ -352,6 +353,7 @@ export default function FlyerGenerator({
     setCopyData(null);
     setSaveStatus("idle");
     setError("");
+    setGeneratedPrompt(null);
     setOpenSections({ basics: true, vibe: true, colors: true, specials: true, image: true });
   }
 
@@ -377,6 +379,7 @@ export default function FlyerGenerator({
     setGeneratedImageUrl(null);
     setCopyData(null);
     setError("");
+    setGeneratedPrompt(null);
     setOpenSections({ basics: true, vibe: false, specials: false, image: false });
   }
 
@@ -405,6 +408,86 @@ export default function FlyerGenerator({
     await navigator.clipboard.writeText(text);
     setCopiedField(field);
     setTimeout(() => setCopiedField(null), 2000);
+  }
+
+  function buildPrompt() {
+    if (!eventName.trim()) {
+      setError("Please enter an event name.");
+      return;
+    }
+
+    const activeTheme = theme === "Custom" ? customTheme.trim() : theme;
+    const colorNames = selectedColors.map((hex) => {
+      const preset = COLOR_PRESETS.find((c) => c.hex === hex);
+      return preset ? preset.name : hex;
+    });
+
+    const lines: string[] = [];
+
+    // Core description
+    lines.push(`Design a professional, eye-catching event flyer for "${eventName.trim()}" at ${venueName || "a karaoke venue"}.`);
+
+    // Theme & mood
+    if (activeTheme) {
+      lines.push(`Theme: ${activeTheme}.`);
+    }
+    if (moodDescription.trim()) {
+      lines.push(`Mood/atmosphere: ${moodDescription.trim()}.`);
+    }
+
+    // Date & time info
+    const dateTimeParts: string[] = [];
+    if (eventDate) {
+      const d = new Date(eventDate + "T12:00:00");
+      dateTimeParts.push(d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }));
+    }
+    if (startTime) {
+      dateTimeParts.push(endTime ? `${startTime} - ${endTime}` : `Starting at ${startTime}`);
+    }
+    if (dateTimeParts.length > 0) {
+      lines.push(`The flyer should prominently display: ${dateTimeParts.join(", ")}.`);
+    }
+
+    // Venue info
+    if (venueAddress) {
+      lines.push(`Venue address: ${venueAddress}.`);
+    }
+
+    // Colors
+    if (colorNames.length > 0) {
+      lines.push(`Color palette: ${colorNames.join(", ")}. Use these as the dominant colors.`);
+    }
+
+    // Dress code
+    if (dressCode.trim()) {
+      lines.push(`Dress code: ${dressCode.trim()}.`);
+    }
+
+    // Features
+    if (selectedFeatures.length > 0) {
+      lines.push(`Special features to highlight: ${selectedFeatures.join(", ")}.`);
+    }
+
+    // Specials & promos
+    const specialsParts: string[] = [];
+    if (drinkSpecials.trim()) specialsParts.push(`Drink specials: ${drinkSpecials.trim()}`);
+    if (foodDeals.trim()) specialsParts.push(`Food deals: ${foodDeals.trim()}`);
+    if (prizes.trim()) specialsParts.push(`Prizes/giveaways: ${prizes.trim()}`);
+    if (promoText.trim()) specialsParts.push(promoText.trim());
+    if (specialsParts.length > 0) {
+      lines.push(`Include these details on the flyer: ${specialsParts.join(". ")}.`);
+    }
+
+    // Cover charge
+    if (coverCharge.trim()) {
+      lines.push(`Cover charge: ${coverCharge.trim()}.`);
+    }
+
+    // Style direction
+    lines.push("Style: Bold typography, vibrant nightlife aesthetic, suitable for social media and print. Include a microphone or karaoke visual element. Make the text legible and the layout clean.");
+
+    setGeneratedPrompt(lines.join("\n\n"));
+    setError("");
   }
 
   // --- RENDER ---
@@ -1016,16 +1099,67 @@ export default function FlyerGenerator({
         </div>
       )}
 
-      {/* Generate Button */}
+      {/* Generated Prompt Display */}
+      {generatedPrompt && (
+        <div className="glass-card rounded-2xl p-6 space-y-4 animate-[fadeIn_0.3s_ease-out]">
+          <div className="flex items-center justify-between">
+            <h3 className="text-white font-bold flex items-center gap-2">
+              <span className="material-icons-round text-accent">description</span>
+              Your AI Flyer Prompt
+            </h3>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(generatedPrompt);
+                  setCopiedField("prompt");
+                  setTimeout(() => setCopiedField(null), 2000);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 transition-colors"
+              >
+                <span className="material-icons-round text-sm">
+                  {copiedField === "prompt" ? "check" : "content_copy"}
+                </span>
+                {copiedField === "prompt" ? "Copied!" : "Copy Prompt"}
+              </button>
+              <button
+                onClick={() => setGeneratedPrompt(null)}
+                className="p-1.5 rounded-lg text-text-muted hover:text-white hover:bg-white/10 transition-colors"
+              >
+                <span className="material-icons-round text-sm">close</span>
+              </button>
+            </div>
+          </div>
+          <div className="bg-white/5 border border-border rounded-xl p-4">
+            <p className="text-text-secondary text-sm whitespace-pre-line leading-relaxed">
+              {generatedPrompt}
+            </p>
+          </div>
+          <p className="text-text-muted text-xs">
+            Copy this prompt and paste it into Nano Banana, DALL-E, Midjourney, or any AI image generator to create your flyer.
+          </p>
+        </div>
+      )}
+
+      {/* Generate Buttons */}
       {status === "idle" || status === "error" ? (
-        <button
-          onClick={handleGenerate}
-          disabled={!eventName || !eventDate || !startTime}
-          className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-black font-bold px-6 py-3.5 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-lg"
-        >
-          <span className="material-icons-round">auto_awesome</span>
-          Generate Flyer
-        </button>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={handleGenerate}
+            disabled={!eventName || !eventDate || !startTime}
+            className="flex-1 flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-black font-bold px-6 py-3.5 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-lg"
+          >
+            <span className="material-icons-round">auto_awesome</span>
+            Generate Flyer
+          </button>
+          <button
+            onClick={buildPrompt}
+            disabled={!eventName}
+            className="flex-1 flex items-center justify-center gap-2 bg-accent/20 hover:bg-accent/30 text-accent font-bold px-6 py-3.5 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-lg border border-accent/30"
+          >
+            <span className="material-icons-round">description</span>
+            Generate Prompt
+          </button>
+        </div>
       ) : null}
     </div>
   );
