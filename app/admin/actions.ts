@@ -310,12 +310,19 @@ export async function createVenue(params: {
 export async function createEvent(params: {
   venue_id: string;
   day_of_week: string;
-  event_name: string;
+  event_name?: string;
   dj?: string;
   start_time?: string;
   end_time?: string;
   notes?: string;
   recurrence_type?: string;
+  event_date?: string;
+  happy_hour_details?: string;
+  age_restriction?: string;
+  dress_code?: string;
+  cover_charge?: string;
+  drink_minimum?: string;
+  restrictions?: string[];
 }) {
   await requireAdmin();
   const supabase = await createClient();
@@ -329,6 +336,13 @@ export async function createEvent(params: {
     end_time: params.end_time || "",
     notes: params.notes || "",
     recurrence_type: params.recurrence_type || "weekly",
+    event_date: params.event_date || null,
+    happy_hour_details: params.happy_hour_details || null,
+    age_restriction: params.age_restriction || "all_ages",
+    dress_code: params.dress_code || "casual",
+    cover_charge: params.cover_charge || "free",
+    drink_minimum: params.drink_minimum || "none",
+    restrictions: params.restrictions || [],
   });
 
   if (error) return { error: error.message };

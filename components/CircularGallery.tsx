@@ -23,14 +23,15 @@ export default function CircularGallery({
   autoRotateSpeed = 0.15,
 }: CircularGalleryProps) {
   const [rotation, setRotation] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const isDraggingRef = useRef(false);
   const lastXRef = useRef(0);
   const startXRef = useRef(0);
   const startYRef = useRef(0);
   const directionLocked = useRef<"horizontal" | "vertical" | null>(null);
   const velocityRef = useRef(0);
   const animationFrameRef = useRef<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Detect mobile for responsive radius/sizing
   useEffect(() => {
@@ -45,20 +46,18 @@ export default function CircularGallery({
   const cardW = isMobile ? 120 : 260;
   const cardH = isMobile ? 170 : 380;
 
-  // Auto-rotate + momentum when not dragging
+  // Auto-rotate + momentum when not dragging (reads ref — no re-renders needed)
   useEffect(() => {
     let lastTime = performance.now();
     const animate = (now: number) => {
-      const dt = Math.min(now - lastTime, 32); // cap at ~30fps worth of delta
+      const dt = Math.min(now - lastTime, 32);
       lastTime = now;
 
-      if (!isDragging) {
-        // Apply momentum (decays quickly)
+      if (!isDraggingRef.current) {
         if (Math.abs(velocityRef.current) > 0.01) {
           setRotation((prev) => prev + velocityRef.current * dt);
-          velocityRef.current *= 0.96; // friction
+          velocityRef.current *= 0.96;
         } else {
-          // Auto-rotate once momentum fades
           velocityRef.current = 0;
           setRotation((prev) => prev + autoRotateSpeed);
         }
@@ -69,61 +68,65 @@ export default function CircularGallery({
     return () => {
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
-  }, [isDragging, autoRotateSpeed]);
+  }, [autoRotateSpeed]);
 
-  // Pointer drag — with direction lock so vertical scroll still works on mobile
+  // Pointer drag — ref tracks whether a touch is active (no re-renders)
+  const pointerActiveRef = useRef(false);
+
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     startXRef.current = e.clientX;
     startYRef.current = e.clientY;
     lastXRef.current = e.clientX;
     directionLocked.current = null;
     velocityRef.current = 0;
-    setIsDragging(true);
-  }, []);
+    pointerActiveRef.current = true;
+    // On desktop, commit to dragging immediately
+    if (!isMobile) isDraggingRef.current = true;
+  }, [isMobile]);
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
-      if (!isDragging) return;
+      if (!pointerActiveRef.current) return;
 
-      // Determine scroll direction on first significant move (mobile only)
+      // On mobile: determine direction before committing to drag
       if (isMobile && !directionLocked.current) {
         const dx = Math.abs(e.clientX - startXRef.current);
         const dy = Math.abs(e.clientY - startYRef.current);
-        if (dx < 6 && dy < 6) return; // not enough movement yet
+        if (dx < 8 && dy < 8) return; // not enough movement yet
         directionLocked.current = dx > dy ? "horizontal" : "vertical";
         if (directionLocked.current === "horizontal") {
-          // Capture pointer only for horizontal swipes
-          (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+          isDraggingRef.current = true;
+          containerRef.current?.setPointerCapture(e.pointerId);
         }
       }
 
-      // If vertical, let the browser handle scroll
-      if (directionLocked.current === "vertical") {
-        setIsDragging(false);
-        return;
-      }
+      // If vertical (or undecided), let the browser handle scroll — no interference
+      if (directionLocked.current !== "horizontal" && isMobile) return;
+
+      e.preventDefault();
 
       const deltaX = e.clientX - lastXRef.current;
       const sensitivity = isMobile ? 0.4 : 0.3;
-      velocityRef.current = deltaX * sensitivity * 0.06; // track velocity for momentum
+      velocityRef.current = deltaX * sensitivity * 0.06;
       setRotation((prev) => prev + deltaX * sensitivity);
       lastXRef.current = e.clientX;
     },
-    [isDragging, isMobile]
+    [isMobile]
   );
 
   const handlePointerUp = useCallback(() => {
     directionLocked.current = null;
-    setIsDragging(false);
-    // velocityRef keeps its value — momentum continues in the animation loop
+    pointerActiveRef.current = false;
+    isDraggingRef.current = false;
   }, []);
 
   const anglePerItem = 360 / items.length;
 
   return (
     <div
+      ref={containerRef}
       className="relative w-full h-[320px] sm:h-[480px] flex items-center justify-center overflow-hidden select-none cursor-grab active:cursor-grabbing"
-      style={{ perspective: isMobile ? "900px" : "1800px" }}
+      style={{ perspective: isMobile ? "900px" : "1800px", touchAction: "pan-y" }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}

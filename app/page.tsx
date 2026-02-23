@@ -8,7 +8,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { TubesBackground } from "@/components/ui/neon-flow";
 import { CardStack, type CardStackItem } from "@/components/ui/card-stack";
 import { createClient } from "@/lib/supabase/client";
-import { karaokeEvents, DAY_ORDER, getEventsByDay, searchKJs, getKJSlugForName, type KaraokeEvent, type KJProfile } from "@/lib/mock-data";
+import { karaokeEvents as staticEvents, DAY_ORDER, searchKJs, getKJSlugForName, type KaraokeEvent, type KJProfile } from "@/lib/mock-data";
 import { extractYouTubeVideoId, getYouTubeThumbnail } from "@/lib/youtube";
 import CircularGallery, { type GalleryItem } from "@/components/CircularGallery";
 
@@ -270,6 +270,7 @@ export default function HomePage() {
   const [selectedEvent, setSelectedEvent] = useState<KaraokeEvent | null>(null);
   const [searchFilter, setSearchFilter] = useState<"all" | "kjs" | "venues">("all");
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
+  const [karaokeEvents, setKaraokeEvents] = useState<KaraokeEvent[]>(staticEvents);
   const venueCount = Math.floor(karaokeEvents.length / 10) * 10;
   const [featuredSingers, setFeaturedSingers] = useState<{
     id: string;
@@ -283,8 +284,27 @@ export default function HomePage() {
     venue?: { name: string | null };
   }[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const eventsByDay = getEventsByDay();
+  const eventsByDay = useMemo(() => {
+    const grouped: Record<string, KaraokeEvent[]> = {};
+    for (const event of karaokeEvents) {
+      if (!grouped[event.dayOfWeek]) grouped[event.dayOfWeek] = [];
+      grouped[event.dayOfWeek].push(event);
+    }
+    return grouped;
+  }, [karaokeEvents]);
   const tabBarRef = useRef<HTMLDivElement>(null);
+
+  // Load synced events from Supabase (if admin has synced via CSV/Google Sheet)
+  useEffect(() => {
+    fetch("/api/events")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.events && Array.isArray(data.events) && data.events.length > 0) {
+          setKaraokeEvents(data.events);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Load favorites + featured singers on mount
   useEffect(() => {

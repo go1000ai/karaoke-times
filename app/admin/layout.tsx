@@ -72,7 +72,7 @@ export default async function AdminLayout({
       <AdminMobileDrawer />
 
       {/* Main Content */}
-      <main className="flex-1 md:p-8 p-4 pt-20 md:pt-8 overflow-x-hidden overflow-y-auto">
+      <main className="flex-1 md:p-8 p-4 pt-24 md:pt-8 overflow-x-hidden overflow-y-auto">
         <div className="max-w-6xl mx-auto w-full">{children}</div>
       </main>
     </div>

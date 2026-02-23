@@ -128,7 +128,8 @@ export function getReminderEmailHtml(
 export function getNewsletterEmailHtml(subject: string, bodyHtml: string): string {
   return emailWrapper(`
     <div style="background: linear-gradient(135deg, #d4a017 0%, #c0392b 100%); padding: 32px 24px; text-align: center;">
-      <h1 style="margin: 0; font-size: 24px; font-weight: 800; color: #000;">&#127908; Karaoke Times</h1>
+      <img src="https://karaoketimes.net/logo.png" alt="Karaoke Times" width="60" height="60" style="display: block; margin: 0 auto 12px; border-radius: 12px;" />
+      <h1 style="margin: 0; font-size: 24px; font-weight: 800; color: #000;">Karaoke Times</h1>
       <p style="margin: 8px 0 0; font-size: 13px; color: #000; opacity: 0.7;">Monthly Newsletter</p>
     </div>
 

@@ -1,5 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
+import { karaokeEvents } from "@/lib/mock-data";
+
+const BASE_URL = "https://karaoketimes.net";
 
 interface NewsletterData {
   venues: Array<{
@@ -7,6 +10,7 @@ interface NewsletterData {
     neighborhood: string;
     address: string;
     is_new: boolean;
+    image_url: string | null;
   }>;
   events: Array<{
     event_name: string;
@@ -16,6 +20,7 @@ interface NewsletterData {
     start_time: string | null;
     end_time: string | null;
     recurrence_type: string;
+    image_url: string | null;
   }>;
   promos: Array<{
     title: string;
@@ -30,6 +35,7 @@ interface NewsletterData {
     newVenuesThisMonth: number;
   };
   pastNewsletterSubjects: string[];
+  venueImages: Record<string, string>; // venue name → absolute image URL
 }
 
 export async function gatherNewsletterData(): Promise<NewsletterData> {
@@ -60,22 +66,35 @@ export async function gatherNewsletterData(): Promise<NewsletterData> {
         .limit(5),
     ]);
 
+  // Build venue name → image URL map from mock data
+  const venueImages: Record<string, string> = {};
+  for (const event of karaokeEvents) {
+    if (event.image && !venueImages[event.venueName]) {
+      venueImages[event.venueName] = `${BASE_URL}${event.image}`;
+    }
+  }
+
   const venues = (venuesRes.data ?? []).map((v: any) => ({
     name: v.name,
     neighborhood: v.neighborhood || "NYC",
     address: v.address || "",
     is_new: new Date(v.created_at) > thirtyDaysAgo,
+    image_url: venueImages[v.name] || null,
   }));
 
-  const events = (eventsRes.data ?? []).map((e: any) => ({
-    event_name: e.event_name,
-    venue_name: e.venues?.name ?? "Unknown",
-    day_of_week: e.day_of_week,
-    dj: e.dj,
-    start_time: e.start_time,
-    end_time: e.end_time,
-    recurrence_type: e.recurrence_type ?? "weekly",
-  }));
+  const events = (eventsRes.data ?? []).map((e: any) => {
+    const venueName = e.venues?.name ?? "Unknown";
+    return {
+      event_name: e.event_name,
+      venue_name: venueName,
+      day_of_week: e.day_of_week,
+      dj: e.dj,
+      start_time: e.start_time,
+      end_time: e.end_time,
+      recurrence_type: e.recurrence_type ?? "weekly",
+      image_url: venueImages[venueName] || null,
+    };
+  });
 
   const promos = (promosRes.data ?? []).map((p: any) => ({
     title: p.title,
@@ -95,6 +114,7 @@ export async function gatherNewsletterData(): Promise<NewsletterData> {
       newVenuesThisMonth: venues.filter((v) => v.is_new).length,
     },
     pastNewsletterSubjects: (pastNewslettersRes.data ?? []).map((n: any) => n.subject),
+    venueImages,
   };
 }
 
@@ -115,7 +135,7 @@ export async function generateNewsletter(
 
   const response = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
-    max_tokens: 2048,
+    max_tokens: 3000,
     messages: [{ role: "user", content: prompt }],
   });
 
@@ -143,7 +163,7 @@ function buildPrompt(
         `${day}:\n${events
           .map(
             (e) =>
-              `  - ${e.event_name} at ${e.venue_name} (${e.start_time || "TBD"}–${e.end_time || "late"}, KJ: ${e.dj || "TBA"})${e.recurrence_type !== "weekly" ? ` [${e.recurrence_type}]` : ""}`
+              `  - ${e.event_name} at ${e.venue_name} (${e.start_time || "TBD"}–${e.end_time || "late"}, KJ: ${e.dj || "TBA"})${e.recurrence_type !== "weekly" ? ` [${e.recurrence_type}]` : ""}${e.image_url ? ` [IMAGE: ${e.image_url}]` : ""}`
           )
           .join("\n")}`
     )
@@ -151,7 +171,7 @@ function buildPrompt(
 
   const newVenues = data.venues
     .filter((v) => v.is_new)
-    .map((v) => `- ${v.name} in ${v.neighborhood} (${v.address})`)
+    .map((v) => `- ${v.name} in ${v.neighborhood} (${v.address})${v.image_url ? ` [IMAGE: ${v.image_url}]` : ""}`)
     .join("\n");
 
   const activePromos = data.promos
@@ -165,6 +185,11 @@ function buildPrompt(
     data.pastNewsletterSubjects.length > 0
       ? `Recent newsletter subjects (avoid repeating):\n${data.pastNewsletterSubjects.map((s) => `- ${s}`).join("\n")}`
       : "";
+
+  // Build available venue images list
+  const availableImages = Object.entries(data.venueImages)
+    .map(([name, url]) => `  ${name}: ${url}`)
+    .join("\n");
 
   return `You are the newsletter writer for Karaoke Times, New York City's premier karaoke event guide. Write the ${currentMonth} monthly newsletter.
 
@@ -183,28 +208,36 @@ ${eventsSummary || "No events currently listed."}
 ${activePromos ? `ACTIVE PROMOS & SPECIALS:\n${activePromos}\n` : ""}
 ${pastSubjects ? `\n${pastSubjects}\n` : ""}
 ${adminContext ? `ADMIN NOTES (incorporate these):\n${adminContext}\n` : ""}
+AVAILABLE VENUE IMAGES (use these exact URLs for featured venues):
+${availableImages || "  No images available."}
 
 OUTPUT FORMAT — respond with EXACTLY this structure:
 
 SUBJECT: [A catchy email subject line for ${currentMonth}, under 60 characters]
 
 BODY:
-[Write the newsletter body as HTML paragraphs. Use these inline styles ONLY:
-- <p style="margin: 0 0 12px;"> for paragraphs
+[Write the newsletter body as HTML. This is an email so use only inline styles and these elements:
+- <p style="margin: 0 0 16px; font-size: 14px;"> for paragraphs
 - <strong> for bold text
 - <span style="color: #d4a017;"> for gold highlights (venue names, special items)
 - <br/> for line breaks within a paragraph
+- <a href="..." style="color: #d4a017; text-decoration: underline;"> for links
 - Use emoji sparingly (1-2 per section max)
-- Keep total length under 400 words
+
+IMAGES — For 2-3 featured venues/events that have images available, include venue photo cards using this EXACT format:
+<table width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0;"><tr><td style="background: rgba(255,255,255,0.05); border-radius: 12px; overflow: hidden;"><img src="IMAGE_URL_HERE" alt="VENUE_NAME" width="100%" style="display: block; border-radius: 12px 12px 0 0; max-height: 200px; object-fit: cover;" /><div style="padding: 12px 16px;"><p style="margin: 0 0 4px; font-size: 15px; font-weight: 700; color: #ffffff;">VENUE_NAME</p><p style="margin: 0; font-size: 12px; color: #a0a0a0;">EVENT_DETAILS_HERE</p></div></td></tr></table>
+
+Only use venue images from the AVAILABLE VENUE IMAGES list — never invent URLs.
+Only include 2-3 image cards total to keep the email focused.
+
+Keep total length under 500 words.
 
 Structure:
 1. Greeting (1 sentence)
 2. What's New section (new venues, notable changes) — skip if nothing new
-3. This Month's Highlights (2-3 most interesting events or promos to feature)
+3. Featured Spots (2-3 venues with image cards — pick the most interesting events)
 4. Weekly Schedule Quick Hits (brief mention of the variety available, not every event)
-5. Sign-off with CTA to browse karaoketimes.net
-
-Do NOT use <h1>, <h2>, <h3>, <ul>, <li>, <table>, or any block-level HTML. Only <p>, <strong>, <span>, <br/>, <a> tags.]`;
+5. Sign-off with CTA to browse karaoketimes.net]`;
 }
 
 function parseAIResponse(
@@ -219,13 +252,13 @@ function parseAIResponse(
   const bodyMatch = text.match(/BODY:\s*([\s\S]+)$/);
   let bodyHtml = bodyMatch ? bodyMatch[1].trim() : text;
 
-  // If AI didn't wrap in <p> tags, do it
-  if (!bodyHtml.startsWith("<p")) {
+  // If AI didn't wrap in <p> or <table> tags, do it
+  if (!bodyHtml.startsWith("<p") && !bodyHtml.startsWith("<table")) {
     bodyHtml = bodyHtml
       .split("\n\n")
       .map(
         (p) =>
-          `<p style="margin: 0 0 12px;">${p.replace(/\n/g, "<br/>")}</p>`
+          `<p style="margin: 0 0 16px; font-size: 14px;">${p.replace(/\n/g, "<br/>")}</p>`
       )
       .join("");
   }

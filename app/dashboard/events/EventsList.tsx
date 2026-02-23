@@ -889,8 +889,8 @@ function EventForm({
         </div>
       </div>
 
-      {/* Start & End Time */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* Start Time, End Time, Recurrence */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>
           <label className={labelClass}>Start Time *</label>
           <select name="start_time" defaultValue={event?.start_time || ""} required className={selectClass}>
@@ -907,6 +907,15 @@ function EventForm({
             {TIME_OPTIONS.map((t) => (
               <option key={`end-${t}`} value={t}>{t}</option>
             ))}
+          </select>
+        </div>
+        <div>
+          <label className={labelClass}>Recurrence</label>
+          <select name="recurrence_type" defaultValue={(event as any)?.recurrence_type || "weekly"} className={selectClass}>
+            <option value="weekly">Every Week</option>
+            <option value="biweekly">Every 2 Weeks</option>
+            <option value="monthly">Monthly</option>
+            <option value="one_time">One-Time Event</option>
           </select>
         </div>
       </div>

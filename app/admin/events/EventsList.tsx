@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { toggleEvent, deleteEvent } from "../actions";
 
 interface VenueEvent {
@@ -174,6 +175,19 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
                         </p>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
+                        <Link
+                          href={`/dashboard/flyers?${new URLSearchParams({
+                            eventName: event.event_name || "Karaoke Night",
+                            startTime: event.start_time || "",
+                            endTime: event.end_time || "",
+                            ...(event.dj ? { dj: event.dj } : {}),
+                            ...(event.notes ? { notes: event.notes } : {}),
+                          }).toString()}`}
+                          className="w-7 h-7 rounded-lg bg-accent/10 flex items-center justify-center hover:bg-accent/20 transition-colors"
+                          title="Create Flyer"
+                        >
+                          <span className="material-icons-round text-accent text-sm">auto_awesome</span>
+                        </Link>
                         <button
                           onClick={() => handleToggle(event.id, event.is_active !== false)}
                           disabled={isPending && processingId === event.id}
