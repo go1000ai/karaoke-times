@@ -91,8 +91,8 @@ export async function requireVenueOwner() {
 
   const profile = data as { role: string } | null;
 
-  // Allow venue owners
-  if (profile?.role === "venue_owner") return user;
+  // Allow admins and venue owners
+  if (profile?.role === "admin" || profile?.role === "venue_owner") return user;
 
   // Allow KJs who are connected staff at any venue
   const { data: staffRecord } = await supabase
