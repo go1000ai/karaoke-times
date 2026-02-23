@@ -280,30 +280,49 @@ export function CreateEventForm({ venues }: { venues: Venue[] }) {
               </div>
             </div>
 
-            {feedback && (
-              <div className={`rounded-xl p-3 text-sm ${feedback.type === "success" ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"}`}>
-                <div className="flex items-center justify-between">
-                  <span>{feedback.text}</span>
-                  {feedback.flyerUrl && (
-                    <Link
-                      href={feedback.flyerUrl}
-                      className="inline-flex items-center gap-1.5 text-accent font-bold text-xs hover:text-accent/80 transition-colors ml-3"
-                    >
-                      <span className="material-icons-round text-sm">auto_awesome</span>
-                      Create Flyer
-                    </Link>
-                  )}
-                </div>
+            {feedback && feedback.type === "error" && (
+              <div className="rounded-xl p-3 text-sm bg-red-500/10 text-red-400">
+                {feedback.text}
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={isPending}
-              className="px-6 py-3 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition-colors disabled:opacity-50"
-            >
-              {isPending ? "Creating..." : "Create Event"}
-            </button>
+            {feedback && feedback.type === "success" && (
+              <div className="rounded-2xl border border-green-500/30 bg-green-500/5 p-5 space-y-4">
+                <div className="flex items-center gap-2">
+                  <span className="material-icons-round text-green-400">check_circle</span>
+                  <span className="text-green-400 font-bold">{feedback.text}</span>
+                </div>
+                {feedback.flyerUrl && (
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Link
+                      href={feedback.flyerUrl}
+                      className="flex items-center justify-center gap-2 bg-accent hover:bg-accent/90 text-black font-bold px-6 py-3 rounded-xl transition-colors text-sm"
+                    >
+                      <span className="material-icons-round text-lg">auto_awesome</span>
+                      Create Flyer for This Event
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => { setFeedback(null); setOpen(false); setTimeout(() => setOpen(true), 50); }}
+                      className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-text-secondary font-semibold px-6 py-3 rounded-xl transition-colors text-sm"
+                    >
+                      <span className="material-icons-round text-lg">add</span>
+                      Create Another Event
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {(!feedback || feedback.type !== "success") && (
+              <button
+                type="submit"
+                disabled={isPending}
+                className="px-6 py-3 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition-colors disabled:opacity-50"
+              >
+                {isPending ? "Creating..." : "Create Event"}
+              </button>
+            )}
           </form>
         </div>
       )}
