@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import { createEvent, createVenue } from "../actions";
 import {
   AGE_RESTRICTIONS,
@@ -76,6 +77,13 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
   const [venueFeedback, setVenueFeedback] = useState<string | null>(null);
   const [selectedVenueId, setSelectedVenueId] = useState("");
 
+  // Flyer upload
+  const supabase = createClient();
+  const flyerInputRef = useRef<HTMLInputElement>(null);
+  const [flyerFile, setFlyerFile] = useState<File | null>(null);
+  const [flyerPreview, setFlyerPreview] = useState<string | null>(null);
+  const [flyerUploading, setFlyerUploading] = useState(false);
+
   // Flyer & Prompt section
   const [promptTheme, setPromptTheme] = useState("");
   const [promptMood, setPromptMood] = useState("");
@@ -89,6 +97,45 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
   const inputClass =
     "w-full bg-card-dark border border-border rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 placeholder:text-text-muted";
   const labelClass = "text-xs text-text-muted uppercase tracking-wider font-bold mb-1.5 block";
+
+  function handleFlyerSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setFeedback({ type: "error", text: "Flyer image must be under 5MB." });
+      return;
+    }
+    setFlyerFile(file);
+    setFlyerPreview(URL.createObjectURL(file));
+  }
+
+  function removeFlyerFile() {
+    setFlyerFile(null);
+    if (flyerPreview) URL.revokeObjectURL(flyerPreview);
+    setFlyerPreview(null);
+    if (flyerInputRef.current) flyerInputRef.current.value = "";
+  }
+
+  async function uploadFlyer(): Promise<string | null> {
+    if (!flyerFile) return null;
+    setFlyerUploading(true);
+    const ext = flyerFile.name.split(".").pop() || "jpg";
+    const fileName = `event-flyers/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("flyer-uploads")
+      .upload(fileName, flyerFile, { contentType: flyerFile.type });
+
+    setFlyerUploading(false);
+    if (uploadError) {
+      console.error("Flyer upload error:", uploadError);
+      return null;
+    }
+
+    const { data } = supabase.storage.from("flyer-uploads").getPublicUrl(fileName);
+    return data.publicUrl;
+  }
 
   async function handleCreateVenue(formData: FormData) {
     const name = (formData.get("new_venue_name") as string)?.trim();
@@ -142,6 +189,12 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
       const dressCode = (formData.get("dress_code") as string) || "casual";
       const coverCharge = (formData.get("cover_charge") as string) || "free";
 
+      // Upload flyer if provided
+      let flyerUrl: string | null = null;
+      if (flyerFile) {
+        flyerUrl = await uploadFlyer();
+      }
+
       const result = await createEvent({
         venue_id: venueId,
         day_of_week: formData.get("day_of_week") as string,
@@ -158,6 +211,7 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
         cover_charge: coverCharge,
         drink_minimum: (formData.get("drink_minimum") as string) || "none",
         restrictions: selectedRestrictions,
+        flyer_url: flyerUrl,
       });
 
       if (result.success) {
@@ -445,6 +499,62 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
               />
             </div>
 
+            {/* ── Upload Your Own Flyer ── */}
+            <div className="border-t border-border pt-4 mt-4">
+              <h4 className="text-sm font-bold text-white mb-1 flex items-center gap-2">
+                <span className="material-icons-round text-base text-red-400">image</span>
+                Upload Your Own Flyer
+              </h4>
+              <p className="text-text-muted text-xs mb-3">
+                Already have a flyer? Upload it here and it will be saved with this event.
+              </p>
+
+              {flyerPreview ? (
+                <div className="flex items-start gap-4">
+                  <div className="relative">
+                    <img
+                      src={flyerPreview}
+                      alt="Flyer preview"
+                      className="max-h-40 rounded-xl border border-border"
+                    />
+                    <button
+                      type="button"
+                      onClick={removeFlyerFile}
+                      className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600 transition-colors"
+                    >
+                      <span className="material-icons-round text-sm">close</span>
+                    </button>
+                  </div>
+                  <div className="text-text-secondary text-xs">
+                    <p className="font-semibold text-white">{flyerFile?.name}</p>
+                    <p>{flyerFile ? `${(flyerFile.size / 1024).toFixed(0)} KB` : ""}</p>
+                    <p className="text-green-400 mt-1 flex items-center gap-1">
+                      <span className="material-icons-round text-sm">check_circle</span>
+                      Ready to upload with event
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  onClick={() => flyerInputRef.current?.click()}
+                  className="border-2 border-dashed border-border rounded-xl p-6 text-center cursor-pointer hover:border-red-500/40 hover:bg-red-500/5 transition-colors"
+                >
+                  <span className="material-icons-round text-2xl text-text-muted mb-1 block">
+                    cloud_upload
+                  </span>
+                  <p className="text-text-secondary text-sm">Click to upload your flyer</p>
+                  <p className="text-text-muted text-xs mt-1">JPEG, PNG, or WebP (max 5MB)</p>
+                  <input
+                    ref={flyerInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleFlyerSelect}
+                    className="hidden"
+                  />
+                </div>
+              )}
+            </div>
+
             {/* ── Event Rules ── */}
             <div className="border-t border-border pt-4 mt-4">
               <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
@@ -641,7 +751,7 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
                   className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition-colors disabled:opacity-50"
                 >
                   <span className="material-icons-round text-lg">save</span>
-                  {isPending ? "Saving..." : "Save Event"}
+                  {isPending ? (flyerUploading ? "Uploading flyer..." : "Saving...") : "Save Event"}
                 </button>
                 <button
                   type="button"

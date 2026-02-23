@@ -324,6 +324,7 @@ export async function createEvent(params: {
   cover_charge?: string;
   drink_minimum?: string;
   restrictions?: string[];
+  flyer_url?: string | null;
 }) {
   await requireAdmin();
   const supabase = await createClient();
@@ -344,6 +345,7 @@ export async function createEvent(params: {
     cover_charge: params.cover_charge || "free",
     drink_minimum: params.drink_minimum || "none",
     restrictions: params.restrictions || [],
+    flyer_url: params.flyer_url || null,
   });
 
   if (error) return { error: error.message };
