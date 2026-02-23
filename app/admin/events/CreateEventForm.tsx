@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { createEvent, createVenue } from "../actions";
 import {
   AGE_RESTRICTIONS,
@@ -219,23 +218,38 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
     setGeneratedPrompt(lines.join("\n\n"));
   }
 
-  function buildPromptNow() {
-    // Build prompt from whatever form data is currently filled in
+  function getFormData() {
     const form = document.querySelector("form") as HTMLFormElement;
-    if (!form) return;
+    if (!form) return null;
     const fd = new FormData(form);
+    return {
+      eventName: (fd.get("event_name") as string)?.trim() || "Karaoke Night",
+      venueName: venues.find((v) => v.id === (selectedVenueId || fd.get("venue_id")))?.name || "",
+      startTime: (fd.get("start_time") as string) || "",
+      endTime: (fd.get("end_time") as string) || "",
+      dj: (fd.get("dj") as string) || "",
+      notes: (fd.get("notes") as string) || "",
+      happyHour: (fd.get("happy_hour_details") as string) || "",
+      dressCode: (fd.get("dress_code") as string) || "casual",
+      coverCharge: (fd.get("cover_charge") as string) || "free",
+    };
+  }
 
-    const eventName = (fd.get("event_name") as string)?.trim() || "Karaoke Night";
-    const venueName = venues.find((v) => v.id === (selectedVenueId || fd.get("venue_id")))?.name || "";
-    const startTime = (fd.get("start_time") as string) || "";
-    const endTime = (fd.get("end_time") as string) || "";
-    const dj = (fd.get("dj") as string) || "";
-    const notes = (fd.get("notes") as string) || "";
-    const happyHour = (fd.get("happy_hour_details") as string) || "";
-    const dressCode = (fd.get("dress_code") as string) || "casual";
-    const coverCharge = (fd.get("cover_charge") as string) || "free";
+  function buildPromptNow() {
+    const data = getFormData();
+    if (!data) return;
+    generatePromptFromData(data);
+  }
 
-    generatePromptFromData({ eventName, venueName, startTime, endTime, dj, notes, happyHour, dressCode, coverCharge });
+  function goToFlyerGenerator() {
+    const data = getFormData();
+    if (!data) return;
+    const params = new URLSearchParams({ eventName: data.eventName, startTime: data.startTime, endTime: data.endTime });
+    if (data.dj) params.set("dj", data.dj);
+    if (data.notes) params.set("notes", data.notes);
+    if (data.happyHour) params.set("drinkSpecials", data.happyHour);
+    if (data.dressCode && data.dressCode !== "casual") params.set("dressCode", data.dressCode);
+    router.push(`/dashboard/flyers?${params.toString()}`);
   }
 
   return (
@@ -506,7 +520,7 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
                 Flyer & Prompt Generator
               </h4>
               <p className="text-text-muted text-xs mb-3">
-                Customize flyer options here. After creating the event, you can generate an AI flyer or copy a prompt for Nano Banana / DALL-E.
+                Optional flyer customization. Use &quot;Create Flyer&quot; or &quot;Generate Prompt&quot; below — no need to save first.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
@@ -600,107 +614,59 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
               </div>
             )}
 
-            {/* ── Success State ── */}
+            {/* ── Success Banner ── */}
             {feedback && feedback.type === "success" && (
-              <div className="rounded-2xl border border-green-500/30 bg-green-500/5 p-5 space-y-4">
+              <div className="rounded-xl border border-green-500/30 bg-green-500/5 p-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="material-icons-round text-green-400">check_circle</span>
-                  <span className="text-green-400 font-bold">{feedback.text}</span>
+                  <span className="text-green-400 font-bold text-sm">{feedback.text}</span>
                 </div>
-
-                <div className="flex flex-col sm:flex-row gap-3">
-                  {feedback.flyerUrl && (
-                    <Link
-                      href={feedback.flyerUrl}
-                      className="flex items-center justify-center gap-2 bg-accent hover:bg-accent/90 text-black font-bold px-6 py-3 rounded-xl transition-colors text-sm"
-                    >
-                      <span className="material-icons-round text-lg">auto_awesome</span>
-                      Create Flyer
-                    </Link>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => { setFeedback(null); setGeneratedPrompt(null); setOpen(false); setTimeout(() => setOpen(true), 50); }}
-                    className="flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-text-secondary font-semibold px-6 py-3 rounded-xl transition-colors text-sm"
-                  >
-                    <span className="material-icons-round text-lg">add</span>
-                    Create Another Event
-                  </button>
-                </div>
-
-                {/* Generated Prompt */}
-                {generatedPrompt && (
-                  <div className="border-t border-border/30 pt-4 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <span className="material-icons-round text-accent text-lg">description</span>
-                      <h4 className="text-sm font-bold text-white">Your AI Flyer Prompt</h4>
-                    </div>
-                    <div className="bg-white/5 border border-border rounded-xl p-4">
-                      <p className="text-text-secondary text-sm whitespace-pre-line leading-relaxed">
-                        {generatedPrompt}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText(generatedPrompt);
-                          setCopiedPrompt(true);
-                          setTimeout(() => setCopiedPrompt(false), 2000);
-                        }}
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 transition-colors"
-                      >
-                        <span className="material-icons-round text-sm">
-                          {copiedPrompt ? "check" : "content_copy"}
-                        </span>
-                        {copiedPrompt ? "Copied!" : "Copy Prompt"}
-                      </button>
-                    </div>
-                    <p className="text-text-muted text-xs">
-                      Paste this into Nano Banana, DALL-E, Midjourney, or any AI image generator.
-                    </p>
-                  </div>
-                )}
-
-                {/* Manual prompt generation if flyer options were empty */}
-                {!generatedPrompt && feedback.eventData && (
-                  <div className="border-t border-border/30 pt-3">
-                    <button
-                      type="button"
-                      onClick={() => { if (feedback.eventData) generatePromptFromData(feedback.eventData); }}
-                      className="flex items-center gap-2 text-accent hover:text-accent/80 text-sm font-bold transition-colors"
-                    >
-                      <span className="material-icons-round text-lg">description</span>
-                      Generate AI Prompt for Nano Banana / DALL-E
-                    </button>
-                  </div>
-                )}
+                <button
+                  type="button"
+                  onClick={() => { setFeedback(null); setGeneratedPrompt(null); setOpen(false); setTimeout(() => setOpen(true), 50); }}
+                  className="flex items-center gap-1.5 bg-white/5 hover:bg-white/10 text-text-secondary font-semibold px-4 py-2 rounded-xl transition-colors text-sm"
+                >
+                  <span className="material-icons-round text-base">add</span>
+                  Create Another
+                </button>
               </div>
             )}
 
-            {/* ── Submit Buttons ── */}
-            {(!feedback || feedback.type !== "success") && (
+            {/* ── 3 Action Buttons (always visible) ── */}
+            <div className="border-t border-border pt-4 mt-2">
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   type="submit"
                   disabled={isPending || (showNewVenue && !selectedVenueId)}
-                  className="flex-1 px-6 py-3 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition-colors disabled:opacity-50"
+                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition-colors disabled:opacity-50"
                 >
-                  {isPending ? "Creating..." : "Create Event"}
+                  <span className="material-icons-round text-lg">save</span>
+                  {isPending ? "Saving..." : "Save Event"}
+                </button>
+                <button
+                  type="button"
+                  onClick={goToFlyerGenerator}
+                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-accent hover:bg-accent/90 text-black text-sm font-bold transition-colors"
+                >
+                  <span className="material-icons-round text-lg">auto_awesome</span>
+                  Create Flyer
                 </button>
                 <button
                   type="button"
                   onClick={buildPromptNow}
-                  className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-accent/20 text-accent text-sm font-bold border border-accent/30 hover:bg-accent/30 transition-colors"
+                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-accent/20 text-accent text-sm font-bold border border-accent/30 hover:bg-accent/30 transition-colors"
                 >
                   <span className="material-icons-round text-lg">description</span>
-                  Generate Prompt Only
+                  Generate Prompt
                 </button>
               </div>
-            )}
+              <p className="text-text-muted text-xs mt-2 text-center">
+                &quot;Create Flyer&quot; and &quot;Generate Prompt&quot; use the form data above — no need to save first.
+              </p>
+            </div>
 
-            {/* Prompt-only output (shown without creating event) */}
-            {generatedPrompt && (!feedback || feedback.type !== "success") && (
+            {/* ── Generated Prompt Output ── */}
+            {generatedPrompt && (
               <div className="rounded-2xl border border-accent/30 bg-accent/5 p-5 space-y-3 animate-[fadeIn_0.2s_ease-out]">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
