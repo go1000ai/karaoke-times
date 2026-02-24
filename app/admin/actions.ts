@@ -303,6 +303,7 @@ export async function createVenue(params: {
   address: string;
   city?: string;
   state?: string;
+  zip_code?: string;
   neighborhood?: string;
   cross_street?: string;
   phone?: string;
@@ -322,6 +323,7 @@ export async function createVenue(params: {
       address: params.address || "",
       city: params.city || "New York",
       state: params.state || "New York",
+      zip_code: params.zip_code || "",
       neighborhood: params.neighborhood || "",
       cross_street: params.cross_street || "",
       phone: params.phone || "",

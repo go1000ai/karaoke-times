@@ -149,6 +149,7 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
       address: (formData.get("new_venue_address") as string)?.trim() || "",
       city: (formData.get("new_venue_city") as string)?.trim() || "New York",
       state: (formData.get("new_venue_state") as string)?.trim() || "New York",
+      zip_code: (formData.get("new_venue_zip_code") as string)?.trim() || "",
       neighborhood: (formData.get("new_venue_neighborhood") as string)?.trim() || "",
       cross_street: (formData.get("new_venue_cross_street") as string)?.trim() || "",
       phone: (formData.get("new_venue_phone") as string)?.trim() || "",
@@ -398,6 +399,10 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
                   <div>
                     <label className={labelClass}>Cross Street</label>
                     <input name="new_venue_cross_street" type="text" placeholder="e.g. 1st Ave & 7th St" className={inputClass} />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Zip Code</label>
+                    <input name="new_venue_zip_code" type="text" placeholder="e.g. 10001" maxLength={5} className={inputClass} />
                   </div>
                   <div>
                     <label className={labelClass}>Phone</label>
