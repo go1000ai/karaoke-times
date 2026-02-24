@@ -19,6 +19,10 @@ export async function GET() {
       const events = data.events_json as Record<string, unknown>[];
 
       // Enrich events missing images with flyer_url from venue_events
+      // Normalize venue names: "And" ↔ "&", trim, collapse whitespace
+      const normalizeName = (n: string) =>
+        n.toLowerCase().replace(/&/g, "and").replace(/\s+/g, " ").trim();
+
       const eventsWithoutImages = events.filter((e) => !e.image);
       if (eventsWithoutImages.length > 0) {
         const { data: flyers } = await supabase
@@ -27,18 +31,18 @@ export async function GET() {
           .not("flyer_url", "is", null);
 
         if (flyers && flyers.length > 0) {
-          // Build lookup: lowercase venueName + dayOfWeek → flyer_url
+          // Build lookup: normalized venueName + dayOfWeek → flyer_url
           const flyerMap = new Map<string, string>();
           for (const f of flyers) {
             const name = (f.venues as any)?.name;
             if (name && f.flyer_url) {
-              flyerMap.set(`${name.toLowerCase()}|${f.day_of_week}`, f.flyer_url);
+              flyerMap.set(`${normalizeName(name)}|${f.day_of_week}`, f.flyer_url);
             }
           }
 
           for (const ev of events) {
             if (!ev.image && ev.venueName && ev.dayOfWeek) {
-              const key = `${(ev.venueName as string).toLowerCase()}|${ev.dayOfWeek}`;
+              const key = `${normalizeName(ev.venueName as string)}|${ev.dayOfWeek}`;
               const flyer = flyerMap.get(key);
               if (flyer) ev.image = flyer;
             }
