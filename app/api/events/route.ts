@@ -16,12 +16,18 @@ export async function GET() {
       .single();
 
     if (data?.events_json && Array.isArray(data.events_json) && data.events_json.length > 0) {
-      const events = data.events_json as Record<string, unknown>[];
-
-      // Enrich events missing images with flyer_url from venue_events
       // Normalize venue names: "And" ↔ "&", trim, collapse whitespace
       const normalizeName = (n: string) =>
         n.toLowerCase().replace(/&/g, "and").replace(/\s+/g, " ").trim();
+
+      // Deduplicate by venueName + dayOfWeek (keep first occurrence)
+      const seen = new Set<string>();
+      const events = (data.events_json as Record<string, unknown>[]).filter((e) => {
+        const key = `${normalizeName((e.venueName as string) || "")}|${e.dayOfWeek || ""}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
 
       const eventsWithoutImages = events.filter((e) => !e.image);
       if (eventsWithoutImages.length > 0) {
