@@ -124,6 +124,83 @@ export async function updateEvent(
     .eq("id", eventId);
 
   if (error) return { error: error.message };
+
+  // If flyer_url was changed, update synced_events so homepage shows the flyer
+  if ("flyer_url" in params) {
+    try {
+      // Get the event's venue name to match in synced_events
+      const { data: eventRow } = await supabase
+        .from("venue_events")
+        .select("venue_id, day_of_week, venues(name)")
+        .eq("id", eventId)
+        .single();
+
+      if (eventRow) {
+        const venueName = (eventRow.venues as any)?.name;
+        const dayOfWeek = params.day_of_week || eventRow.day_of_week;
+
+        if (venueName) {
+          const { data: syncRow } = await supabase
+            .from("synced_events")
+            .select("events_json")
+            .eq("id", "latest")
+            .single();
+
+          if (syncRow?.events_json && Array.isArray(syncRow.events_json)) {
+            const events = syncRow.events_json as any[];
+            let updated = false;
+            for (const ev of events) {
+              if (
+                ev.venueName?.toLowerCase() === venueName.toLowerCase() &&
+                ev.dayOfWeek === dayOfWeek
+              ) {
+                ev.image = params.flyer_url || null;
+                updated = true;
+              }
+            }
+            if (updated) {
+              await supabase
+                .from("synced_events")
+                .update({ events_json: events })
+                .eq("id", "latest");
+            }
+          }
+        }
+      }
+    } catch {
+      // Non-critical: flyer will sync on next sheet sync
+    }
+  }
+
+  revalidatePath("/admin/events");
+  return { success: true };
+}
+
+// ─── Event Skips (One-Week Off) ──────────────────────────────
+
+export async function skipEventWeek(eventId: string, skipDate: string, reason?: string) {
+  const admin = await requireAdmin();
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("event_skips").insert({
+    event_id: eventId,
+    skip_date: skipDate,
+    reason: reason || null,
+    created_by: admin.id,
+  });
+
+  if (error) return { error: error.message };
+  revalidatePath("/admin/events");
+  return { success: true };
+}
+
+export async function removeEventSkip(skipId: string) {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const { error } = await supabase.from("event_skips").delete().eq("id", skipId);
+
+  if (error) return { error: error.message };
   revalidatePath("/admin/events");
   return { success: true };
 }

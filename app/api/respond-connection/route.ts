@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const { staffId, action } = await request.json();
+  const { staffId, action, termsAgreed } = await request.json();
 
   if (!staffId || !["accept", "reject"].includes(action)) {
     return NextResponse.json(
@@ -59,9 +59,13 @@ export async function POST(request: NextRequest) {
   }
 
   if (action === "accept") {
+    const updateData: Record<string, unknown> = { accepted_at: new Date().toISOString() };
+    if (termsAgreed) {
+      updateData.terms_agreed_at = new Date().toISOString();
+    }
     const { error } = await adminSupabase
       .from("venue_staff")
-      .update({ accepted_at: new Date().toISOString() })
+      .update(updateData)
       .eq("id", staffId);
 
     if (error) {

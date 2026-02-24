@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -11,6 +11,8 @@ import {
   createPromo,
   togglePromo,
   deletePromo,
+  skipEventWeek,
+  removeEventSkip,
 } from "../actions";
 import {
   AGE_RESTRICTIONS,
@@ -19,6 +21,7 @@ import {
   DRINK_MINIMUMS,
   RESTRICTION_TAGS,
 } from "@/lib/permissions";
+import { createClient } from "@/lib/supabase/client";
 
 interface ConnectedVenue {
   id: string;
@@ -46,6 +49,15 @@ interface VenueEvent {
   custom_rules?: string[] | null;
   happy_hour_details?: string | null;
   event_date?: string | null;
+  flyer_url?: string | null;
+}
+
+interface EventSkip {
+  id: string;
+  event_id: string;
+  skip_date: string;
+  reason: string | null;
+  created_by: string | null;
 }
 
 interface Promo {
@@ -100,6 +112,7 @@ const dayOrder = [
 export function EventsList({
   events,
   promos: initialPromos,
+  skips: initialSkips,
   canEdit,
   currentUserId,
   isKJ,
@@ -107,6 +120,7 @@ export function EventsList({
 }: {
   events: VenueEvent[];
   promos: Promo[];
+  skips: EventSkip[];
   canEdit: boolean;
   currentUserId: string;
   isKJ: boolean;
@@ -118,6 +132,33 @@ export function EventsList({
   const [isPending, startTransition] = useTransition();
   const [promos, setPromos] = useState(initialPromos);
   const [formError, setFormError] = useState<string | null>(null);
+  const [skips, setSkips] = useState<EventSkip[]>(initialSkips);
+
+  function getSkipsForEvent(eventId: string) {
+    return skips.filter((s) => s.event_id === eventId);
+  }
+
+  function handleSkip(eventId: string, skipDate: string, reason?: string) {
+    startTransition(async () => {
+      const result = await skipEventWeek(eventId, skipDate, reason);
+      if (result?.success) {
+        setSkips((prev) => [...prev, {
+          id: crypto.randomUUID(),
+          event_id: eventId,
+          skip_date: skipDate,
+          reason: reason || null,
+          created_by: currentUserId,
+        }]);
+      }
+    });
+  }
+
+  function handleRemoveSkip(skipId: string) {
+    startTransition(async () => {
+      await removeEventSkip(skipId);
+      setSkips((prev) => prev.filter((s) => s.id !== skipId));
+    });
+  }
 
   // Build venue lookup map
   const venueMap = new Map(venues.map((v) => [v.id, v]));
@@ -289,6 +330,9 @@ export function EventsList({
         onCreatePromo={handleCreatePromo}
         onTogglePromo={handleTogglePromo}
         onDeletePromo={handleDeletePromo}
+        getSkipsForEvent={getSkipsForEvent}
+        onSkip={handleSkip}
+        onRemoveSkip={handleRemoveSkip}
         venueMap={venueMap}
         venues={venues}
       />
@@ -340,6 +384,9 @@ function EventSection({
   onCreatePromo,
   onTogglePromo,
   onDeletePromo,
+  getSkipsForEvent,
+  onSkip,
+  onRemoveSkip,
   venueMap,
   venues,
 }: {
@@ -361,6 +408,9 @@ function EventSection({
   onCreatePromo: (eventId: string, fd: FormData) => void;
   onTogglePromo: (promoId: string, currentActive: boolean) => void;
   onDeletePromo: (promoId: string) => void;
+  getSkipsForEvent?: (eventId: string) => EventSkip[];
+  onSkip?: (eventId: string, skipDate: string, reason?: string) => void;
+  onRemoveSkip?: (skipId: string) => void;
   venueMap: Map<string, ConnectedVenue>;
   venues: ConnectedVenue[];
 }) {
@@ -425,6 +475,9 @@ function EventSection({
                     onCreatePromo={(fd) => onCreatePromo(event.id, fd)}
                     onTogglePromo={onTogglePromo}
                     onDeletePromo={onDeletePromo}
+                    skips={getSkipsForEvent?.(event.id) ?? []}
+                    onSkip={onSkip ? (date, reason) => onSkip(event.id, date, reason) : undefined}
+                    onRemoveSkip={onRemoveSkip}
                     venueName={v?.name}
                     venueAddress={v ? [v.address, v.city].filter(Boolean).join(", ") : ""}
                   />
@@ -438,6 +491,25 @@ function EventSection({
   );
 }
 
+// Helper: get next occurrence date for a day of week
+function getNextOccurrence(dayOfWeek: string): string {
+  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const targetIdx = days.indexOf(dayOfWeek);
+  if (targetIdx === -1) {
+    // Unknown day, default to next 7 days
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return d.toISOString().split("T")[0];
+  }
+  const now = new Date();
+  const currentIdx = now.getDay();
+  let diff = targetIdx - currentIdx;
+  if (diff <= 0) diff += 7;
+  const next = new Date(now);
+  next.setDate(now.getDate() + diff);
+  return next.toISOString().split("T")[0];
+}
+
 function EventCard({
   event,
   canEdit,
@@ -449,6 +521,9 @@ function EventCard({
   onCreatePromo,
   onTogglePromo,
   onDeletePromo,
+  skips,
+  onSkip,
+  onRemoveSkip,
   venueName,
   venueAddress,
 }: {
@@ -462,14 +537,22 @@ function EventCard({
   onCreatePromo?: (fd: FormData) => void;
   onTogglePromo?: (promoId: string, currentActive: boolean) => void;
   onDeletePromo?: (promoId: string) => void;
+  skips?: EventSkip[];
+  onSkip?: (skipDate: string, reason?: string) => void;
+  onRemoveSkip?: (skipId: string) => void;
   venueName?: string;
   venueAddress?: string;
 }) {
   const [promosOpen, setPromosOpen] = useState(false);
   const [showPromoForm, setShowPromoForm] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [showSkipModal, setShowSkipModal] = useState(false);
+  const [skipReason, setSkipReason] = useState("");
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [flyerPreview, setFlyerPreview] = useState(false);
 
   const activePromoCount = promos.filter((p) => p.is_active).length;
+  const nextDate = getNextOccurrence(event.day_of_week);
 
   return (
     <div className="glass-card rounded-2xl overflow-hidden">
@@ -477,6 +560,35 @@ function EventCard({
       <div className="p-5">
         <div className="flex items-start justify-between">
           <div className="flex-1">
+            {/* Flyer thumbnail */}
+            {event.flyer_url && (
+              <div className="mb-3">
+                <button onClick={() => setFlyerPreview(!flyerPreview)} className="group relative">
+                  <img
+                    src={event.flyer_url}
+                    alt="Event flyer"
+                    className="w-16 h-16 rounded-xl object-cover border border-border group-hover:border-primary/50 transition-colors"
+                  />
+                  <span className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="material-icons-round text-white text-sm">zoom_in</span>
+                  </span>
+                </button>
+                {flyerPreview && (
+                  <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setFlyerPreview(false)}>
+                    <div className="relative max-w-lg max-h-[80vh]">
+                      <img src={event.flyer_url} alt="Event flyer" className="max-w-full max-h-[80vh] rounded-2xl object-contain" />
+                      <button
+                        onClick={() => setFlyerPreview(false)}
+                        className="absolute -top-3 -right-3 w-8 h-8 bg-white/10 backdrop-blur rounded-full flex items-center justify-center text-white hover:bg-white/20"
+                      >
+                        <span className="material-icons-round text-lg">close</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               <span className="bg-primary/10 text-primary text-xs font-bold px-3 py-1 rounded-full">
                 {event.day_of_week}
@@ -484,6 +596,11 @@ function EventCard({
               {event.event_date && (
                 <span className="bg-white/5 text-text-secondary text-xs font-semibold px-2.5 py-0.5 rounded-full">
                   {new Date(event.event_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                </span>
+              )}
+              {event.flyer_url && (
+                <span className="bg-pink-500/10 text-pink-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  Flyer
                 </span>
               )}
               {event.is_active ? (
@@ -496,6 +613,28 @@ function EventCard({
                 </span>
               )}
             </div>
+
+            {/* Skip badges */}
+            {skips && skips.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {skips.map((skip) => (
+                  <span key={skip.id} className="inline-flex items-center gap-1 bg-amber-500/10 text-amber-400 text-[10px] font-bold px-2.5 py-1 rounded-full">
+                    <span className="material-icons-round text-xs">event_busy</span>
+                    Off: {new Date(skip.skip_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    {onRemoveSkip && (
+                      <button
+                        onClick={() => onRemoveSkip(skip.id)}
+                        className="ml-1 hover:text-white transition-colors"
+                        title="Remove skip"
+                      >
+                        <span className="material-icons-round text-xs">close</span>
+                      </button>
+                    )}
+                  </span>
+                ))}
+              </div>
+            )}
+
             <h3 className="text-white font-bold">
               {event.event_name || "Karaoke Night"}
             </h3>
@@ -603,11 +742,27 @@ function EventCard({
               >
                 <span className="material-icons-round text-lg">edit</span>
               </button>
+              {onSkip && (
+                <button
+                  onClick={() => setShowSkipModal(true)}
+                  disabled={isPending}
+                  className="p-2 rounded-lg text-text-muted hover:text-amber-400 hover:bg-amber-400/10 transition-colors"
+                  title="Skip This Week"
+                >
+                  <span className="material-icons-round text-lg">event_busy</span>
+                </button>
+              )}
               <button
-                onClick={onToggle}
+                onClick={() => {
+                  if (event.is_active) {
+                    setShowCancelConfirm(true);
+                  } else {
+                    onToggle?.();
+                  }
+                }}
                 disabled={isPending}
                 className="p-2 rounded-lg text-text-muted hover:text-yellow-400 hover:bg-yellow-400/10 transition-colors"
-                title={event.is_active ? "Deactivate" : "Activate"}
+                title={event.is_active ? "Cancel / Deactivate" : "Reactivate"}
               >
                 <span className="material-icons-round text-lg">
                   {event.is_active ? "visibility_off" : "visibility"}
@@ -621,6 +776,83 @@ function EventCard({
               >
                 <span className="material-icons-round text-lg">delete</span>
               </button>
+            </div>
+          )}
+
+          {/* Skip This Week Modal */}
+          {showSkipModal && (
+            <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setShowSkipModal(false)}>
+              <div className="bg-card-dark border border-border rounded-2xl p-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="material-icons-round text-amber-400">event_busy</span>
+                  <h3 className="text-white font-bold">Skip This Week</h3>
+                </div>
+                <p className="text-text-secondary text-sm mb-3">
+                  This will mark <strong className="text-white">{event.event_name || "Karaoke Night"}</strong> as off for:
+                </p>
+                <p className="text-primary font-bold text-lg mb-3">
+                  {new Date(nextDate + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+                </p>
+                <div className="mb-4">
+                  <label className="block text-xs text-text-muted mb-1.5 font-semibold uppercase tracking-wider">Reason (optional)</label>
+                  <input
+                    value={skipReason}
+                    onChange={(e) => setSkipReason(e.target.value)}
+                    placeholder="e.g. KJ unavailable, holiday..."
+                    className="w-full bg-white/5 border border-border rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-amber-400/30"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      onSkip?.(nextDate, skipReason || undefined);
+                      setShowSkipModal(false);
+                      setSkipReason("");
+                    }}
+                    className="flex-1 bg-amber-500 text-black font-bold text-sm py-2.5 rounded-xl hover:bg-amber-400 transition-colors"
+                  >
+                    Confirm Skip
+                  </button>
+                  <button
+                    onClick={() => { setShowSkipModal(false); setSkipReason(""); }}
+                    className="px-4 py-2.5 bg-white/5 text-text-secondary font-semibold text-sm rounded-xl hover:bg-white/10 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Cancel Confirmation Modal */}
+          {showCancelConfirm && (
+            <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setShowCancelConfirm(false)}>
+              <div className="bg-card-dark border border-border rounded-2xl p-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="material-icons-round text-red-400">warning</span>
+                  <h3 className="text-white font-bold">Cancel This Event?</h3>
+                </div>
+                <p className="text-text-secondary text-sm mb-4">
+                  This will deactivate <strong className="text-white">{event.event_name || "Karaoke Night"}</strong> and remove it from public listings. You can reactivate it later.
+                </p>
+                <p className="text-text-muted text-xs mb-4">
+                  Tip: Use "Skip This Week" if you only need to take one week off.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { onToggle?.(); setShowCancelConfirm(false); }}
+                    className="flex-1 bg-red-500 text-white font-bold text-sm py-2.5 rounded-xl hover:bg-red-400 transition-colors"
+                  >
+                    Deactivate Event
+                  </button>
+                  <button
+                    onClick={() => setShowCancelConfirm(false)}
+                    className="px-4 py-2.5 bg-white/5 text-text-secondary font-semibold text-sm rounded-xl hover:bg-white/10 transition-colors"
+                  >
+                    Keep Active
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -817,6 +1049,10 @@ function EventForm({
   const [selectedRestrictions, setSelectedRestrictions] = useState<string[]>(
     Array.isArray(event?.restrictions) ? (event.restrictions as string[]) : []
   );
+  const [flyerFile, setFlyerFile] = useState<File | null>(null);
+  const [flyerPreview, setFlyerPreview] = useState<string | null>(event?.flyer_url || null);
+  const [flyerUploading, setFlyerUploading] = useState(false);
+  const flyerRef = useRef<HTMLInputElement>(null);
 
   const selectClass =
     "w-full bg-white/5 border border-border rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 appearance-none cursor-pointer";
@@ -824,13 +1060,53 @@ function EventForm({
     "w-full bg-white/5 border border-border rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50";
   const labelClass = "block text-xs text-text-muted mb-1.5 font-semibold uppercase tracking-wider";
 
-  function handleSubmit(formData: FormData) {
+  function handleFlyerSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return;
+    if (file.size > 5 * 1024 * 1024) return;
+    setFlyerFile(file);
+    setFlyerPreview(URL.createObjectURL(file));
+  }
+
+  function removeFlyer() {
+    setFlyerFile(null);
+    setFlyerPreview(null);
+    if (flyerRef.current) flyerRef.current.value = "";
+  }
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const formData = new FormData(form);
     formData.set("restrictions", JSON.stringify(selectedRestrictions));
+
+    // Upload flyer if new file selected
+    if (flyerFile) {
+      setFlyerUploading(true);
+      const supabase = createClient();
+      const ext = flyerFile.name.split(".").pop() || "jpg";
+      const fileName = `event-flyers/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("flyer-uploads")
+        .upload(fileName, flyerFile, { contentType: flyerFile.type });
+      setFlyerUploading(false);
+      if (!uploadError) {
+        const { data } = supabase.storage.from("flyer-uploads").getPublicUrl(fileName);
+        formData.set("flyer_url", data.publicUrl);
+      }
+    } else if (flyerPreview === null && event?.flyer_url) {
+      // Flyer was removed
+      formData.set("flyer_url", "");
+    } else if (flyerPreview && !flyerFile) {
+      // Keep existing flyer_url unchanged (don't set it so server action skips it)
+    }
+
     onSubmit(formData);
   }
 
   return (
-    <form action={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
       {/* Venue selector — always first */}
       <div>
         <label className={labelClass}>Venue *</label>
@@ -998,16 +1274,82 @@ function EventForm({
         </div>
       </div>
 
+      {/* Flyer Upload */}
+      <div className="border-t border-border pt-4 mt-4">
+        <h4 className="text-sm font-bold text-white mb-2 flex items-center gap-2">
+          <span className="material-icons-round text-base text-accent">image</span>
+          Event Flyer
+        </h4>
+
+        {flyerPreview ? (
+          <div className="flex items-start gap-4">
+            <div className="relative">
+              <img
+                src={flyerPreview}
+                alt="Flyer preview"
+                className="max-h-40 rounded-xl border border-border"
+              />
+              <button
+                type="button"
+                onClick={removeFlyer}
+                className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600 transition-colors"
+              >
+                <span className="material-icons-round text-sm">close</span>
+              </button>
+            </div>
+            <div className="text-text-secondary text-xs">
+              {flyerFile ? (
+                <>
+                  <p className="font-semibold text-white">{flyerFile.name}</p>
+                  <p>{(flyerFile.size / 1024).toFixed(0)} KB</p>
+                  <p className="text-green-400 mt-1 flex items-center gap-1">
+                    <span className="material-icons-round text-sm">check_circle</span>
+                    New flyer ready to upload
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="font-semibold text-white">Current flyer</p>
+                  <button
+                    type="button"
+                    onClick={() => flyerRef.current?.click()}
+                    className="mt-2 text-accent text-xs font-semibold hover:underline"
+                  >
+                    Replace with new image
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div
+            onClick={() => flyerRef.current?.click()}
+            className="border-2 border-dashed border-border rounded-xl p-6 text-center cursor-pointer hover:border-accent/40 hover:bg-accent/5 transition-colors"
+          >
+            <span className="material-icons-round text-2xl text-text-muted mb-1 block">cloud_upload</span>
+            <p className="text-text-secondary text-sm">Click to upload a flyer</p>
+            <p className="text-text-muted text-xs mt-1">JPEG, PNG, or WebP (max 5MB)</p>
+          </div>
+        )}
+        <input
+          ref={flyerRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          onChange={handleFlyerSelect}
+          className="hidden"
+        />
+      </div>
+
       <div className="flex justify-end gap-3 pt-2">
         <button
           type="submit"
-          disabled={isPending}
+          disabled={isPending || flyerUploading}
           className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-black font-bold px-6 py-2.5 rounded-xl transition-colors disabled:opacity-50"
         >
-          {isPending && (
+          {(isPending || flyerUploading) && (
             <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
           )}
-          {submitLabel}
+          {flyerUploading ? "Uploading flyer..." : submitLabel}
         </button>
       </div>
     </form>

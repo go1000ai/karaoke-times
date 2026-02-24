@@ -65,6 +65,17 @@ export default async function EventsPage() {
         .order("created_at", { ascending: false })
     : { data: [] };
 
+  // Fetch upcoming event skips
+  const eventIds = (events ?? []).map((e: { id: string }) => e.id);
+  const { data: skips } = eventIds.length > 0
+    ? await supabase
+        .from("event_skips")
+        .select("id, event_id, skip_date, reason, created_by")
+        .in("event_id", eventIds)
+        .gte("skip_date", new Date().toISOString().split("T")[0])
+        .order("skip_date")
+    : { data: [] };
+
   return (
     <div>
       <h1 className="text-2xl font-extrabold text-white mb-1">
@@ -81,6 +92,7 @@ export default async function EventsPage() {
       <EventsList
         events={events ?? []}
         promos={promos ?? []}
+        skips={skips ?? []}
         canEdit={true}
         currentUserId={ctx.user.id}
         isKJ={isKJ}

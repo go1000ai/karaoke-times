@@ -2,7 +2,7 @@
 
 import { useState, useRef, useTransition } from "react";
 import Link from "next/link";
-import { toggleEvent, deleteEvent, updateEvent } from "../actions";
+import { toggleEvent, deleteEvent, updateEvent, skipEventWeek, removeEventSkip } from "../actions";
 import { createClient } from "@/lib/supabase/client";
 
 interface VenueEvent {
@@ -61,20 +61,32 @@ for (let h = 0; h <= 4; h++) {
   }
 }
 
+interface EventSkip {
+  id: string;
+  event_id: string;
+  skip_date: string;
+  reason: string | null;
+  created_by: string | null;
+}
+
 interface Props {
   groupedEvents: Record<string, VenueEvent[]>;
   venues: { id: string; name: string }[];
   totalActive: number;
   totalVenues: number;
   dayOrder: string[];
+  skips?: EventSkip[];
 }
 
-export function EventsList({ groupedEvents: initial, venues, totalActive, totalVenues, dayOrder }: Props) {
+export function EventsList({ groupedEvents: initial, venues, totalActive, totalVenues, dayOrder, skips: initialSkips = [] }: Props) {
   const [grouped, setGrouped] = useState(initial);
   const [isPending, startTransition] = useTransition();
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [venueFilter, setVenueFilter] = useState("");
   const [dayFilter, setDayFilter] = useState("");
+  const [skips, setSkips] = useState<EventSkip[]>(initialSkips);
+  const [skipModal, setSkipModal] = useState<{ eventId: string; eventName: string; dayOfWeek: string } | null>(null);
+  const [skipReason, setSkipReason] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   // Edit modal state
@@ -146,6 +158,47 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
     setEditFlyerFile(null);
     setEditFlyerPreview(null);
     if (editFlyerRef.current) editFlyerRef.current.value = "";
+  }
+
+  function getNextOccurrence(dayOfWeek: string): string {
+    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const targetIdx = days.indexOf(dayOfWeek);
+    if (targetIdx === -1) {
+      const d = new Date();
+      d.setDate(d.getDate() + 7);
+      return d.toISOString().split("T")[0];
+    }
+    const now = new Date();
+    const currentIdx = now.getDay();
+    let diff = targetIdx - currentIdx;
+    if (diff <= 0) diff += 7;
+    const next = new Date(now);
+    next.setDate(now.getDate() + diff);
+    return next.toISOString().split("T")[0];
+  }
+
+  function getSkipsForEvent(eventId: string) {
+    return skips.filter((s) => s.event_id === eventId);
+  }
+
+  function handleSkip(eventId: string, skipDate: string, reason?: string) {
+    startTransition(async () => {
+      const result = await skipEventWeek(eventId, skipDate, reason);
+      if (result?.success) {
+        setSkips((prev) => [...prev, { id: crypto.randomUUID(), event_id: eventId, skip_date: skipDate, reason: reason || null, created_by: null }]);
+      }
+    });
+    setSkipModal(null);
+    setSkipReason("");
+  }
+
+  function handleRemoveSkip(skipId: string) {
+    startTransition(async () => {
+      const result = await removeEventSkip(skipId);
+      if (result?.success) {
+        setSkips((prev) => prev.filter((s) => s.id !== skipId));
+      }
+    });
   }
 
   function handleEditFlyerSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -346,8 +399,34 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
                           {event.start_time && ` — ${event.start_time}`}
                           {event.end_time && `–${event.end_time}`}
                         </p>
+                        {/* Skip badges */}
+                        {getSkipsForEvent(event.id).length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {getSkipsForEvent(event.id).map((skip) => (
+                              <span key={skip.id} className="inline-flex items-center gap-1 bg-amber-500/10 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                <span className="material-icons-round text-[10px]">event_busy</span>
+                                Off: {new Date(skip.skip_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                <button
+                                  onClick={() => handleRemoveSkip(skip.id)}
+                                  className="ml-0.5 hover:text-white transition-colors"
+                                  title="Remove skip"
+                                >
+                                  <span className="material-icons-round text-[10px]">close</span>
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
+                        {/* Skip This Week */}
+                        <button
+                          onClick={() => setSkipModal({ eventId: event.id, eventName: event.event_name || "Karaoke Night", dayOfWeek: event.day_of_week })}
+                          className="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center hover:bg-amber-500/20 transition-colors"
+                          title="Skip This Week"
+                        >
+                          <span className="material-icons-round text-amber-400 text-sm">event_busy</span>
+                        </button>
                         {/* Edit Button */}
                         <button
                           onClick={() => openEdit(event)}
@@ -656,6 +735,48 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ Skip This Week Modal ═══ */}
+      {skipModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setSkipModal(null); setSkipReason(""); }} />
+          <div className="relative bg-card-dark border border-border rounded-2xl p-5 w-full max-w-sm z-10 mx-4">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="material-icons-round text-amber-400">event_busy</span>
+              <h3 className="text-white font-bold">Skip This Week</h3>
+            </div>
+            <p className="text-text-secondary text-sm mb-3">
+              Mark <strong className="text-white">{skipModal.eventName}</strong> as off for:
+            </p>
+            <p className="text-primary font-bold text-lg mb-3">
+              {new Date(getNextOccurrence(skipModal.dayOfWeek) + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+            </p>
+            <div className="mb-4">
+              <label className="text-xs text-text-muted uppercase tracking-wider font-bold mb-1.5 block">Reason (optional)</label>
+              <input
+                value={skipReason}
+                onChange={(e) => setSkipReason(e.target.value)}
+                placeholder="e.g. KJ unavailable, holiday..."
+                className="w-full bg-white/5 border border-border rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-amber-400/30"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleSkip(skipModal.eventId, getNextOccurrence(skipModal.dayOfWeek), skipReason || undefined)}
+                className="flex-1 bg-amber-500 text-black font-bold text-sm py-2.5 rounded-xl hover:bg-amber-400 transition-colors"
+              >
+                Confirm Skip
+              </button>
+              <button
+                onClick={() => { setSkipModal(null); setSkipReason(""); }}
+                className="px-4 py-2.5 bg-white/5 text-text-secondary font-semibold text-sm rounded-xl hover:bg-white/10 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}

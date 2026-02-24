@@ -45,6 +45,8 @@ export default function ConnectionsPage() {
   const [responding, setResponding] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [isOwner, setIsOwner] = useState(false);
+  const [termsModal, setTermsModal] = useState<{ staffId: string; venueName: string } | null>(null);
+  const [termsChecked, setTermsChecked] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const supabase = createClient();
 
@@ -128,18 +130,30 @@ export default function ConnectionsPage() {
   };
 
   // Accept or reject an invite
-  const handleRespond = async (staffId: string, action: "accept" | "reject") => {
+  const handleRespond = async (staffId: string, action: "accept" | "reject", termsAgreed = false) => {
     setResponding(staffId);
     const res = await fetch("/api/respond-connection", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ staffId, action }),
+      body: JSON.stringify({ staffId, action, termsAgreed }),
     });
     const result = await res.json();
     setResponding(null);
     setMessage(result.message || result.error);
     setTimeout(() => setMessage(""), 4000);
     await fetchData();
+  };
+
+  // Show terms modal before accepting
+  const handleAcceptWithTerms = (staffId: string, venueName: string) => {
+    setTermsModal({ staffId, venueName });
+    setTermsChecked(false);
+  };
+
+  const confirmAcceptWithTerms = async () => {
+    if (!termsModal) return;
+    setTermsModal(null);
+    await handleRespond(termsModal.staffId, "accept", true);
   };
 
   // Cancel a pending request (KJ-initiated)
@@ -292,7 +306,7 @@ export default function ConnectionsPage() {
                   </div>
                   <div className="flex gap-2 flex-shrink-0">
                     <button
-                      onClick={() => handleRespond(invite.id, "accept")}
+                      onClick={() => handleAcceptWithTerms(invite.id, invite.venues.name)}
                       disabled={responding === invite.id}
                       className="bg-primary text-black font-bold text-xs px-4 py-2 rounded-lg disabled:opacity-50"
                     >
@@ -389,6 +403,71 @@ export default function ConnectionsPage() {
           </div>
         )}
       </div>
+
+      {/* Terms Agreement Modal */}
+      {termsModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setTermsModal(null)}>
+          <div className="bg-card-dark border border-border rounded-2xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <span className="material-icons-round text-primary">handshake</span>
+              </div>
+              <div>
+                <h3 className="text-white font-bold text-lg">Terms of Connection</h3>
+                <p className="text-text-muted text-xs">Connecting to {termsModal.venueName}</p>
+              </div>
+            </div>
+
+            <div className="bg-white/[0.03] rounded-xl p-4 mb-5 space-y-3">
+              <p className="text-text-secondary text-sm">
+                By connecting to this venue, you agree to:
+              </p>
+              <ul className="space-y-2">
+                <li className="flex items-start gap-2 text-sm text-white/80">
+                  <span className="material-icons-round text-primary text-base mt-0.5">event</span>
+                  Keep your event schedule up to date
+                </li>
+                <li className="flex items-start gap-2 text-sm text-white/80">
+                  <span className="material-icons-round text-accent text-base mt-0.5">local_bar</span>
+                  Update drink specials and event details promptly
+                </li>
+                <li className="flex items-start gap-2 text-sm text-white/80">
+                  <span className="material-icons-round text-amber-400 text-base mt-0.5">notifications</span>
+                  Notify the venue of any cancellations or schedule changes
+                </li>
+              </ul>
+            </div>
+
+            <label className="flex items-center gap-3 mb-5 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={termsChecked}
+                onChange={(e) => setTermsChecked(e.target.checked)}
+                className="w-5 h-5 rounded border-border bg-white/5 text-primary accent-primary cursor-pointer"
+              />
+              <span className="text-sm text-text-secondary group-hover:text-white transition-colors">
+                I agree to these terms
+              </span>
+            </label>
+
+            <div className="flex gap-3">
+              <button
+                onClick={confirmAcceptWithTerms}
+                disabled={!termsChecked || responding === termsModal.staffId}
+                className="flex-1 bg-primary text-black font-bold text-sm py-3 rounded-xl disabled:opacity-40 hover:bg-primary/90 transition-colors"
+              >
+                {responding === termsModal.staffId ? "Accepting..." : "Accept & Connect"}
+              </button>
+              <button
+                onClick={() => setTermsModal(null)}
+                className="px-5 py-3 bg-white/5 text-text-secondary font-semibold text-sm rounded-xl hover:bg-white/10 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

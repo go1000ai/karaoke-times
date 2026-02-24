@@ -27,6 +27,17 @@ export default async function AdminEventsPage() {
     grouped[day].push(e);
   });
 
+  // Fetch upcoming event skips
+  const eventIds = (events ?? []).map((e: any) => e.id);
+  const { data: skips } = eventIds.length > 0
+    ? await supabase
+        .from("event_skips")
+        .select("id, event_id, skip_date, reason, created_by")
+        .in("event_id", eventIds)
+        .gte("skip_date", new Date().toISOString().split("T")[0])
+        .order("skip_date")
+    : { data: [] };
+
   const activeCount = (events ?? []).filter((e: any) => e.is_active !== false).length;
   const venueSet = new Set((events ?? []).map((e: any) => e.venue_id));
 
@@ -39,6 +50,7 @@ export default async function AdminEventsPage() {
         totalActive={activeCount}
         totalVenues={venueSet.size}
         dayOrder={DAY_ORDER}
+        skips={(skips ?? []) as { id: string; event_id: string; skip_date: string; reason: string | null; created_by: string | null }[]}
       />
     </>
   );
