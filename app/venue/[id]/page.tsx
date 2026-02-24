@@ -113,7 +113,7 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
   useEffect(() => {
     const supabase = createClient();
     if (isUUID(id)) {
-      // Supabase venue — query by venue_id
+      // Supabase venue — query by venue_id directly
       supabase
         .from("venue_events")
         .select("flyer_url")
@@ -123,28 +123,31 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
         .then(({ data }) => {
           if (data?.[0]?.flyer_url) setEventFlyerUrl(data[0].flyer_url);
         });
-    } else if (mockVenue) {
-      // Mock data venue — resolve name to UUID, then query
-      supabase
-        .from("venues")
-        .select("id")
-        .ilike("name", mockVenue.name)
-        .limit(1)
-        .then(({ data: venueData }) => {
-          if (venueData?.[0]?.id) {
-            supabase
-              .from("venue_events")
-              .select("flyer_url")
-              .eq("venue_id", venueData[0].id)
-              .not("flyer_url", "is", null)
-              .limit(1)
-              .then(({ data }) => {
-                if (data?.[0]?.flyer_url) setEventFlyerUrl(data[0].flyer_url);
-              });
-          }
-        });
+    } else {
+      // Slug-based ID — resolve venue name to UUID, then query for flyer
+      const venueName = mockVenue?.name || event?.venueName;
+      if (venueName) {
+        supabase
+          .from("venues")
+          .select("id")
+          .ilike("name", venueName)
+          .limit(1)
+          .then(({ data: venueData }) => {
+            if (venueData?.[0]?.id) {
+              supabase
+                .from("venue_events")
+                .select("flyer_url")
+                .eq("venue_id", venueData[0].id)
+                .not("flyer_url", "is", null)
+                .limit(1)
+                .then(({ data }) => {
+                  if (data?.[0]?.flyer_url) setEventFlyerUrl(data[0].flyer_url);
+                });
+            }
+          });
+      }
     }
-  }, [id, mockVenue]);
+  }, [id, mockVenue, event]);
 
   // Fetch featured specials from POS
   useEffect(() => {

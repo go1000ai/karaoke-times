@@ -705,6 +705,26 @@ async function saveToSupabase(parsedEvents: ParsedEvent[], eventCount: number, d
     });
   }
 
+  // Preserve admin-uploaded flyer_urls that would otherwise be overwritten with null
+  const { data: existingEventsWithFlyers } = await adminSupabase
+    .from("venue_events")
+    .select("venue_id, day_of_week, event_name, start_time, flyer_url")
+    .not("flyer_url", "is", null);
+
+  if (existingEventsWithFlyers?.length) {
+    const flyerMap = new Map<string, string>();
+    for (const e of existingEventsWithFlyers) {
+      const key = `${e.venue_id}|${e.day_of_week}|${e.event_name}|${e.start_time}`;
+      if (e.flyer_url) flyerMap.set(key, e.flyer_url);
+    }
+    for (const row of eventRows) {
+      if (!row.flyer_url) {
+        const key = `${row.venue_id}|${row.day_of_week}|${row.event_name}|${row.start_time}`;
+        row.flyer_url = flyerMap.get(key) || null;
+      }
+    }
+  }
+
   let eventsSynced = 0;
   const dayCounts: Record<string, number> = {};
 
@@ -729,6 +749,37 @@ async function saveToSupabase(parsedEvents: ParsedEvent[], eventCount: number, d
       }
     }
   }
+
+  // Enrich parsedEvents with flyer_urls so homepage cards show flyers
+  // Build reverse map: venue_id → normalized venue name
+  const idToNormName = new Map<string, string>();
+  for (const [norm, vid] of venueNameToId) {
+    idToNormName.set(vid, norm);
+  }
+
+  // Build map of event slugs → flyer_url from the final eventRows
+  for (const row of eventRows) {
+    if (!row.flyer_url) continue;
+    const normName = idToNormName.get(row.venue_id);
+    if (!normName) continue;
+    // Find matching parsedEvent by normalized name + day
+    for (const pe of parsedEvents) {
+      if (normalizeVenueName(pe.venueName) === normName && pe.dayOfWeek === row.day_of_week && !pe.image) {
+        pe.image = row.flyer_url;
+      }
+    }
+  }
+
+  // Re-save synced_events with flyer images included
+  await adminSupabase
+    .from("synced_events")
+    .upsert({
+      id: "latest",
+      events_json: parsedEvents,
+      event_count: parsedEvents.length,
+      day_count: Object.keys(dayCounts).length,
+      synced_at: new Date().toISOString(),
+    });
 
   return { eventsSynced, dayCounts, venuesCreated: newVenues.length };
 }
