@@ -134,6 +134,31 @@ function parseCSV(text: string): string[][] {
   return rows;
 }
 
+// Convert Google Drive sharing links to direct image URLs
+function toDirectImageUrl(url: string): string | null {
+  if (!url || !url.trim()) return null;
+  const trimmed = url.trim();
+
+  // Google Drive file link: https://drive.google.com/file/d/FILE_ID/view...
+  const driveFileMatch = trimmed.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (driveFileMatch) {
+    return `https://drive.google.com/uc?export=view&id=${driveFileMatch[1]}`;
+  }
+
+  // Google Drive open link: https://drive.google.com/open?id=FILE_ID
+  const driveOpenMatch = trimmed.match(/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/);
+  if (driveOpenMatch) {
+    return `https://drive.google.com/uc?export=view&id=${driveOpenMatch[1]}`;
+  }
+
+  // Already a direct URL
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+
+  return null;
+}
+
 function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -627,6 +652,7 @@ async function saveToSupabase(parsedEvents: ParsedEvent[], eventCount: number, d
     notes: string;
     is_active: boolean;
     recurrence_type: string;
+    flyer_url: string | null;
   }> = [];
 
   for (const event of parsedEvents) {
@@ -644,6 +670,7 @@ async function saveToSupabase(parsedEvents: ParsedEvent[], eventCount: number, d
       notes: event.notes || "",
       is_active: true,
       recurrence_type: "weekly",
+      flyer_url: toDirectImageUrl(event.flyer || "") || null,
     });
   }
 
