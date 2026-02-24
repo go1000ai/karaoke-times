@@ -75,6 +75,7 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
   const [specials, setSpecials] = useState<FeaturedSpecial[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [dbVenue, setDbVenue] = useState<SupabaseVenue | null>(null);
+  const [eventFlyerUrl, setEventFlyerUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(!mockVenue);
 
   // Resolved venue: mock data first, then Supabase fallback
@@ -106,6 +107,43 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
         if (data) setDbVenue(data as SupabaseVenue);
         setLoading(false);
       });
+  }, [id, mockVenue]);
+
+  // Fetch flyer URL from venue_events
+  useEffect(() => {
+    const supabase = createClient();
+    if (isUUID(id)) {
+      // Supabase venue — query by venue_id
+      supabase
+        .from("venue_events")
+        .select("flyer_url")
+        .eq("venue_id", id)
+        .not("flyer_url", "is", null)
+        .limit(1)
+        .then(({ data }) => {
+          if (data?.[0]?.flyer_url) setEventFlyerUrl(data[0].flyer_url);
+        });
+    } else if (mockVenue) {
+      // Mock data venue — resolve name to UUID, then query
+      supabase
+        .from("venues")
+        .select("id")
+        .ilike("name", mockVenue.name)
+        .limit(1)
+        .then(({ data: venueData }) => {
+          if (venueData?.[0]?.id) {
+            supabase
+              .from("venue_events")
+              .select("flyer_url")
+              .eq("venue_id", venueData[0].id)
+              .not("flyer_url", "is", null)
+              .limit(1)
+              .then(({ data }) => {
+                if (data?.[0]?.flyer_url) setEventFlyerUrl(data[0].flyer_url);
+              });
+          }
+        });
+    }
   }, [id, mockVenue]);
 
   // Fetch featured specials from POS
@@ -261,8 +299,8 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
       <div className="max-w-4xl mx-auto">
         {/* Hero */}
         <div className="relative h-56 mt-20 bg-gradient-to-br from-primary/20 via-card-dark to-accent/10 flex items-center justify-center">
-          {venue.image ? (
-            <img src={venue.image} alt={venue.name} className="w-full h-full object-cover" />
+          {venue.image || eventFlyerUrl ? (
+            <img src={(venue.image || eventFlyerUrl)!} alt={venue.name} className="w-full h-full object-cover" />
           ) : (
             <span className="material-icons-round text-6xl text-primary/30">mic</span>
           )}
