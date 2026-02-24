@@ -230,6 +230,21 @@ function isZipCode(value: string): boolean {
   return /^\d{5}$/.test(value.trim());
 }
 
+// Resolve day abbreviations to full day names for search
+const DAY_ALIASES: Record<string, string> = {
+  mon: "monday", monday: "monday",
+  tue: "tuesday", tues: "tuesday", tuesday: "tuesday",
+  wed: "wednesday", weds: "wednesday", wednesday: "wednesday",
+  thu: "thursday", thur: "thursday", thurs: "thursday", thursday: "thursday",
+  fri: "friday", friday: "friday",
+  sat: "saturday", saturday: "saturday",
+  sun: "sunday", sunday: "sunday",
+};
+
+function resolveDayQuery(q: string): string | null {
+  return DAY_ALIASES[q.toLowerCase().trim()] || null;
+}
+
 function useIsMobile(breakpoint = 640) {
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
@@ -383,7 +398,9 @@ export default function HomePage() {
   const searchResults = useMemo(() => {
     if (searchQuery.trim().length === 0) return [];
     const q = searchQuery.toLowerCase();
+    const dayMatch = resolveDayQuery(q);
     return karaokeEvents.filter((e) =>
+      (dayMatch && e.dayOfWeek.toLowerCase() === dayMatch) ||
       e.venueName.toLowerCase().includes(q) ||
       e.eventName.toLowerCase().includes(q) ||
       e.neighborhood.toLowerCase().includes(q) ||
@@ -471,7 +488,7 @@ export default function HomePage() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search venues, KJs, or enter a zip code..."
+                  placeholder="Search venues, KJs, days, or zip code..."
                   className="bg-transparent text-white text-sm flex-grow outline-none placeholder:text-text-muted"
                 />
                 {searchQuery ? (
