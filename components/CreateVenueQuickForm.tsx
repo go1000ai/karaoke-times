@@ -15,6 +15,7 @@ interface CreateVenueQuickFormProps {
     address: string;
     city?: string;
     state?: string;
+    zip_code?: string;
     neighborhood?: string;
     cross_street?: string;
     phone?: string;
@@ -44,6 +45,7 @@ export function CreateVenueQuickForm({ onCreateVenue }: CreateVenueQuickFormProp
         address: (formData.get("venue_address") as string)?.trim() || "",
         city: (formData.get("venue_city") as string)?.trim() || "New York",
         state: (formData.get("venue_state") as string)?.trim() || "New York",
+        zip_code: (formData.get("venue_zip_code") as string)?.trim() || "",
         neighborhood: (formData.get("venue_neighborhood") as string)?.trim() || "",
         cross_street: (formData.get("venue_cross_street") as string)?.trim() || "",
         phone: (formData.get("venue_phone") as string)?.trim() || "",
@@ -104,8 +106,8 @@ export function CreateVenueQuickForm({ onCreateVenue }: CreateVenueQuickFormProp
               </div>
             </div>
 
-            {/* City & State */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* City, State & Zip */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className={labelClass}>City</label>
                 <input
@@ -121,6 +123,18 @@ export function CreateVenueQuickForm({ onCreateVenue }: CreateVenueQuickFormProp
                   name="venue_state"
                   type="text"
                   defaultValue="New York"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Zip Code</label>
+                <input
+                  name="venue_zip_code"
+                  type="text"
+                  placeholder="e.g. 10001"
+                  maxLength={5}
+                  pattern="[0-9]*"
+                  inputMode="numeric"
                   className={inputClass}
                 />
               </div>

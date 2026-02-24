@@ -618,6 +618,7 @@ async function saveToSupabase(parsedEvents: ParsedEvent[], eventCount: number, d
     address: string;
     city: string;
     state: string;
+    zip_code: string;
     neighborhood: string;
     cross_street: string;
     phone: string;
@@ -632,6 +633,7 @@ async function saveToSupabase(parsedEvents: ParsedEvent[], eventCount: number, d
         address: event.address || "",
         city: event.city || "New York",
         state: event.state || "New York",
+        zip_code: event.zipCode || "",
         neighborhood: event.neighborhood || "",
         cross_street: event.crossStreet || "",
         phone: event.phone || "",
@@ -647,6 +649,7 @@ async function saveToSupabase(parsedEvents: ParsedEvent[], eventCount: number, d
           address: event.address || "",
           city: event.city || "New York",
           state: event.state || "New York",
+          zip_code: event.zipCode || "",
           neighborhood: event.neighborhood || "",
           cross_street: event.crossStreet || "",
           phone: event.phone || "",
