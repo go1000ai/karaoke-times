@@ -133,9 +133,9 @@ export default function ReportProblemModal({ open, onClose, venueName, venueId }
                   onChange={(e) => setCategory(e.target.value)}
                   className="w-full bg-surface-dark border border-border rounded-xl py-3 px-4 text-sm text-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50"
                 >
-                  <option value="">Select a category...</option>
+                  <option value="" className="text-black bg-white">Select a category...</option>
                   {CATEGORIES.map((c) => (
-                    <option key={c.value} value={c.value}>{c.label}</option>
+                    <option key={c.value} value={c.value} className="text-black bg-white">{c.label}</option>
                   ))}
                 </select>
               </div>
