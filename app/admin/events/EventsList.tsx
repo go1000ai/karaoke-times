@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useRef, useTransition } from "react";
 import Link from "next/link";
-import { toggleEvent, deleteEvent } from "../actions";
+import { toggleEvent, deleteEvent, updateEvent } from "../actions";
+import { createClient } from "@/lib/supabase/client";
 
 interface VenueEvent {
   id: string;
@@ -15,6 +16,13 @@ interface VenueEvent {
   is_active: boolean;
   notes: string | null;
   recurrence_type?: string;
+  flyer_url?: string | null;
+  happy_hour_details?: string | null;
+  age_restriction?: string | null;
+  dress_code?: string | null;
+  cover_charge?: string | null;
+  drink_minimum?: string | null;
+  restrictions?: string[] | null;
   venues: { name: string } | null;
 }
 
@@ -23,6 +31,35 @@ const RECURRENCE_BADGES: Record<string, { label: string; cls: string }> = {
   monthly: { label: "Monthly", cls: "bg-purple-500/10 text-purple-400" },
   one_time: { label: "One-time", cls: "bg-white/5 text-text-muted" },
 };
+
+const DAY_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+const RECURRENCE_OPTIONS = [
+  { value: "weekly", label: "Every Week" },
+  { value: "biweekly", label: "Every 2 Weeks" },
+  { value: "monthly", label: "Monthly" },
+  { value: "one_time", label: "One-Time Event" },
+];
+
+// Generate time options
+const TIME_OPTIONS: string[] = [];
+for (let h = 12; h <= 23; h++) {
+  for (const m of [0, 30]) {
+    const hour12 = h > 12 ? h - 12 : h;
+    const ampm = h >= 12 ? "PM" : "AM";
+    TIME_OPTIONS.push(`${hour12}:${m === 0 ? "00" : "30"} ${ampm}`);
+  }
+}
+for (let h = 0; h <= 4; h++) {
+  for (const m of [0, 30]) {
+    if (h === 0) {
+      TIME_OPTIONS.push(`12:${m === 0 ? "00" : "30"} AM`);
+    } else {
+      TIME_OPTIONS.push(`${h}:${m === 0 ? "00" : "30"} AM`);
+    }
+    if (h === 4 && m === 0) break;
+  }
+}
 
 interface Props {
   groupedEvents: Record<string, VenueEvent[]>;
@@ -39,6 +76,17 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
   const [venueFilter, setVenueFilter] = useState("");
   const [dayFilter, setDayFilter] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+
+  // Edit modal state
+  const [editEvent, setEditEvent] = useState<VenueEvent | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  // Flyer upload in edit modal
+  const supabase = createClient();
+  const editFlyerRef = useRef<HTMLInputElement>(null);
+  const [editFlyerFile, setEditFlyerFile] = useState<File | null>(null);
+  const [editFlyerPreview, setEditFlyerPreview] = useState<string | null>(null);
 
   const toggleCollapse = (day: string) => {
     setCollapsed((prev) => {
@@ -84,6 +132,128 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
       setProcessingId(null);
     });
   }
+
+  function openEdit(event: VenueEvent) {
+    setEditEvent({ ...event });
+    setEditError(null);
+    setEditFlyerFile(null);
+    setEditFlyerPreview(event.flyer_url || null);
+  }
+
+  function closeEdit() {
+    setEditEvent(null);
+    setEditError(null);
+    setEditFlyerFile(null);
+    setEditFlyerPreview(null);
+    if (editFlyerRef.current) editFlyerRef.current.value = "";
+  }
+
+  function handleEditFlyerSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setEditError("Flyer image must be under 5MB.");
+      return;
+    }
+    setEditFlyerFile(file);
+    setEditFlyerPreview(URL.createObjectURL(file));
+  }
+
+  function removeEditFlyer() {
+    setEditFlyerFile(null);
+    setEditFlyerPreview(null);
+    if (editFlyerRef.current) editFlyerRef.current.value = "";
+  }
+
+  async function uploadEditFlyer(): Promise<string | null> {
+    if (!editFlyerFile) return editFlyerPreview; // keep existing URL if no new file
+    const ext = editFlyerFile.name.split(".").pop() || "jpg";
+    const fileName = `event-flyers/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("flyer-uploads")
+      .upload(fileName, editFlyerFile, { contentType: editFlyerFile.type });
+
+    if (uploadError) {
+      console.error("Flyer upload error:", uploadError);
+      return editEvent?.flyer_url || null;
+    }
+
+    const { data } = supabase.storage.from("flyer-uploads").getPublicUrl(fileName);
+    return data.publicUrl;
+  }
+
+  async function handleEditSave(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!editEvent) return;
+
+    setEditSaving(true);
+    setEditError(null);
+
+    const form = e.currentTarget;
+    const fd = new FormData(form);
+
+    // Upload flyer if new file selected
+    let flyerUrl: string | null = null;
+    if (editFlyerFile) {
+      flyerUrl = await uploadEditFlyer();
+    } else {
+      flyerUrl = editFlyerPreview; // keep existing or null if removed
+    }
+
+    const params: Record<string, unknown> = {
+      venue_id: fd.get("venue_id") as string,
+      day_of_week: fd.get("day_of_week") as string,
+      event_name: (fd.get("event_name") as string) || "Karaoke Night",
+      dj: (fd.get("dj") as string) || "",
+      start_time: (fd.get("start_time") as string) || "",
+      end_time: (fd.get("end_time") as string) || "",
+      notes: (fd.get("notes") as string) || "",
+      recurrence_type: (fd.get("recurrence_type") as string) || "weekly",
+      happy_hour_details: (fd.get("happy_hour_details") as string) || null,
+      dress_code: (fd.get("dress_code") as string) || "casual",
+      cover_charge: (fd.get("cover_charge") as string) || "free",
+      flyer_url: flyerUrl,
+    };
+
+    const result = await updateEvent(editEvent.id, params as any);
+
+    setEditSaving(false);
+
+    if (result.error) {
+      setEditError(result.error);
+      return;
+    }
+
+    // Update local state
+    const updatedVenue = venues.find((v) => v.id === params.venue_id);
+    setGrouped((prev) => {
+      const next: Record<string, VenueEvent[]> = {};
+      for (const day of Object.keys(prev)) {
+        next[day] = prev[day]
+          .filter((ev) => ev.id !== editEvent.id)
+          .map((ev) => ({ ...ev }));
+      }
+      const targetDay = params.day_of_week as string;
+      if (!next[targetDay]) next[targetDay] = [];
+      next[targetDay].push({
+        ...editEvent,
+        ...params,
+        flyer_url: flyerUrl,
+        venues: updatedVenue ? { name: updatedVenue.name } : editEvent.venues,
+      } as VenueEvent);
+      return next;
+    });
+
+    closeEdit();
+  }
+
+  const selectClass =
+    "w-full bg-card-dark border border-border rounded-xl py-3 px-4 text-sm text-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50";
+  const inputClass =
+    "w-full bg-card-dark border border-border rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 placeholder:text-text-muted";
+  const labelClass = "text-xs text-text-muted uppercase tracking-wider font-bold mb-1.5 block";
 
   return (
     <div>
@@ -166,6 +336,9 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
                               {RECURRENCE_BADGES[event.recurrence_type].label}
                             </span>
                           )}
+                          {event.flyer_url && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-accent/10 text-accent">Flyer</span>
+                          )}
                         </div>
                         <p className="text-xs text-text-muted truncate">
                           {event.venues?.name || "Unknown Venue"}
@@ -175,6 +348,15 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
                         </p>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
+                        {/* Edit Button */}
+                        <button
+                          onClick={() => openEdit(event)}
+                          className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center hover:bg-blue-500/20 transition-colors"
+                          title="Edit Event"
+                        >
+                          <span className="material-icons-round text-blue-400 text-sm">edit</span>
+                        </button>
+                        {/* Flyer Link */}
                         <Link
                           href={`/dashboard/flyers?${new URLSearchParams({
                             eventName: event.event_name || "Karaoke Night",
@@ -217,6 +399,266 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
           );
         })}
       </div>
+
+      {/* ═══ Edit Event Modal ═══ */}
+      {editEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closeEdit} />
+          <div className="relative bg-card-dark border border-border rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto z-10 mx-4">
+            {/* Header */}
+            <div className="sticky top-0 bg-card-dark border-b border-border/30 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
+              <div className="flex items-center gap-2">
+                <span className="material-icons-round text-blue-400 text-xl">edit</span>
+                <h2 className="text-lg font-bold text-white">Edit Event</h2>
+              </div>
+              <button onClick={closeEdit} className="p-1 rounded-lg hover:bg-white/10 transition-colors">
+                <span className="material-icons-round text-text-muted">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSave} className="p-6 space-y-4">
+              {/* Venue + Day */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClass}>Venue</label>
+                  <select
+                    name="venue_id"
+                    defaultValue={editEvent.venue_id}
+                    className={selectClass}
+                  >
+                    {venues.map((v) => (
+                      <option key={v.id} value={v.id}>{v.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelClass}>Day of Week</label>
+                  <select
+                    name="day_of_week"
+                    defaultValue={editEvent.day_of_week}
+                    className={selectClass}
+                  >
+                    {DAY_ORDER.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Event Name + KJ */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClass}>Event Name</label>
+                  <input
+                    name="event_name"
+                    type="text"
+                    defaultValue={editEvent.event_name}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>KJ / DJ</label>
+                  <input
+                    name="dj"
+                    type="text"
+                    defaultValue={editEvent.dj || ""}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+
+              {/* Times + Recurrence */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className={labelClass}>Start Time</label>
+                  <select
+                    name="start_time"
+                    defaultValue={editEvent.start_time || ""}
+                    className={selectClass}
+                  >
+                    <option value="">Select time...</option>
+                    {TIME_OPTIONS.map((t) => (
+                      <option key={`s-${t}`} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelClass}>End Time</label>
+                  <select
+                    name="end_time"
+                    defaultValue={editEvent.end_time || ""}
+                    className={selectClass}
+                  >
+                    <option value="">Select time...</option>
+                    {TIME_OPTIONS.map((t) => (
+                      <option key={`e-${t}`} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelClass}>Recurrence</label>
+                  <select
+                    name="recurrence_type"
+                    defaultValue={editEvent.recurrence_type || "weekly"}
+                    className={selectClass}
+                  >
+                    {RECURRENCE_OPTIONS.map((r) => (
+                      <option key={r.value} value={r.value}>{r.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Happy Hour + Notes */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClass}>Happy Hour</label>
+                  <input
+                    name="happy_hour_details"
+                    type="text"
+                    defaultValue={editEvent.happy_hour_details || ""}
+                    placeholder="e.g. $3 wells before 9PM"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Dress Code</label>
+                  <select
+                    name="dress_code"
+                    defaultValue={editEvent.dress_code || "casual"}
+                    className={selectClass}
+                  >
+                    <option value="none">No Dress Code</option>
+                    <option value="casual">Casual</option>
+                    <option value="smart_casual">Smart Casual</option>
+                    <option value="no_sneakers">No Sneakers</option>
+                    <option value="no_hats">No Hats</option>
+                    <option value="formal">Formal</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className={labelClass}>Cover Charge</label>
+                <select
+                  name="cover_charge"
+                  defaultValue={editEvent.cover_charge || "free"}
+                  className={selectClass}
+                >
+                  <option value="free">Free Entry</option>
+                  <option value="varies">Varies</option>
+                  <option value="$5">$5</option>
+                  <option value="$10">$10</option>
+                  <option value="$15">$15</option>
+                  <option value="$20">$20</option>
+                  <option value="$25+">$25+</option>
+                </select>
+              </div>
+
+              <div>
+                <label className={labelClass}>Notes</label>
+                <textarea
+                  name="notes"
+                  defaultValue={editEvent.notes || ""}
+                  rows={2}
+                  placeholder="Special details, drink specials, etc."
+                  className={`${inputClass} resize-none`}
+                />
+              </div>
+
+              {/* ── Flyer Upload ── */}
+              <div className="border-t border-border pt-4">
+                <h4 className="text-sm font-bold text-white mb-2 flex items-center gap-2">
+                  <span className="material-icons-round text-base text-accent">image</span>
+                  Event Flyer
+                </h4>
+
+                {editFlyerPreview ? (
+                  <div className="flex items-start gap-4">
+                    <div className="relative">
+                      <img
+                        src={editFlyerPreview}
+                        alt="Flyer preview"
+                        className="max-h-40 rounded-xl border border-border"
+                      />
+                      <button
+                        type="button"
+                        onClick={removeEditFlyer}
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600 transition-colors"
+                      >
+                        <span className="material-icons-round text-sm">close</span>
+                      </button>
+                    </div>
+                    <div className="text-text-secondary text-xs">
+                      {editFlyerFile ? (
+                        <>
+                          <p className="font-semibold text-white">{editFlyerFile.name}</p>
+                          <p>{(editFlyerFile.size / 1024).toFixed(0)} KB</p>
+                          <p className="text-green-400 mt-1 flex items-center gap-1">
+                            <span className="material-icons-round text-sm">check_circle</span>
+                            New flyer ready to upload
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="font-semibold text-white">Current flyer</p>
+                          <button
+                            type="button"
+                            onClick={() => editFlyerRef.current?.click()}
+                            className="mt-2 text-accent text-xs font-semibold hover:underline"
+                          >
+                            Replace with new image
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => editFlyerRef.current?.click()}
+                    className="border-2 border-dashed border-border rounded-xl p-6 text-center cursor-pointer hover:border-accent/40 hover:bg-accent/5 transition-colors"
+                  >
+                    <span className="material-icons-round text-2xl text-text-muted mb-1 block">cloud_upload</span>
+                    <p className="text-text-secondary text-sm">Click to upload a flyer</p>
+                    <p className="text-text-muted text-xs mt-1">JPEG, PNG, or WebP (max 5MB)</p>
+                  </div>
+                )}
+                <input
+                  ref={editFlyerRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleEditFlyerSelect}
+                  className="hidden"
+                />
+              </div>
+
+              {/* Error */}
+              {editError && (
+                <div className="rounded-xl p-3 text-sm bg-red-500/10 text-red-400">{editError}</div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={editSaving}
+                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-blue-500 text-white text-sm font-bold hover:bg-blue-600 transition-colors disabled:opacity-50"
+                >
+                  <span className="material-icons-round text-lg">save</span>
+                  {editSaving ? "Saving..." : "Save Changes"}
+                </button>
+                <button
+                  type="button"
+                  onClick={closeEdit}
+                  className="px-6 py-3 rounded-xl bg-white/5 text-text-secondary text-sm font-semibold hover:bg-white/10 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

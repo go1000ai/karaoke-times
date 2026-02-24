@@ -647,19 +647,32 @@ async function saveToSupabase(parsedEvents: ParsedEvent[], eventCount: number, d
     });
   }
 
-  if (eventRows.length > 0) {
-    // Use upsert with the unique constraint (venue_id, day_of_week, event_name, start_time)
-    const { error: eventError } = await adminSupabase
-      .from("venue_events")
-      .upsert(eventRows, {
-        onConflict: "venue_id,day_of_week,event_name,start_time",
-        ignoreDuplicates: false,
-      });
+  let eventsSynced = 0;
+  const dayCounts: Record<string, number> = {};
 
-    if (eventError) {
-      console.error("Failed to upsert venue_events:", eventError.message);
+  if (eventRows.length > 0) {
+    // Batch upsert in chunks of 50 to avoid request size limits
+    for (let i = 0; i < eventRows.length; i += 50) {
+      const batch = eventRows.slice(i, i + 50);
+      const { error: eventError } = await adminSupabase
+        .from("venue_events")
+        .upsert(batch, {
+          onConflict: "venue_id,day_of_week,event_name,start_time",
+          ignoreDuplicates: false,
+        });
+
+      if (eventError) {
+        console.error(`Failed to upsert venue_events batch ${i}:`, eventError.message);
+      } else {
+        eventsSynced += batch.length;
+        for (const row of batch) {
+          dayCounts[row.day_of_week] = (dayCounts[row.day_of_week] || 0) + 1;
+        }
+      }
     }
   }
+
+  return { eventsSynced, dayCounts, venuesCreated: newVenues.length };
 }
 
 // POST: Sync from Google Sheet
@@ -695,11 +708,15 @@ export async function POST(request: NextRequest) {
     const csvText = await response.text();
     const { parsedEvents, eventCount, dayCount } = generateMockData(csvText, columns);
 
-    await saveToSupabase(parsedEvents, eventCount, dayCount);
+    const syncResult = await saveToSupabase(parsedEvents, eventCount, dayCount);
+
+    const dayBreakdown = Object.entries(syncResult.dayCounts)
+      .map(([day, count]) => `${day}: ${count}`)
+      .join(", ");
 
     return NextResponse.json({
       success: true,
-      message: `Synced ${eventCount} events across ${dayCount} days from Google Sheet. Changes are live immediately!`,
+      message: `Synced ${eventCount} events across ${dayCount} days from Google Sheet. ${syncResult.eventsSynced} events saved to venue_events table (${dayBreakdown}). ${syncResult.venuesCreated} new venues created. Changes are live immediately!`,
     });
   } catch (err) {
     return NextResponse.json({
@@ -747,11 +764,15 @@ export async function PUT(request: NextRequest) {
     const csvText = await file.text();
     const { parsedEvents, eventCount, dayCount } = generateMockData(csvText, columns);
 
-    await saveToSupabase(parsedEvents, eventCount, dayCount);
+    const syncResult = await saveToSupabase(parsedEvents, eventCount, dayCount);
+
+    const dayBreakdown = Object.entries(syncResult.dayCounts)
+      .map(([day, count]) => `${day}: ${count}`)
+      .join(", ");
 
     return NextResponse.json({
       success: true,
-      message: `Uploaded ${eventCount} events across ${dayCount} days from "${file.name}". Changes are live immediately!`,
+      message: `Uploaded ${eventCount} events across ${dayCount} days from "${file.name}". ${syncResult.eventsSynced} events saved to venue_events table (${dayBreakdown}). ${syncResult.venuesCreated} new venues created. Changes are live immediately!`,
     });
   } catch (err) {
     return NextResponse.json({

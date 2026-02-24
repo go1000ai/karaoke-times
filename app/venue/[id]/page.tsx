@@ -11,6 +11,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { venues, karaokeEvents } from "@/lib/mock-data";
 import { createClient } from "@/lib/supabase/client";
 import { AddToCalendar } from "@/components/AddToCalendar";
+import ReportProblemModal from "@/components/ReportProblemModal";
 
 interface FeaturedSpecial {
   id: string;
@@ -70,6 +71,7 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
   const router = useRouter();
   const [isFavorite, setIsFavorite] = useState(false);
   const [showSongRequest, setShowSongRequest] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   const [specials, setSpecials] = useState<FeaturedSpecial[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [dbVenue, setDbVenue] = useState<SupabaseVenue | null>(null);
@@ -584,17 +586,20 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
             Something not right with this listing?
           </p>
           <button
-            onClick={() => {
-              const subject = encodeURIComponent(`Report: ${venue?.name || "Venue"} (ID: ${id})`);
-              const body = encodeURIComponent(`I'd like to report an issue with the listing for ${venue?.name || "this venue"}.\n\nIssue:\n\n`);
-              window.open(`mailto:info@go1000.ai?subject=${subject}&body=${body}`, "_self");
-            }}
+            onClick={() => setShowReport(true)}
             className="text-accent text-xs font-semibold flex items-center justify-center gap-1 w-full"
           >
             <span className="material-icons-round text-sm">flag</span>
             Report a Problem
           </button>
         </section>
+
+        <ReportProblemModal
+          open={showReport}
+          onClose={() => setShowReport(false)}
+          venueName={venue?.name || "Unknown Venue"}
+          venueId={id}
+        />
 
         {/* Bottom CTA */}
         <div className="fixed bottom-20 left-1/2 -translate-x-1/2 w-full max-w-md px-5 z-40 md:bottom-6">

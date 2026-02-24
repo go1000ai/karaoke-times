@@ -94,6 +94,40 @@ export async function deleteEvent(eventId: string) {
   return { success: true };
 }
 
+export async function updateEvent(
+  eventId: string,
+  params: {
+    venue_id?: string;
+    day_of_week?: string;
+    event_name?: string;
+    dj?: string;
+    start_time?: string;
+    end_time?: string;
+    notes?: string;
+    recurrence_type?: string;
+    event_date?: string;
+    happy_hour_details?: string;
+    age_restriction?: string;
+    dress_code?: string;
+    cover_charge?: string;
+    drink_minimum?: string;
+    restrictions?: string[];
+    flyer_url?: string | null;
+  }
+) {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("venue_events")
+    .update(params)
+    .eq("id", eventId);
+
+  if (error) return { error: error.message };
+  revalidatePath("/admin/events");
+  return { success: true };
+}
+
 // ─── Booking Management ─────────────────────────────────────
 
 export async function updateBookingStatus(bookingId: string, status: string) {
