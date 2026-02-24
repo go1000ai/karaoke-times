@@ -159,6 +159,16 @@ function toDirectImageUrl(url: string): string | null {
   return null;
 }
 
+// Normalize venue name for matching: lowercase, collapse whitespace, "&" ↔ "and"
+function normalizeVenueName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/&amp;/g, "and")
+    .replace(/&/g, "and")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -563,11 +573,12 @@ async function saveToSupabase(parsedEvents: ParsedEvent[], eventCount: number, d
 
   // --- Also sync to venues + venue_events tables ---
 
-  // 1. Extract unique venues by name
+  // 1. Extract unique venues by normalized name (handles "&" vs "And", casing, etc.)
   const uniqueVenues = new Map<string, ParsedEvent>();
   for (const event of parsedEvents) {
-    if (event.venueName && !uniqueVenues.has(event.venueName.toLowerCase())) {
-      uniqueVenues.set(event.venueName.toLowerCase(), event);
+    const norm = normalizeVenueName(event.venueName);
+    if (norm && !uniqueVenues.has(norm)) {
+      uniqueVenues.set(norm, event);
     }
   }
 
@@ -577,8 +588,28 @@ async function saveToSupabase(parsedEvents: ParsedEvent[], eventCount: number, d
     .select("id, name");
 
   const venueNameToId = new Map<string, string>();
+  const duplicateVenueIds: string[] = []; // IDs of duplicate venues to clean up
   for (const v of existingVenues ?? []) {
-    venueNameToId.set(v.name.toLowerCase(), v.id);
+    const norm = normalizeVenueName(v.name);
+    if (venueNameToId.has(norm)) {
+      // Duplicate venue — reassign its events to the first one, then delete it
+      const keepId = venueNameToId.get(norm)!;
+      await adminSupabase
+        .from("venue_events")
+        .update({ venue_id: keepId })
+        .eq("venue_id", v.id);
+      duplicateVenueIds.push(v.id);
+    } else {
+      venueNameToId.set(norm, v.id);
+    }
+  }
+
+  // Delete duplicate venues
+  if (duplicateVenueIds.length > 0) {
+    for (const dupId of duplicateVenueIds) {
+      await adminSupabase.from("venues").delete().eq("id", dupId);
+    }
+    console.log(`Cleaned up ${duplicateVenueIds.length} duplicate venue(s)`);
   }
 
   // 3. Insert missing venues + update existing ones
@@ -594,8 +625,8 @@ async function saveToSupabase(parsedEvents: ParsedEvent[], eventCount: number, d
     is_private_room: boolean;
   }> = [];
 
-  for (const [lowerName, event] of uniqueVenues) {
-    if (!venueNameToId.has(lowerName)) {
+  for (const [normName, event] of uniqueVenues) {
+    if (!venueNameToId.has(normName)) {
       newVenues.push({
         name: event.venueName,
         address: event.address || "",
@@ -609,7 +640,7 @@ async function saveToSupabase(parsedEvents: ParsedEvent[], eventCount: number, d
       });
     } else {
       // Update existing venue details from the sheet
-      const venueId = venueNameToId.get(lowerName)!;
+      const venueId = venueNameToId.get(normName)!;
       await adminSupabase
         .from("venues")
         .update({
@@ -636,7 +667,7 @@ async function saveToSupabase(parsedEvents: ParsedEvent[], eventCount: number, d
       console.error("Failed to insert venues:", insertError.message);
     } else if (inserted) {
       for (const v of inserted) {
-        venueNameToId.set(v.name.toLowerCase(), v.id);
+        venueNameToId.set(normalizeVenueName(v.name), v.id);
       }
     }
   }
@@ -656,7 +687,7 @@ async function saveToSupabase(parsedEvents: ParsedEvent[], eventCount: number, d
   }> = [];
 
   for (const event of parsedEvents) {
-    const venueId = venueNameToId.get(event.venueName.toLowerCase());
+    const venueId = venueNameToId.get(normalizeVenueName(event.venueName));
     if (!venueId) continue;
     if (!event.dayOfWeek) continue;
 
