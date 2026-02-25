@@ -251,7 +251,7 @@ export async function GET() {
       });
     }
 
-    // Enrich events missing images: first from DB flyer_urls, then from static VENUE_IMAGES map
+    // Build map of DB flyer_urls (user-uploaded flyers take priority over static images)
     const flyerMap = new Map<string, string>();
     for (const ve of dbEvents) {
       const name = (ve.venues as any)?.name;
@@ -260,20 +260,22 @@ export async function GET() {
       }
     }
 
+    // Enrich all events: DB flyer_urls override everything, then static VENUE_IMAGES as fallback
     for (const ev of events) {
-      if (ev.image) continue;
-
-      // Try DB flyer_url match
+      // Always prefer DB flyer_url (user uploads) over static images
       if (ev.venueName && ev.dayOfWeek) {
         const key = `${normalizeName(ev.venueName as string)}|${ev.dayOfWeek}`;
-        const flyer = flyerMap.get(key);
-        if (flyer) {
-          ev.image = flyer;
+        const dbFlyer = flyerMap.get(key);
+        if (dbFlyer) {
+          ev.image = dbFlyer;
           continue;
         }
       }
 
-      // Try static VENUE_IMAGES map
+      // If already has an image (from synced_events), keep it
+      if (ev.image) continue;
+
+      // Fallback: try static VENUE_IMAGES map
       if (ev.venueName) {
         const staticImg = findVenueImage(ev.venueName as string);
         if (staticImg) {
