@@ -15,6 +15,7 @@ export function CreateVenueForm({ owners }: { owners: Owner[] }) {
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("New York");
   const [state, setState] = useState("New York");
+  const [zipCode, setZipCode] = useState("");
   const [neighborhood, setNeighborhood] = useState("");
   const [crossStreet, setCrossStreet] = useState("");
   const [phone, setPhone] = useState("");
@@ -34,6 +35,7 @@ export function CreateVenueForm({ owners }: { owners: Owner[] }) {
         address: address.trim(),
         city: city.trim() || "New York",
         state: state.trim() || "New York",
+        zip_code: zipCode.trim(),
         neighborhood: neighborhood.trim(),
         cross_street: crossStreet.trim(),
         phone: phone.trim(),
@@ -47,6 +49,7 @@ export function CreateVenueForm({ owners }: { owners: Owner[] }) {
         setFeedback({ type: "success", text: "Venue created!" });
         setName("");
         setAddress("");
+        setZipCode("");
         setNeighborhood("");
         setCrossStreet("");
         setPhone("");
@@ -101,7 +104,7 @@ export function CreateVenueForm({ owners }: { owners: Owner[] }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="text-xs text-text-muted uppercase tracking-wider font-bold mb-1.5 block">City</label>
               <input
@@ -118,6 +121,18 @@ export function CreateVenueForm({ owners }: { owners: Owner[] }) {
                 value={state}
                 onChange={(e) => setState(e.target.value)}
                 className="w-full bg-card-dark border border-border rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-text-muted uppercase tracking-wider font-bold mb-1.5 block">Zip Code</label>
+              <input
+                type="text"
+                value={zipCode}
+                onChange={(e) => setZipCode(e.target.value)}
+                placeholder="e.g. 10001"
+                maxLength={5}
+                inputMode="numeric"
+                className="w-full bg-card-dark border border-border rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 placeholder:text-text-muted"
               />
             </div>
           </div>

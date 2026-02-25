@@ -9,7 +9,7 @@ export default async function AdminEventsPage() {
 
   const { data: events } = await supabase
     .from("venue_events")
-    .select("id, venue_id, day_of_week, event_name, dj, start_time, end_time, is_active, notes, recurrence_type, flyer_url, happy_hour_details, age_restriction, dress_code, cover_charge, drink_minimum, restrictions, venues(name)")
+    .select("id, venue_id, day_of_week, event_name, dj, start_time, end_time, is_active, notes, recurrence_type, event_date, flyer_url, happy_hour_details, age_restriction, dress_code, cover_charge, drink_minimum, restrictions, venues(name)")
     .order("start_time", { ascending: true });
 
   const { data: venues } = await supabase

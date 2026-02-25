@@ -373,6 +373,38 @@ export async function addTicketMessage(ticketId: string, message: string) {
   return { success: true };
 }
 
+// ─── Update Venue ────────────────────────────────────────────
+
+export async function updateVenue(
+  venueId: string,
+  params: {
+    name?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    zip_code?: string;
+    neighborhood?: string;
+    cross_street?: string;
+    phone?: string;
+    website?: string | null;
+    description?: string | null;
+    is_private_room?: boolean;
+    accessibility?: string | null;
+  }
+) {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("venues")
+    .update(params)
+    .eq("id", venueId);
+
+  if (error) return { error: error.message };
+  revalidatePath("/admin/venues");
+  return { success: true };
+}
+
 // ─── Create Venue ────────────────────────────────────────────
 
 export async function createVenue(params: {

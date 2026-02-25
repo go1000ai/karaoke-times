@@ -76,6 +76,7 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
   const [venueCreating, setVenueCreating] = useState(false);
   const [venueFeedback, setVenueFeedback] = useState<string | null>(null);
   const [selectedVenueId, setSelectedVenueId] = useState("");
+  const [recurrenceType, setRecurrenceType] = useState("weekly");
 
   // Flyer upload
   const supabase = createClient();
@@ -473,7 +474,12 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
               </div>
               <div>
                 <label className={labelClass}>Recurrence</label>
-                <select name="recurrence_type" defaultValue="weekly" className={selectClass}>
+                <select
+                  name="recurrence_type"
+                  value={recurrenceType}
+                  onChange={(e) => setRecurrenceType(e.target.value)}
+                  className={selectClass}
+                >
                   {RECURRENCE_OPTIONS.map((r) => (
                     <option key={r.value} value={r.value}>{r.label}</option>
                   ))}
@@ -481,12 +487,21 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
               </div>
             </div>
 
-            {/* ── Event Date & Happy Hour ── */}
+            {/* ── Event Date (for monthly/one-time) & Happy Hour ── */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className={labelClass}>Event Date</label>
-                <input name="event_date" type="date" className={`${inputClass} [color-scheme:dark]`} />
-              </div>
+              {(recurrenceType === "monthly" || recurrenceType === "one_time") && (
+                <div>
+                  <label className={labelClass}>
+                    Event Date {recurrenceType === "one_time" ? "*" : "(next occurrence)"}
+                  </label>
+                  <input
+                    name="event_date"
+                    type="date"
+                    required={recurrenceType === "one_time"}
+                    className={`${inputClass} [color-scheme:dark]`}
+                  />
+                </div>
+              )}
               <div>
                 <label className={labelClass}>Happy Hour</label>
                 <input name="happy_hour_details" type="text" placeholder="e.g. $3 wells before 9PM" className={inputClass} />

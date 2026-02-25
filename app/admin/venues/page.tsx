@@ -7,7 +7,7 @@ export default async function AdminVenuesPage() {
 
   const { data: venues } = await supabase
     .from("venues")
-    .select("id, name, address, city, state, neighborhood, owner_id, is_private_room, queue_paused, accessibility, created_at, profiles(display_name)")
+    .select("id, name, address, city, state, zip_code, neighborhood, owner_id, is_private_room, queue_paused, accessibility, created_at, profiles(display_name)")
     .order("name");
 
   // Event counts

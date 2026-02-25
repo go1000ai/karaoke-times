@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { deleteVenue, assignVenueOwner } from "../actions";
+import { deleteVenue, assignVenueOwner, updateVenue } from "../actions";
 import Link from "next/link";
 
 interface Venue {
@@ -10,6 +10,7 @@ interface Venue {
   address: string;
   city: string;
   state: string;
+  zip_code: string;
   neighborhood: string;
   owner_id: string | null;
   is_private_room: boolean;
@@ -36,6 +37,8 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
   const [search, setSearch] = useState("");
   const [ownerFilter, setOwnerFilter] = useState<"all" | "assigned" | "unassigned">("all");
   const [accessFilter, setAccessFilter] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<Partial<Venue>>({});
 
   const filteredVenues = venues.filter((v) => {
     const matchesSearch =
@@ -71,6 +74,51 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
       setProcessingId(null);
     });
   }
+
+  function startEdit(venue: Venue) {
+    setEditingId(venue.id);
+    setEditForm({
+      name: venue.name,
+      address: venue.address,
+      city: venue.city,
+      state: venue.state,
+      zip_code: venue.zip_code || "",
+      neighborhood: venue.neighborhood,
+    });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditForm({});
+  }
+
+  function handleSaveEdit(venueId: string) {
+    setProcessingId(venueId);
+    startTransition(async () => {
+      const result = await updateVenue(venueId, {
+        name: editForm.name,
+        address: editForm.address,
+        city: editForm.city,
+        state: editForm.state,
+        zip_code: editForm.zip_code || "",
+        neighborhood: editForm.neighborhood,
+      });
+      if (result.success) {
+        setVenues((prev) =>
+          prev.map((v) =>
+            v.id === venueId
+              ? { ...v, name: editForm.name || v.name, address: editForm.address || v.address, city: editForm.city || v.city, state: editForm.state || v.state, zip_code: editForm.zip_code || "", neighborhood: editForm.neighborhood || v.neighborhood }
+              : v
+          )
+        );
+        setEditingId(null);
+        setEditForm({});
+      }
+      setProcessingId(null);
+    });
+  }
+
+  const inputClass = "bg-card-dark border border-border rounded-lg py-1.5 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 placeholder:text-text-muted";
 
   return (
     <div>
@@ -119,91 +167,176 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
       <div className="space-y-3">
         {filteredVenues.map((venue) => (
           <div key={venue.id} className="glass-card rounded-2xl p-4 md:p-5">
-            {/* Venue name + badges */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-white font-bold">{venue.name}</h3>
-              {venue.is_private_room && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-400/10 text-purple-400">Private Room</span>
-              )}
-              {venue.queue_paused && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400">Queue Paused</span>
-              )}
-              {venue.accessibility === "full" && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 flex items-center gap-0.5">
-                  <span className="material-icons-round text-[10px]">accessible</span>
-                  Full
-                </span>
-              )}
-              {venue.accessibility === "partial" && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 flex items-center gap-0.5">
-                  <span className="material-icons-round text-[10px]">accessible</span>
-                  Partial
-                </span>
-              )}
-              {venue.accessibility === "none" && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 flex items-center gap-0.5">
-                  <span className="material-icons-round text-[10px]">not_accessible</span>
-                  None
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-text-secondary mt-1">
-              {venue.address} — {venue.neighborhood ? `${venue.neighborhood}, ` : ""}{venue.city}, {venue.state}
-            </p>
-
-            {/* Stats row */}
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
-              <span className="text-xs text-text-muted bg-white/5 px-2 py-0.5 rounded-full">
-                {venue._event_count} events
-              </span>
-              {venue._review_count > 0 && (
-                <span className="text-xs text-text-muted bg-white/5 px-2 py-0.5 rounded-full flex items-center gap-1">
-                  <span className="material-icons-round text-yellow-400 text-xs">star</span>
-                  {venue._avg_rating} ({venue._review_count})
-                </span>
-              )}
-              {venue._promo_count > 0 && (
-                <span className="text-xs text-text-muted bg-white/5 px-2 py-0.5 rounded-full">
-                  {venue._promo_count} promos
-                </span>
-              )}
-              {venue._media_count > 0 && (
-                <span className="text-xs text-text-muted bg-white/5 px-2 py-0.5 rounded-full">
-                  {venue._media_count} media
-                </span>
-              )}
-            </div>
-
-            {/* Owner + Actions */}
-            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/20 flex-wrap">
-              <span className="text-xs text-text-muted">Owner:</span>
-              <select
-                value={venue.owner_id || ""}
-                onChange={(e) => handleOwnerChange(venue.id, e.target.value)}
-                disabled={isPending && processingId === venue.id}
-                className="text-xs bg-card-dark border border-border rounded-lg px-2 py-1 text-white disabled:opacity-50"
-              >
-                <option value="">Unassigned</option>
-                {owners.map((o) => (
-                  <option key={o.id} value={o.id}>{o.display_name || o.id.slice(0, 8)}</option>
-                ))}
-              </select>
-              <div className="flex items-center gap-2 ml-auto">
-                <Link
-                  href={`/venue/${venue.id}`}
-                  className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center hover:bg-primary/20 transition-colors"
-                >
-                  <span className="material-icons-round text-primary text-sm">visibility</span>
-                </Link>
-                <button
-                  onClick={() => handleDelete(venue.id, venue.name)}
-                  disabled={isPending && processingId === venue.id}
-                  className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center hover:bg-red-500/20 transition-colors disabled:opacity-50"
-                >
-                  <span className="material-icons-round text-red-400 text-sm">delete</span>
-                </button>
+            {editingId === venue.id ? (
+              /* ─── Edit Mode ─── */
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Name</label>
+                    <input
+                      value={editForm.name || ""}
+                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                      className={`${inputClass} w-full`}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Address</label>
+                    <input
+                      value={editForm.address || ""}
+                      onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                      className={`${inputClass} w-full`}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div>
+                    <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">City</label>
+                    <input
+                      value={editForm.city || ""}
+                      onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
+                      className={`${inputClass} w-full`}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">State</label>
+                    <input
+                      value={editForm.state || ""}
+                      onChange={(e) => setEditForm({ ...editForm, state: e.target.value })}
+                      className={`${inputClass} w-full`}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Zip Code</label>
+                    <input
+                      value={editForm.zip_code || ""}
+                      onChange={(e) => setEditForm({ ...editForm, zip_code: e.target.value })}
+                      placeholder="e.g. 10001"
+                      maxLength={5}
+                      className={`${inputClass} w-full`}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Neighborhood</label>
+                    <input
+                      value={editForm.neighborhood || ""}
+                      onChange={(e) => setEditForm({ ...editForm, neighborhood: e.target.value })}
+                      className={`${inputClass} w-full`}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    onClick={() => handleSaveEdit(venue.id)}
+                    disabled={isPending && processingId === venue.id}
+                    className="px-4 py-1.5 rounded-lg bg-primary text-black text-xs font-bold hover:bg-primary/80 transition-colors disabled:opacity-50"
+                  >
+                    {isPending && processingId === venue.id ? "Saving..." : "Save"}
+                  </button>
+                  <button
+                    onClick={cancelEdit}
+                    className="px-4 py-1.5 rounded-lg bg-white/10 text-white text-xs font-bold hover:bg-white/20 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
-            </div>
+            ) : (
+              /* ─── View Mode ─── */
+              <>
+                {/* Venue name + badges */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-white font-bold">{venue.name}</h3>
+                  {venue.is_private_room && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-400/10 text-purple-400">Private Room</span>
+                  )}
+                  {venue.queue_paused && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400">Queue Paused</span>
+                  )}
+                  {venue.accessibility === "full" && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 flex items-center gap-0.5">
+                      <span className="material-icons-round text-[10px]">accessible</span>
+                      Full
+                    </span>
+                  )}
+                  {venue.accessibility === "partial" && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 flex items-center gap-0.5">
+                      <span className="material-icons-round text-[10px]">accessible</span>
+                      Partial
+                    </span>
+                  )}
+                  {venue.accessibility === "none" && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 flex items-center gap-0.5">
+                      <span className="material-icons-round text-[10px]">not_accessible</span>
+                      None
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-text-secondary mt-1">
+                  {venue.address} — {venue.neighborhood ? `${venue.neighborhood}, ` : ""}{venue.city}, {venue.state}{venue.zip_code ? ` ${venue.zip_code}` : ""}
+                </p>
+
+                {/* Stats row */}
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  <span className="text-xs text-text-muted bg-white/5 px-2 py-0.5 rounded-full">
+                    {venue._event_count} events
+                  </span>
+                  {venue._review_count > 0 && (
+                    <span className="text-xs text-text-muted bg-white/5 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <span className="material-icons-round text-yellow-400 text-xs">star</span>
+                      {venue._avg_rating} ({venue._review_count})
+                    </span>
+                  )}
+                  {venue._promo_count > 0 && (
+                    <span className="text-xs text-text-muted bg-white/5 px-2 py-0.5 rounded-full">
+                      {venue._promo_count} promos
+                    </span>
+                  )}
+                  {venue._media_count > 0 && (
+                    <span className="text-xs text-text-muted bg-white/5 px-2 py-0.5 rounded-full">
+                      {venue._media_count} media
+                    </span>
+                  )}
+                </div>
+
+                {/* Owner + Actions */}
+                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/20 flex-wrap">
+                  <span className="text-xs text-text-muted">Owner:</span>
+                  <select
+                    value={venue.owner_id || ""}
+                    onChange={(e) => handleOwnerChange(venue.id, e.target.value)}
+                    disabled={isPending && processingId === venue.id}
+                    className="text-xs bg-card-dark border border-border rounded-lg px-2 py-1 text-white disabled:opacity-50"
+                  >
+                    <option value="">Unassigned</option>
+                    {owners.map((o) => (
+                      <option key={o.id} value={o.id}>{o.display_name || o.id.slice(0, 8)}</option>
+                    ))}
+                  </select>
+                  <div className="flex items-center gap-2 ml-auto">
+                    <button
+                      onClick={() => startEdit(venue)}
+                      className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center hover:bg-blue-500/20 transition-colors"
+                      title="Edit venue"
+                    >
+                      <span className="material-icons-round text-blue-400 text-sm">edit</span>
+                    </button>
+                    <Link
+                      href={`/venue/${venue.id}`}
+                      className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center hover:bg-primary/20 transition-colors"
+                    >
+                      <span className="material-icons-round text-primary text-sm">visibility</span>
+                    </Link>
+                    <button
+                      onClick={() => handleDelete(venue.id, venue.name)}
+                      disabled={isPending && processingId === venue.id}
+                      className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                    >
+                      <span className="material-icons-round text-red-400 text-sm">delete</span>
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         ))}
 

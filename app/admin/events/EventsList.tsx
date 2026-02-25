@@ -16,6 +16,7 @@ interface VenueEvent {
   is_active: boolean;
   notes: string | null;
   recurrence_type?: string;
+  event_date?: string | null;
   flyer_url?: string | null;
   happy_hour_details?: string | null;
   age_restriction?: string | null;
@@ -93,6 +94,7 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
   const [editEvent, setEditEvent] = useState<VenueEvent | null>(null);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [editRecurrence, setEditRecurrence] = useState("weekly");
 
   // Flyer upload in edit modal
   const supabase = createClient();
@@ -147,6 +149,7 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
 
   function openEdit(event: VenueEvent) {
     setEditEvent({ ...event });
+    setEditRecurrence(event.recurrence_type || "weekly");
     setEditError(null);
     setEditFlyerFile(null);
     setEditFlyerPreview(event.flyer_url || null);
@@ -264,6 +267,7 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
       end_time: (fd.get("end_time") as string) || "",
       notes: (fd.get("notes") as string) || "",
       recurrence_type: (fd.get("recurrence_type") as string) || "weekly",
+      event_date: (fd.get("event_date") as string) || null,
       happy_hour_details: (fd.get("happy_hour_details") as string) || null,
       dress_code: (fd.get("dress_code") as string) || "casual",
       cover_charge: (fd.get("cover_charge") as string) || "free",
@@ -398,6 +402,7 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
                           {event.dj && ` — ${event.dj}`}
                           {event.start_time && ` — ${event.start_time}`}
                           {event.end_time && `–${event.end_time}`}
+                          {event.event_date && ` — ${new Date(event.event_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`}
                         </p>
                         {/* Skip badges */}
                         {getSkipsForEvent(event.id).length > 0 && (
@@ -578,7 +583,8 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
                   <label className={labelClass}>Recurrence</label>
                   <select
                     name="recurrence_type"
-                    defaultValue={editEvent.recurrence_type || "weekly"}
+                    value={editRecurrence}
+                    onChange={(e) => setEditRecurrence(e.target.value)}
                     className={selectClass}
                   >
                     {RECURRENCE_OPTIONS.map((r) => (
@@ -587,6 +593,22 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
                   </select>
                 </div>
               </div>
+
+              {/* Event Date — shows for monthly / one-time */}
+              {(editRecurrence === "monthly" || editRecurrence === "one_time") && (
+                <div>
+                  <label className={labelClass}>
+                    Event Date {editRecurrence === "one_time" ? "*" : "(next occurrence)"}
+                  </label>
+                  <input
+                    name="event_date"
+                    type="date"
+                    defaultValue={editEvent.event_date || ""}
+                    required={editRecurrence === "one_time"}
+                    className={`${inputClass} [color-scheme:dark]`}
+                  />
+                </div>
+              )}
 
               {/* Happy Hour + Notes */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
