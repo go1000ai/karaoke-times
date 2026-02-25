@@ -126,19 +126,62 @@ const VENUE_IMAGES: Record<string, string> = {
   "waterfall-lounge": "/venues/waterfall-lounge-monday.jpg",
   "whisky-reds": "/venues/whisky-red-s-saturday.jpg",
   "woodzy": "/venues/woodzy-friday.jpg",
+  // Generated flyers for remaining venues
+  "pianos": "/venues/pianos.jpg",
+  "sandy-jacks": "/venues/sandy-jacks.jpg",
+  "echo-bravo": "/venues/echo-bravo.jpg",
+  "edie-jo-s": "/venues/edie-jo-s.jpg",
+  "someplace-else-bar": "/venues/someplace-else-bar.jpg",
+  "lucky-13-saloon": "/venues/lucky-13-saloon.jpg",
+  "wraptor-restaurant-bar": "/venues/wraptor-restaurant-bar.jpg",
+  "flava-2": "/venues/flava-2.jpg",
+  "barbablu": "/venues/barbablu.jpg",
+  "royal-restaurant-2": "/venues/royal-restaurant-2.jpg",
+  "bamboo-walk": "/venues/bamboo-walk.jpg",
+  "boro-bar": "/venues/boro-bar.jpg",
+  "matrix-lounge": "/venues/matrix-lounge.jpg",
+  "the-angry-gnome-pub": "/venues/the-angry-gnome-pub.jpg",
+  "american-cheez": "/venues/american-cheez.jpg",
+  "alligator-lounge": "/venues/alligator-lounge.jpg",
+  "brixx-bar-and-grill": "/venues/brixx-bar-and-grill.jpg",
+  "mr-nancy-s": "/venues/mr-nancy-s.jpg",
+  "insa": "/venues/insa.jpg",
+  "merv-s": "/venues/merv-s.jpg",
+  "arirang-hibachi-steakhouse": "/venues/arirang-hibachi-steakhouse.jpg",
+  "brooklyn-chop-house-times-square": "/venues/brooklyn-chop-house-times-square.jpg",
+  "the-cobra-club": "/venues/the-cobra-club.jpg",
+  "hinterlands": "/venues/hinterlands.jpg",
+  "lvsiadas-restaurant": "/venues/lvsiadas-restaurant.jpg",
+  "roebling-sporting-club": "/venues/roebling-sporting-club.jpg",
+  "ek-s-hideaway": "/venues/ek-s-hideaway.jpg",
+  "pinebox-rockshop": "/venues/pinebox-rockshop.jpg",
+  "montero-s": "/venues/montero-s.jpg",
+  "sean-og-s": "/venues/sean-og-s.jpg",
+  "minnies-bar": "/venues/minnies-bar.jpg",
+  "the-coal-pot": "/venues/the-coal-pot.jpg",
+  "midwood-flats": "/venues/midwood-flats.jpg",
+  "rullo-s": "/venues/rullo-s.jpg",
+  "cassette": "/venues/cassette.jpg",
+  "whoopsie-daisy-bar": "/venues/whoopsie-daisy-bar.jpg",
+  "winnie-s-bar": "/venues/winnie-s-bar.jpg",
 };
 
 // Look up a static image for a venue name
 function findVenueImage(venueName: string): string | null {
+  // Try raw slugify first
   const slug = slugify(venueName);
   if (VENUE_IMAGES[slug]) return VENUE_IMAGES[slug];
 
-  // Try without "the " prefix
-  const noThe = slug.replace(/^the-/, "");
-  if (VENUE_IMAGES[noThe]) return VENUE_IMAGES[noThe];
+  // Try with "&" → "and" normalization before slugifying
+  const normalized = slugify(venueName.replace(/&/g, " and "));
+  if (VENUE_IMAGES[normalized]) return VENUE_IMAGES[normalized];
 
-  // Try with "the-" prefix
-  if (VENUE_IMAGES[`the-${slug}`]) return VENUE_IMAGES[`the-${slug}`];
+  // Try without "the-" prefix
+  for (const s of [slug, normalized]) {
+    const noThe = s.replace(/^the-/, "");
+    if (VENUE_IMAGES[noThe]) return VENUE_IMAGES[noThe];
+    if (VENUE_IMAGES[`the-${s}`]) return VENUE_IMAGES[`the-${s}`];
+  }
 
   return null;
 }
