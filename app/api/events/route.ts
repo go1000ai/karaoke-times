@@ -5,6 +5,17 @@ import { createClient } from "@supabase/supabase-js";
 const normalizeName = (n: string) =>
   n.toLowerCase().replace(/&/g, "and").replace(/\s+/g, " ").trim();
 
+// Normalize non-standard day-of-week values to standard days
+const DAY_NORMALIZE: Record<string, string> = {
+  "Bi Monthly Sundays": "Sunday",
+  "Bi-Monthly Sundays": "Sunday",
+  "Every 3rd Monday": "Monday",
+  "1st And 3rd Mondays": "Monday",
+  "Every 1st And 3rd Saturdays": "Saturday",
+  "Monthly Fridays": "Friday",
+  "Open Karaoke Party Room": "Private Room Karaoke",
+};
+
 // Slugify for image lookup: lowercase, replace non-alphanumeric with hyphens
 const slugify = (n: string) =>
   n.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -281,6 +292,13 @@ export async function GET() {
         if (staticImg) {
           ev.image = staticImg;
         }
+      }
+    }
+
+    // Normalize non-standard dayOfWeek values to standard days
+    for (const ev of events) {
+      if (ev.dayOfWeek && DAY_NORMALIZE[ev.dayOfWeek as string]) {
+        ev.dayOfWeek = DAY_NORMALIZE[ev.dayOfWeek as string];
       }
     }
 
