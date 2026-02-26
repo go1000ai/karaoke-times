@@ -7,6 +7,15 @@ const normalizeName = (n: string) =>
 
 // Normalize non-standard day-of-week values to standard days
 const DAY_NORMALIZE: Record<string, string> = {
+  // Plural forms
+  "Mondays": "Monday",
+  "Tuesdays": "Tuesday",
+  "Wednesdays": "Wednesday",
+  "Thursdays": "Thursday",
+  "Fridays": "Friday",
+  "Saturdays": "Saturday",
+  "Sundays": "Sunday",
+  // Non-standard recurring
   "Bi Monthly Sundays": "Sunday",
   "Bi-Monthly Sundays": "Sunday",
   "Every 3rd Monday": "Monday",

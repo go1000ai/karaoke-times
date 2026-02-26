@@ -206,6 +206,30 @@ function normalizeVenueName(name: string): string {
     .trim();
 }
 
+// Normalize day-of-week: handle plurals, non-standard names, and case variations
+const SYNC_DAY_NORMALIZE: Record<string, string> = {
+  mondays: "Monday", tuesdays: "Tuesday", wednesdays: "Wednesday",
+  thursdays: "Thursday", fridays: "Friday", saturdays: "Saturday", sundays: "Sunday",
+  "bi monthly sundays": "Sunday", "bi-monthly sundays": "Sunday",
+  "every 3rd monday": "Monday", "1st and 3rd mondays": "Monday",
+  "every 1st and 3rd saturdays": "Saturday", "monthly fridays": "Friday",
+  "open karaoke party room": "Private Room Karaoke",
+};
+function normalizeDay(day: string): string {
+  if (!day) return day;
+  const lookup = SYNC_DAY_NORMALIZE[day.toLowerCase().trim()];
+  if (lookup) return lookup;
+  // Title-case and strip trailing 's' for simple plurals (e.g. "Fridays" → "Friday")
+  const trimmed = day.trim();
+  const singular = trimmed.replace(/s$/i, "");
+  const VALID_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  for (const d of VALID_DAYS) {
+    if (d.toLowerCase() === singular.toLowerCase()) return d;
+    if (d.toLowerCase() === trimmed.toLowerCase()) return d;
+  }
+  return trimmed;
+}
+
 function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -733,7 +757,7 @@ async function saveToSupabase(parsedEvents: ParsedEvent[], eventCount: number, d
 
     eventRows.push({
       venue_id: venueId,
-      day_of_week: event.dayOfWeek,
+      day_of_week: normalizeDay(event.dayOfWeek),
       event_name: event.eventName || "Karaoke Night",
       dj: event.dj || "",
       start_time: event.startTime || "",

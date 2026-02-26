@@ -36,6 +36,15 @@ export const DAY_ORDER = [
 
 // Map non-standard day names to their parent day for grouping
 export const DAY_NORMALIZE: Record<string, string> = {
+  // Plural forms
+  "Mondays": "Monday",
+  "Tuesdays": "Tuesday",
+  "Wednesdays": "Wednesday",
+  "Thursdays": "Thursday",
+  "Fridays": "Friday",
+  "Saturdays": "Saturday",
+  "Sundays": "Sunday",
+  // Non-standard recurring
   "Bi Monthly Sundays": "Sunday",
   "Bi-Monthly Sundays": "Sunday",
   "Every 3rd Monday": "Monday",

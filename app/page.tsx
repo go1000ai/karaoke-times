@@ -232,13 +232,13 @@ function isZipCode(value: string): boolean {
 
 // Resolve day abbreviations to full day names for search
 const DAY_ALIASES: Record<string, string> = {
-  mon: "monday", monday: "monday",
-  tue: "tuesday", tues: "tuesday", tuesday: "tuesday",
-  wed: "wednesday", weds: "wednesday", wednesday: "wednesday",
-  thu: "thursday", thur: "thursday", thurs: "thursday", thursday: "thursday",
-  fri: "friday", friday: "friday",
-  sat: "saturday", saturday: "saturday",
-  sun: "sunday", sunday: "sunday",
+  mon: "monday", monday: "monday", mondays: "monday",
+  tue: "tuesday", tues: "tuesday", tuesday: "tuesday", tuesdays: "tuesday",
+  wed: "wednesday", weds: "wednesday", wednesday: "wednesday", wednesdays: "wednesday",
+  thu: "thursday", thur: "thursday", thurs: "thursday", thursday: "thursday", thursdays: "thursday",
+  fri: "friday", friday: "friday", fridays: "friday",
+  sat: "saturday", saturday: "saturday", saturdays: "saturday",
+  sun: "sunday", sunday: "sunday", sundays: "sunday",
 };
 
 function resolveDayQuery(q: string): string | null {
@@ -478,7 +478,17 @@ export default function HomePage() {
                   if (isZipCode(q)) {
                     router.push(`/map?zip=${q}`);
                   } else {
-                    setSearchOpen(true);
+                    // If user typed a day name, switch to that day's tab
+                    const dayMatch = resolveDayQuery(q);
+                    if (dayMatch) {
+                      const dayName = dayMatch.charAt(0).toUpperCase() + dayMatch.slice(1);
+                      setActiveDay(dayName);
+                      setSearchQuery("");
+                      // Scroll to listings
+                      document.getElementById("listings")?.scrollIntoView({ behavior: "smooth" });
+                    } else {
+                      setSearchOpen(true);
+                    }
                   }
                 }}
                 className="flex items-center gap-3 glass-card rounded-full px-6 py-3"
