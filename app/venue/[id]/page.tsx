@@ -98,32 +98,67 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
   useEffect(() => {
     if (mockVenue) return;
     const supabase = createClient();
-    supabase
-      .from("venues")
-      .select("id, name, address, city, state, neighborhood, is_private_room, accessibility")
-      .eq("id", id)
-      .single()
-      .then(({ data }) => {
-        if (data) setDbVenue(data as SupabaseVenue);
-        setLoading(false);
-      });
+
+    async function fetchVenue() {
+      // Try UUID lookup first
+      if (isUUID(id)) {
+        const { data } = await supabase
+          .from("venues")
+          .select("id, name, address, city, state, neighborhood, is_private_room, accessibility")
+          .eq("id", id)
+          .single();
+        if (data) { setDbVenue(data as SupabaseVenue); setLoading(false); return; }
+      }
+
+      // Fallback: extract venue name from slug and search by name
+      // "patriot-lounge-tuesday" → try matching "patriot lounge" against venue names
+      const slug = id.replace(/-/g, " ");
+      const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+      // Remove day suffix if present
+      let namePart = slug;
+      for (const day of days) {
+        if (slug.endsWith(` ${day}`)) {
+          namePart = slug.slice(0, -(day.length + 1));
+          break;
+        }
+      }
+
+      const { data: matches } = await supabase
+        .from("venues")
+        .select("id, name, address, city, state, neighborhood, is_private_room, accessibility");
+
+      if (matches) {
+        // Find best match: compare normalized names
+        const norm = namePart.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const match = matches.find((v) => {
+          const vNorm = v.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+          return vNorm === norm || vNorm.includes(norm) || norm.includes(vNorm);
+        });
+        if (match) { setDbVenue(match as SupabaseVenue); setLoading(false); return; }
+      }
+
+      setLoading(false);
+    }
+
+    fetchVenue();
   }, [id, mockVenue]);
 
   // Fetch flyer URL from venue_events
   useEffect(() => {
     const supabase = createClient();
-    if (isUUID(id)) {
-      // Supabase venue — query by venue_id directly
+    // Use dbVenue.id if available (resolved from slug lookup), otherwise use id directly
+    const venueUUID = dbVenue?.id || (isUUID(id) ? id : null);
+    if (venueUUID) {
       supabase
         .from("venue_events")
         .select("flyer_url")
-        .eq("venue_id", id)
+        .eq("venue_id", venueUUID)
         .not("flyer_url", "is", null)
         .limit(1)
         .then(({ data }) => {
           if (data?.[0]?.flyer_url) setEventFlyerUrl(data[0].flyer_url);
         });
-    } else {
+    } else if (!isUUID(id)) {
       // Slug-based ID — resolve venue name to UUID, then query for flyer
       const venueName = mockVenue?.name || event?.venueName;
       if (venueName) {
@@ -147,7 +182,7 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
           });
       }
     }
-  }, [id, mockVenue, event]);
+  }, [id, mockVenue, event, dbVenue]);
 
   // Fetch featured specials from POS
   useEffect(() => {
