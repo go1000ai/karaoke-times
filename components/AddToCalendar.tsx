@@ -125,7 +125,7 @@ export function AddToCalendar({
   }
 
   return (
-    <div ref={ref} className="relative inline-block">
+    <div ref={ref} className={`relative inline-block ${open ? "z-50" : ""}`}>
       <button
         onClick={() => setOpen(!open)}
         className={

@@ -85,6 +85,9 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
   const [flyerPreview, setFlyerPreview] = useState<string | null>(null);
   const [flyerUploading, setFlyerUploading] = useState(false);
 
+  // Flyer URL paste (external link)
+  const [flyerUrlInput, setFlyerUrlInput] = useState("");
+
   // Flyer & Prompt section
   const [promptTheme, setPromptTheme] = useState("");
   const [promptMood, setPromptMood] = useState("");
@@ -191,10 +194,12 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
       const dressCode = (formData.get("dress_code") as string) || "casual";
       const coverCharge = (formData.get("cover_charge") as string) || "free";
 
-      // Upload flyer if provided
+      // Upload flyer if provided, otherwise use pasted URL
       let flyerUrl: string | null = null;
       if (flyerFile) {
         flyerUrl = await uploadFlyer();
+      } else if (flyerUrlInput.trim()) {
+        flyerUrl = flyerUrlInput.trim();
       }
 
       const result = await createEvent({
@@ -571,6 +576,48 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
                     onChange={handleFlyerSelect}
                     className="hidden"
                   />
+                </div>
+              )}
+            </div>
+
+            {/* ── Or Paste Poster URL ── */}
+            <div className="mt-4">
+              <h4 className="text-sm font-bold text-white mb-1 flex items-center gap-2">
+                <span className="material-icons-round text-base text-purple-400">link</span>
+                Or Paste Poster URL
+              </h4>
+              <p className="text-text-muted text-xs mb-2">
+                Alternative: Add a link to your event poster
+              </p>
+              <input
+                type="url"
+                value={flyerUrlInput}
+                onChange={(e) => {
+                  setFlyerUrlInput(e.target.value);
+                  if (e.target.value.trim() && flyerFile) {
+                    removeFlyerFile();
+                  }
+                }}
+                placeholder="https://example.com/event-poster.jpg"
+                className={inputClass}
+                disabled={!!flyerFile}
+              />
+              {flyerUrlInput.trim() && !flyerFile && (
+                <div className="flex items-center gap-2 mt-2">
+                  <img
+                    src={flyerUrlInput.trim()}
+                    alt="URL preview"
+                    className="max-h-24 rounded-lg border border-border"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                    onLoad={(e) => { (e.target as HTMLImageElement).style.display = "block"; }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFlyerUrlInput("")}
+                    className="text-xs text-red-400 hover:text-red-300"
+                  >
+                    Clear
+                  </button>
                 </div>
               )}
             </div>

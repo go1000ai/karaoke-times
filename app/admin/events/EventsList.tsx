@@ -101,6 +101,7 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
   const editFlyerRef = useRef<HTMLInputElement>(null);
   const [editFlyerFile, setEditFlyerFile] = useState<File | null>(null);
   const [editFlyerPreview, setEditFlyerPreview] = useState<string | null>(null);
+  const [editFlyerUrlInput, setEditFlyerUrlInput] = useState("");
 
   const toggleCollapse = (day: string) => {
     setCollapsed((prev) => {
@@ -153,6 +154,7 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
     setEditError(null);
     setEditFlyerFile(null);
     setEditFlyerPreview(event.flyer_url || null);
+    setEditFlyerUrlInput("");
   }
 
   function closeEdit() {
@@ -160,6 +162,7 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
     setEditError(null);
     setEditFlyerFile(null);
     setEditFlyerPreview(null);
+    setEditFlyerUrlInput("");
     if (editFlyerRef.current) editFlyerRef.current.value = "";
   }
 
@@ -250,10 +253,12 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
     const form = e.currentTarget;
     const fd = new FormData(form);
 
-    // Upload flyer if new file selected
+    // Upload flyer if new file selected, otherwise use pasted URL or keep existing
     let flyerUrl: string | null = null;
     if (editFlyerFile) {
       flyerUrl = await uploadEditFlyer();
+    } else if (editFlyerUrlInput.trim()) {
+      flyerUrl = editFlyerUrlInput.trim();
     } else {
       flyerUrl = editFlyerPreview; // keep existing or null if removed
     }
@@ -724,6 +729,40 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
                     <p className="text-text-muted text-xs mt-1">JPEG, PNG, or WebP (max 5MB)</p>
                   </div>
                 )}
+                {/* Or Paste Poster URL */}
+                <div className="mt-3">
+                  <p className="text-text-muted text-xs mb-1.5 flex items-center gap-1">
+                    <span className="material-icons-round text-xs text-purple-400">link</span>
+                    Or paste a poster URL
+                  </p>
+                  <input
+                    type="url"
+                    value={editFlyerUrlInput}
+                    onChange={(e) => setEditFlyerUrlInput(e.target.value)}
+                    placeholder="https://example.com/event-poster.jpg"
+                    className="w-full bg-card-dark border border-border rounded-lg py-2 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/50 placeholder:text-text-muted"
+                    disabled={!!editFlyerFile}
+                  />
+                  {editFlyerUrlInput.trim() && !editFlyerFile && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <img
+                        src={editFlyerUrlInput.trim()}
+                        alt="URL preview"
+                        className="max-h-20 rounded-lg border border-border"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                        onLoad={(e) => { (e.target as HTMLImageElement).style.display = "block"; }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setEditFlyerUrlInput("")}
+                        className="text-xs text-red-400 hover:text-red-300"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 <input
                   ref={editFlyerRef}
                   type="file"
