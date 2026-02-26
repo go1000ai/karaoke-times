@@ -172,7 +172,7 @@ const VenueCard = memo(function VenueCard({
 
         {/* Details row — pinned to bottom */}
         <div className="mt-auto flex flex-col items-start">
-          <div className="flex flex-col items-start gap-2 mb-3">
+          <div className="flex flex-wrap items-center gap-2 mb-3">
             {event.startTime && (
               <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-[10px] px-2.5 py-1 rounded-full font-bold">
                 <span className="material-icons-round text-xs">schedule</span>
