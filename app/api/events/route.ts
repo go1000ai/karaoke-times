@@ -249,7 +249,7 @@ export async function GET() {
       if (seen.has(key)) continue;
       seen.add(key);
       events.push({
-        id: ve.id,
+        id: ve.venue_id,
         dayOfWeek: ve.day_of_week,
         eventName: ve.event_name || "",
         venueName: venue.name,
@@ -271,12 +271,26 @@ export async function GET() {
       });
     }
 
-    // Build map of DB flyer_urls (user-uploaded flyers take priority over static images)
+    // Build venue name → venue_id map so synced events link to correct venue pages
+    const venueIdMap = new Map<string, string>();
     const flyerMap = new Map<string, string>();
     for (const ve of dbEvents) {
       const name = (ve.venues as any)?.name;
-      if (name && ve.flyer_url) {
-        flyerMap.set(`${normalizeName(name)}|${ve.day_of_week}`, ve.flyer_url);
+      if (name) {
+        venueIdMap.set(normalizeName(name), ve.venue_id);
+        if (ve.flyer_url) {
+          flyerMap.set(`${normalizeName(name)}|${ve.day_of_week}`, ve.flyer_url);
+        }
+      }
+    }
+
+    // Replace slug IDs with venue UUIDs so venue detail pages work
+    // UUIDs match pattern: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    for (const ev of events) {
+      if (ev.venueName && ev.id && !uuidRe.test(ev.id as string)) {
+        const vid = venueIdMap.get(normalizeName(ev.venueName as string));
+        if (vid) ev.id = vid;
       }
     }
 
