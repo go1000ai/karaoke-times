@@ -172,9 +172,9 @@ const VenueCard = memo(function VenueCard({
 
         {/* Details row — pinned to bottom */}
         <div className="mt-auto flex flex-col items-start">
-          <div className="flex flex-wrap items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-3">
             {event.startTime && (
-              <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-[10px] px-2.5 py-1 rounded-full font-bold">
+              <span className="shrink-0 inline-flex items-center gap-1 bg-primary/10 text-primary text-[10px] px-2.5 py-1 rounded-full font-bold">
                 <span className="material-icons-round text-xs">schedule</span>
                 {event.startTime}{event.endTime ? ` – ${event.endTime}` : ""}
               </span>
@@ -185,15 +185,15 @@ const VenueCard = memo(function VenueCard({
                 <Link
                   href={`/kj/${kjSlug}`}
                   onClick={(e) => e.stopPropagation()}
-                  className="inline-flex items-center gap-1 bg-accent/10 text-accent text-[10px] px-2.5 py-1 rounded-full font-bold hover:bg-accent/20 transition-colors"
+                  className="inline-flex items-center gap-1 min-w-0 bg-accent/10 text-accent text-[10px] px-2.5 py-1 rounded-full font-bold hover:bg-accent/20 transition-colors"
                 >
-                  <span className="material-icons-round text-xs">headphones</span>
-                  {event.dj}
+                  <span className="material-icons-round text-xs shrink-0">headphones</span>
+                  <span className="truncate">{event.dj}</span>
                 </Link>
               ) : (
-                <span className="inline-flex items-center gap-1 bg-accent/10 text-accent text-[10px] px-2.5 py-1 rounded-full font-bold">
-                  <span className="material-icons-round text-xs">headphones</span>
-                  {event.dj}
+                <span className="inline-flex items-center gap-1 min-w-0 bg-accent/10 text-accent text-[10px] px-2.5 py-1 rounded-full font-bold">
+                  <span className="material-icons-round text-xs shrink-0">headphones</span>
+                  <span className="truncate">{event.dj}</span>
                 </span>
               );
             })()}
