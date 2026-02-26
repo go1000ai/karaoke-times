@@ -474,6 +474,18 @@ export async function createEvent(params: {
   await requireAdmin();
   const supabase = await createClient();
 
+  // Check for existing event at same venue + day to prevent duplicates
+  const { data: existing } = await supabase
+    .from("venue_events")
+    .select("id, event_name, dj")
+    .eq("venue_id", params.venue_id)
+    .eq("day_of_week", params.day_of_week);
+
+  if (existing && existing.length > 0) {
+    const names = existing.map((e) => `"${e.event_name}"${e.dj ? ` (${e.dj})` : ""}`).join(", ");
+    return { error: `This venue already has an event on ${params.day_of_week}: ${names}. Delete the existing event first or edit it instead.` };
+  }
+
   const { error } = await supabase.from("venue_events").insert({
     venue_id: params.venue_id,
     day_of_week: params.day_of_week,

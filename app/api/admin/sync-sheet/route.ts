@@ -745,6 +745,23 @@ async function saveToSupabase(parsedEvents: ParsedEvent[], eventCount: number, d
     });
   }
 
+  // Deduplicate eventRows by venue_id + day_of_week (prevent "Karaoke Monday's" vs "Karaoke Mondays" duplicates)
+  // When duplicates exist, prefer the entry with a flyer_url
+  const eventDedup = new Map<string, (typeof eventRows)[0]>();
+  for (const row of eventRows) {
+    const key = `${row.venue_id}|${row.day_of_week}`;
+    const existing = eventDedup.get(key);
+    if (!existing || (!existing.flyer_url && row.flyer_url)) {
+      eventDedup.set(key, row);
+    }
+  }
+  const dedupedBefore = eventRows.length;
+  eventRows.length = 0;
+  eventRows.push(...eventDedup.values());
+  if (dedupedBefore > eventRows.length) {
+    console.log(`Deduped ${dedupedBefore - eventRows.length} duplicate venue+day events`);
+  }
+
   // Preserve admin-uploaded flyer_urls that would otherwise be overwritten with null
   const { data: existingEventsWithFlyers } = await adminSupabase
     .from("venue_events")
