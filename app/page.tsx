@@ -8,7 +8,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { TubesBackground } from "@/components/ui/neon-flow";
 import { CardStack, type CardStackItem } from "@/components/ui/card-stack";
 import { createClient } from "@/lib/supabase/client";
-import { karaokeEvents as staticEvents, DAY_ORDER, searchKJs, getKJSlugForName, type KaraokeEvent, type KJProfile } from "@/lib/mock-data";
+import { karaokeEvents as staticEvents, DAY_ORDER, DAY_NORMALIZE, searchKJs, getKJSlugForName, type KaraokeEvent, type KJProfile } from "@/lib/mock-data";
 import { extractYouTubeVideoId, getYouTubeThumbnail } from "@/lib/youtube";
 import CircularGallery, { type GalleryItem } from "@/components/CircularGallery";
 
@@ -302,8 +302,9 @@ export default function HomePage() {
   const eventsByDay = useMemo(() => {
     const grouped: Record<string, KaraokeEvent[]> = {};
     for (const event of karaokeEvents) {
-      if (!grouped[event.dayOfWeek]) grouped[event.dayOfWeek] = [];
-      grouped[event.dayOfWeek].push(event);
+      const day = DAY_NORMALIZE[event.dayOfWeek] || event.dayOfWeek;
+      if (!grouped[day]) grouped[day] = [];
+      grouped[day].push(event);
     }
     return grouped;
   }, [karaokeEvents]);
@@ -420,7 +421,7 @@ export default function HomePage() {
   const filteredEvents = useMemo(() =>
     activeDay === "All"
       ? karaokeEvents
-      : karaokeEvents.filter((e) => e.dayOfWeek === activeDay),
+      : karaokeEvents.filter((e) => (DAY_NORMALIZE[e.dayOfWeek] || e.dayOfWeek) === activeDay),
     [activeDay]
   );
 
