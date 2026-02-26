@@ -206,6 +206,18 @@ function normalizeVenueName(name: string): string {
     .trim();
 }
 
+// Aggressive normalization: also strips common venue suffixes for fuzzy matching
+// "Harlem Nights Bar" and "Harlem Nights" both become "harlem nights"
+const VENUE_SUFFIX_RE = /\b(bar|lounge|restaurant|grill|pub|cafe|tavern|saloon|club|bistro|inn|house|room|kitchen|eatery|steakhouse)\b/gi;
+function fuzzyVenueName(name: string): string {
+  return normalizeVenueName(name)
+    .replace(VENUE_SUFFIX_RE, "")
+    .replace(/['']/g, "")
+    .replace(/\bthe\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 // Normalize day-of-week: handle plurals, non-standard names, and case variations
 const SYNC_DAY_NORMALIZE: Record<string, string> = {
   mondays: "Monday", tuesdays: "Tuesday", wednesdays: "Wednesday",
@@ -649,19 +661,33 @@ async function saveToSupabase(parsedEvents: ParsedEvent[], eventCount: number, d
     .select("id, name");
 
   const venueNameToId = new Map<string, string>();
+  const fuzzyNameToId = new Map<string, string>(); // fuzzy name → first venue ID
   const duplicateVenueIds: string[] = []; // IDs of duplicate venues to clean up
   for (const v of existingVenues ?? []) {
     const norm = normalizeVenueName(v.name);
+    const fuzzy = fuzzyVenueName(v.name);
     if (venueNameToId.has(norm)) {
-      // Duplicate venue — reassign its events to the first one, then delete it
+      // Exact duplicate — reassign its events to the first one, then delete it
       const keepId = venueNameToId.get(norm)!;
       await adminSupabase
         .from("venue_events")
         .update({ venue_id: keepId })
         .eq("venue_id", v.id);
       duplicateVenueIds.push(v.id);
+    } else if (fuzzyNameToId.has(fuzzy) && !venueNameToId.has(norm)) {
+      // Fuzzy duplicate (e.g. "Harlem Nights Bar" vs "Harlem Nights")
+      const keepId = fuzzyNameToId.get(fuzzy)!;
+      console.log(`Fuzzy duplicate: "${v.name}" matches existing venue (ID ${keepId.slice(0, 8)}), merging`);
+      await adminSupabase
+        .from("venue_events")
+        .update({ venue_id: keepId })
+        .eq("venue_id", v.id);
+      duplicateVenueIds.push(v.id);
+      // Also map the exact name so lookups work
+      venueNameToId.set(norm, keepId);
     } else {
       venueNameToId.set(norm, v.id);
+      if (!fuzzyNameToId.has(fuzzy)) fuzzyNameToId.set(fuzzy, v.id);
     }
   }
 
@@ -688,6 +714,13 @@ async function saveToSupabase(parsedEvents: ParsedEvent[], eventCount: number, d
   }> = [];
 
   for (const [normName, event] of uniqueVenues) {
+    // Try fuzzy match if exact match fails
+    if (!venueNameToId.has(normName)) {
+      const fuzzy = fuzzyVenueName(event.venueName);
+      if (fuzzyNameToId.has(fuzzy)) {
+        venueNameToId.set(normName, fuzzyNameToId.get(fuzzy)!);
+      }
+    }
     if (!venueNameToId.has(normName)) {
       newVenues.push({
         name: event.venueName,
