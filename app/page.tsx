@@ -174,7 +174,13 @@ const VenueCard = memo(function VenueCard({
 
         {/* Details row — pinned to bottom */}
         <div className="mt-auto flex flex-col items-start">
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            {event.dayOfWeek && (
+              <span className="shrink-0 inline-flex items-center gap-1 bg-primary/20 text-primary text-[10px] px-2.5 py-1 rounded-full font-bold">
+                <span className="material-icons-round text-xs">event</span>
+                {event.dayOfWeek === "Private Room Karaoke" ? "Private Room" : event.dayOfWeek}
+              </span>
+            )}
             {event.startTime && (
               <span className="shrink-0 inline-flex items-center gap-1 bg-primary/10 text-primary text-[10px] px-2.5 py-1 rounded-full font-bold">
                 <span className="material-icons-round text-xs">schedule</span>

@@ -94,13 +94,12 @@ export function TubesBackground({
       {/* Background image with parallax */}
       {backgroundImage && (
         <>
-          <div
-            className="absolute inset-0 w-full h-full"
+          <img
+            src={backgroundImage}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 w-full h-full object-cover"
             style={{
-              backgroundImage: `url(${backgroundImage})`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              backgroundAttachment: "fixed",
               filter: "brightness(0.45) saturate(0.7)",
             }}
           />
