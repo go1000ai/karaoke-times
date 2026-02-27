@@ -49,7 +49,9 @@ export const DAY_NORMALIZE: Record<string, string> = {
   "Bi-Monthly Sundays": "Sunday",
   "Every 3rd Monday": "Monday",
   "1st And 3rd Mondays": "Monday",
+  "1st & 3rd Mondays": "Monday",
   "Every 1st And 3rd Saturdays": "Saturday",
+  "Every 1st & 3rd Saturdays": "Saturday",
   "Monthly Fridays": "Friday",
   "Open Karaoke Party Room": "Private Room Karaoke",
 };

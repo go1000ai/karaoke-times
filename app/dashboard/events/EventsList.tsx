@@ -1097,14 +1097,13 @@ function EventForm({
         formData.set("flyer_url", data.publicUrl);
       }
     } else if (flyerUrlInput.trim()) {
-      // Use pasted poster URL
+      // Use pasted poster URL (works for both create and edit)
       formData.set("flyer_url", flyerUrlInput.trim());
-    } else if (flyerPreview === null && event?.flyer_url) {
-      // Flyer was removed
+    } else if (event?.flyer_url && flyerPreview === null) {
+      // Flyer was explicitly removed during edit
       formData.set("flyer_url", "");
-    } else if (flyerPreview && !flyerFile) {
-      // Keep existing flyer_url unchanged (don't set it so server action skips it)
     }
+    // else: no flyer provided (create) or keeping existing (edit) — don't set flyer_url
 
     onSubmit(formData);
   }
@@ -1350,7 +1349,7 @@ function EventForm({
             Or paste a poster URL
           </p>
           <input
-            type="url"
+            type="text"
             value={flyerUrlInput}
             onChange={(e) => {
               setFlyerUrlInput(e.target.value);

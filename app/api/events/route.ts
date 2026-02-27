@@ -20,10 +20,38 @@ const DAY_NORMALIZE: Record<string, string> = {
   "Bi-Monthly Sundays": "Sunday",
   "Every 3rd Monday": "Monday",
   "1st And 3rd Mondays": "Monday",
+  "1st & 3rd Mondays": "Monday",
   "Every 1st And 3rd Saturdays": "Saturday",
+  "Every 1st & 3rd Saturdays": "Saturday",
   "Monthly Fridays": "Friday",
   "Open Karaoke Party Room": "Private Room Karaoke",
 };
+
+// Standard day names for fallback extraction
+const STANDARD_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+// Robust day normalization: handles &/And variants, plural forms, and extracts
+// embedded standard day names as a fallback (e.g., "Every 3rd Monday" → "Monday")
+function normalizeDay(raw: string): string {
+  if (!raw) return raw;
+  // Direct lookup first
+  if (DAY_NORMALIZE[raw]) return DAY_NORMALIZE[raw];
+  // Try with & → And normalization
+  const withAnd = raw.replace(/&/g, "And");
+  if (DAY_NORMALIZE[withAnd]) return DAY_NORMALIZE[withAnd];
+  // If it's already a standard day, return as-is
+  if (STANDARD_DAYS.includes(raw)) return raw;
+  // Fallback: extract standard day name from the string (e.g., "Every 3rd Monday" → "Monday")
+  const lower = raw.toLowerCase();
+  for (const day of STANDARD_DAYS) {
+    if (lower.includes(day.toLowerCase())) return day;
+  }
+  // Also check plural forms embedded in string
+  for (const day of STANDARD_DAYS) {
+    if (lower.includes(day.toLowerCase() + "s")) return day;
+  }
+  return raw;
+}
 
 // Slugify for image lookup: lowercase, replace non-alphanumeric with hyphens
 const slugify = (n: string) =>
@@ -236,7 +264,7 @@ export async function GET() {
     const seen = new Set<string>();
     const events = syncedEvents.filter((e) => {
       const rawDay = (e.dayOfWeek as string) || "";
-      const normalizedDay = DAY_NORMALIZE[rawDay] || rawDay;
+      const normalizedDay = normalizeDay(rawDay);
       const key = `${normalizeName((e.venueName as string) || "")}|${normalizedDay}`;
       if (seen.has(key)) return false;
       seen.add(key);
@@ -249,7 +277,7 @@ export async function GET() {
       const venue = ve.venues as any;
       if (!venue?.name) continue;
       const rawDay = ve.day_of_week || "";
-      const normalizedDay = DAY_NORMALIZE[rawDay] || rawDay;
+      const normalizedDay = normalizeDay(rawDay);
       const key = `${normalizeName(venue.name)}|${normalizedDay}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -325,14 +353,27 @@ export async function GET() {
 
     // Normalize non-standard dayOfWeek values to standard days
     for (const ev of events) {
-      if (ev.dayOfWeek && DAY_NORMALIZE[ev.dayOfWeek as string]) {
-        ev.dayOfWeek = DAY_NORMALIZE[ev.dayOfWeek as string];
+      if (ev.dayOfWeek) {
+        const normalized = normalizeDay(ev.dayOfWeek as string);
+        if (normalized !== ev.dayOfWeek) {
+          ev.dayOfWeek = normalized;
+        }
       }
     }
 
-    if (events.length > 0) {
+    // Final dedup pass: catch any remaining duplicates after all normalization
+    const finalSeen = new Set<string>();
+    const dedupedEvents = events.filter((e) => {
+      const day = normalizeDay((e.dayOfWeek as string) || "");
+      const key = `${normalizeName((e.venueName as string) || "")}|${day}`;
+      if (finalSeen.has(key)) return false;
+      finalSeen.add(key);
+      return true;
+    });
+
+    if (dedupedEvents.length > 0) {
       return NextResponse.json({
-        events,
+        events: dedupedEvents,
         synced_at: syncResult.data?.synced_at || new Date().toISOString(),
       });
     }
