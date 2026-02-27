@@ -1056,7 +1056,7 @@ function EventForm({
   const flyerRef = useRef<HTMLInputElement>(null);
 
   const selectClass =
-    "w-full bg-white/5 border border-border rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 appearance-none cursor-pointer";
+    "w-full bg-white/5 border border-border rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 appearance-none cursor-pointer [color-scheme:dark]";
   const inputClass =
     "w-full bg-white/5 border border-border rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50";
   const labelClass = "block text-xs text-text-muted mb-1.5 font-semibold uppercase tracking-wider";
