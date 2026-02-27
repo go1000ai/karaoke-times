@@ -425,15 +425,19 @@ export default function ConnectionsPage() {
               <ul className="space-y-2">
                 <li className="flex items-start gap-2 text-sm text-white/80">
                   <span className="material-icons-round text-primary text-base mt-0.5">event</span>
-                  Keep your event schedule up to date
+                  Keep the event schedule and venue details up to date
                 </li>
                 <li className="flex items-start gap-2 text-sm text-white/80">
                   <span className="material-icons-round text-accent text-base mt-0.5">local_bar</span>
-                  Update drink specials and event details promptly
+                  Update drink specials, flyers, and event info promptly
                 </li>
                 <li className="flex items-start gap-2 text-sm text-white/80">
                   <span className="material-icons-round text-amber-400 text-base mt-0.5">notifications</span>
-                  Notify the venue of any cancellations or schedule changes
+                  Notify singers of any cancellations or schedule changes
+                </li>
+                <li className="flex items-start gap-2 text-sm text-white/80">
+                  <span className="material-icons-round text-blue-400 text-base mt-0.5">verified</span>
+                  Represent the venue accurately and in good faith
                 </li>
               </ul>
             </div>

@@ -1052,6 +1052,7 @@ function EventForm({
   const [flyerFile, setFlyerFile] = useState<File | null>(null);
   const [flyerPreview, setFlyerPreview] = useState<string | null>(event?.flyer_url || null);
   const [flyerUploading, setFlyerUploading] = useState(false);
+  const [flyerUrlInput, setFlyerUrlInput] = useState("");
   const flyerRef = useRef<HTMLInputElement>(null);
 
   const selectClass =
@@ -1081,7 +1082,7 @@ function EventForm({
     const formData = new FormData(form);
     formData.set("restrictions", JSON.stringify(selectedRestrictions));
 
-    // Upload flyer if new file selected
+    // Upload flyer if new file selected, or use pasted URL
     if (flyerFile) {
       setFlyerUploading(true);
       const supabase = createClient();
@@ -1095,6 +1096,9 @@ function EventForm({
         const { data } = supabase.storage.from("flyer-uploads").getPublicUrl(fileName);
         formData.set("flyer_url", data.publicUrl);
       }
+    } else if (flyerUrlInput.trim()) {
+      // Use pasted poster URL
+      formData.set("flyer_url", flyerUrlInput.trim());
     } else if (flyerPreview === null && event?.flyer_url) {
       // Flyer was removed
       formData.set("flyer_url", "");
@@ -1338,6 +1342,47 @@ function EventForm({
           onChange={handleFlyerSelect}
           className="hidden"
         />
+
+        {/* Or Paste Poster URL */}
+        <div className="mt-3">
+          <p className="text-text-muted text-xs mb-1.5 flex items-center gap-1">
+            <span className="material-icons-round text-xs text-purple-400">link</span>
+            Or paste a poster URL
+          </p>
+          <input
+            type="url"
+            value={flyerUrlInput}
+            onChange={(e) => {
+              setFlyerUrlInput(e.target.value);
+              if (e.target.value.trim() && flyerFile) {
+                setFlyerFile(null);
+                setFlyerPreview(null);
+                if (flyerRef.current) flyerRef.current.value = "";
+              }
+            }}
+            placeholder="https://example.com/event-poster.jpg"
+            className="w-full bg-white/5 border border-border rounded-lg py-2 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500/50 placeholder:text-text-muted"
+            disabled={!!flyerFile}
+          />
+          {flyerUrlInput.trim() && !flyerFile && (
+            <div className="flex items-center gap-2 mt-2">
+              <img
+                src={flyerUrlInput.trim()}
+                alt="URL preview"
+                className="max-h-20 rounded-lg border border-border"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                onLoad={(e) => { (e.target as HTMLImageElement).style.display = "block"; }}
+              />
+              <button
+                type="button"
+                onClick={() => setFlyerUrlInput("")}
+                className="text-xs text-red-400 hover:text-red-300"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="flex justify-end gap-3 pt-2">

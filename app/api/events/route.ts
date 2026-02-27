@@ -37,7 +37,7 @@ const VENUE_IMAGES: Record<string, string> = {
   "233-starr-karaoke-and-eats": "/venues/233-starr-karaoke-and-eats.jpg",
   "333-lounge-and-restaurant": "/venues/333-lounge-and-restaurant-sunday.jpg",
   "95-south": "/venues/dj-frank-smooth-thursday.jpg",
-  "alibi": "/venues/drink-lounge-tuesday.jpg",
+  // "alibi" — no dedicated image; removed incorrect drink-lounge mapping
   "allan-s-bakery": "/venues/allan-s-bakery-friday.webp",
   "allans-bakery": "/venues/allans-bakery-friday.jpg",
   "american-legion-hall": "/venues/american-legion-hall-friday.jpg",
@@ -231,10 +231,13 @@ export async function GET() {
       ? syncResult.data.events_json as Record<string, unknown>[]
       : [];
 
-    // Deduplicate synced events
+    // Deduplicate synced events (normalize dayOfWeek before dedup to prevent
+    // variants like "Bi Monthly Sundays" and "Bi-Monthly Sundays" both appearing)
     const seen = new Set<string>();
     const events = syncedEvents.filter((e) => {
-      const key = `${normalizeName((e.venueName as string) || "")}|${e.dayOfWeek || ""}`;
+      const rawDay = (e.dayOfWeek as string) || "";
+      const normalizedDay = DAY_NORMALIZE[rawDay] || rawDay;
+      const key = `${normalizeName((e.venueName as string) || "")}|${normalizedDay}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -245,7 +248,9 @@ export async function GET() {
     for (const ve of dbEvents) {
       const venue = ve.venues as any;
       if (!venue?.name) continue;
-      const key = `${normalizeName(venue.name)}|${ve.day_of_week || ""}`;
+      const rawDay = ve.day_of_week || "";
+      const normalizedDay = DAY_NORMALIZE[rawDay] || rawDay;
+      const key = `${normalizeName(venue.name)}|${normalizedDay}`;
       if (seen.has(key)) continue;
       seen.add(key);
       events.push({

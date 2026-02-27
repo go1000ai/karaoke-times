@@ -61,8 +61,10 @@ export default function TermsOfServicePage() {
                 queues, leave reviews, and save favorites.
               </li>
               <li>
-                <strong className="text-white">KJs (Karaoke Jockeys):</strong> Can manage song queues,
-                accept bookings, generate flyers, and manage their public profile.
+                <strong className="text-white">KJs (Karaoke Jockeys):</strong> Can list and manage venues,
+                create and manage events, manage song queues, accept bookings, generate flyers, and
+                manage their public profile. KJs may register venues on behalf of establishments
+                that have not yet signed up.
               </li>
               <li>
                 <strong className="text-white">Venue Owners:</strong> Can list venues, manage events, invite

@@ -174,8 +174,12 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
     }
   }
 
-  function handleSubmit(formData: FormData) {
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
     setFeedback(null);
+
+    const form = e.currentTarget;
+    const formData = new FormData(form);
     formData.set("restrictions", JSON.stringify(selectedRestrictions));
 
     const venueId = selectedVenueId || (formData.get("venue_id") as string);
@@ -183,6 +187,9 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
       setFeedback({ type: "error", text: "Please select a venue" });
       return;
     }
+
+    // Capture pasted URL value before any async work
+    const pastedUrl = flyerUrlInput.trim();
 
     startTransition(async () => {
       const eventName = (formData.get("event_name") as string) || "Karaoke Night";
@@ -198,8 +205,8 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
       let flyerUrl: string | null = null;
       if (flyerFile) {
         flyerUrl = await uploadFlyer();
-      } else if (flyerUrlInput.trim()) {
-        flyerUrl = flyerUrlInput.trim();
+      } else if (pastedUrl) {
+        flyerUrl = pastedUrl;
       }
 
       const result = await createEvent({
@@ -330,7 +337,7 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
 
       {open && (
         <div className="border-t border-border/20 p-5">
-          <form action={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {/* ── Venue Selection + Add New ── */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>

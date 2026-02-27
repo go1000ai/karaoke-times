@@ -198,6 +198,8 @@ export default async function DashboardOverview() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {[
           { icon: "queue_music", label: "Manage Queue", desc: "View and manage the song lineup", href: "/dashboard/queue" },
+          { icon: "event", label: "Manage Events", desc: "Create and edit karaoke nights", href: "/dashboard/events" },
+          { icon: "store", label: "Edit Venue", desc: "Update venue details and listing", href: "/dashboard/listing" },
           { icon: "tv", label: "Open TV Display", desc: "Show queue on bar screens", href: `/venue/${venue.id}/tv`, external: true },
           { icon: "local_offer", label: "Bar Specials", desc: "View active promotions", href: "/dashboard/promos" },
           { icon: "book_online", label: "View Bookings", desc: "Check room reservations", href: "/dashboard/bookings" },

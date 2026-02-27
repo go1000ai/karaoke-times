@@ -105,9 +105,11 @@ const VenueCard = memo(function VenueCard({
           </div>
         )}
         {/* Day badge */}
-        <div className="absolute top-3 left-3 bg-primary text-black text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
-          {event.dayOfWeek === "Private Room Karaoke" ? "Private Room" : event.dayOfWeek}
-        </div>
+        {event.dayOfWeek && (
+          <div className="absolute top-3 left-3 bg-primary text-black text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
+            {event.dayOfWeek === "Private Room Karaoke" ? "Private Room" : event.dayOfWeek}
+          </div>
+        )}
 
         {/* Heart + Share — only when logged in */}
         {showActions && (

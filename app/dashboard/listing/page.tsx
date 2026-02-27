@@ -77,11 +77,31 @@ export default function ListingPage() {
     if (!user) return;
 
     async function loadVenue() {
-      const { data } = await supabase
+      // Check if user owns a venue
+      let { data } = await supabase
         .from("venues")
         .select("*")
         .eq("owner_id", user!.id)
         .single();
+
+      // If not an owner, check if connected as KJ
+      if (!data) {
+        const { data: staffRecord } = await supabase
+          .from("venue_staff")
+          .select("venue_id")
+          .eq("user_id", user!.id)
+          .not("accepted_at", "is", null)
+          .limit(1)
+          .single();
+        if (staffRecord) {
+          const { data: venueData } = await supabase
+            .from("venues")
+            .select("*")
+            .eq("id", staffRecord.venue_id)
+            .single();
+          data = venueData;
+        }
+      }
 
       if (data) {
         setVenue(data);

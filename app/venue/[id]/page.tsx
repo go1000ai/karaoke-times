@@ -40,6 +40,18 @@ interface SupabaseVenue {
   accessibility: string | null;
 }
 
+interface DbEvent {
+  id: string;
+  venue_id: string;
+  event_name: string;
+  day_of_week: string;
+  start_time: string | null;
+  end_time: string | null;
+  dj: string | null;
+  flyer_url: string | null;
+  notes: string | null;
+}
+
 const FAVORITES_KEY = "kt-favorites";
 
 function loadLocalFavorites(): Set<string> {
@@ -66,7 +78,6 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
   const mockVenue = venues.find((v) => v.id === id);
   const venueEvents = mockVenue ? karaokeEvents.filter((e) => e.venueName === mockVenue.name) : [];
   const mockEvent = karaokeEvents.find((e) => e.id === id);
-  const event = mockEvent || venueEvents[0];
   const { user } = useAuth();
   const router = useRouter();
   const [isFavorite, setIsFavorite] = useState(false);
@@ -75,8 +86,17 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
   const [specials, setSpecials] = useState<FeaturedSpecial[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [dbVenue, setDbVenue] = useState<SupabaseVenue | null>(null);
+  const [dbEvents, setDbEvents] = useState<DbEvent[]>([]);
   const [eventFlyerUrl, setEventFlyerUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(!mockVenue);
+
+  // Try to match mock venue by name (for image fallback when navigated by UUID)
+  const mockVenueByName = !mockVenue && dbVenue
+    ? venues.find((v) => v.name.toLowerCase() === dbVenue.name.toLowerCase())
+    : null;
+  const mockEventsByName = mockVenueByName
+    ? karaokeEvents.filter((e) => e.venueName === mockVenueByName.name)
+    : [];
 
   // Resolved venue: mock data first, then Supabase fallback
   const venue = mockVenue || (dbVenue ? {
@@ -86,11 +106,29 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
     city: dbVenue.city,
     state: dbVenue.state,
     neighborhood: dbVenue.neighborhood || "",
-    image: null as string | null,
+    image: mockVenueByName?.image || null as string | null,
     isPrivateRoom: dbVenue.is_private_room,
     latitude: null as number | null,
     longitude: null as number | null,
   } : null);
+
+  // Build event from DB events when mock event is not available
+  const dbEvent = dbEvents[0];
+  const dbEventAsEvent = dbEvent ? {
+    id: dbEvent.id,
+    dayOfWeek: dbEvent.day_of_week,
+    eventName: dbEvent.event_name,
+    venueName: venue?.name || "",
+    startTime: dbEvent.start_time || "",
+    endTime: dbEvent.end_time || "",
+    dj: dbEvent.dj || "",
+    notes: dbEvent.notes || "",
+    phone: "",
+    image: dbEvent.flyer_url || mockEventsByName[0]?.image || null,
+  } : null;
+
+  // Combined event: prefer mock data, fall back to DB event
+  const event = mockEvent || venueEvents[0] || dbEventAsEvent || mockEventsByName[0];
 
   const phone = event?.phone || "";
 
@@ -142,6 +180,26 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
 
     fetchVenue();
   }, [id, mockVenue]);
+
+  // Fetch venue events from DB (for event details, flyer, Remind Me)
+  useEffect(() => {
+    const venueUUID = dbVenue?.id || (isUUID(id) ? id : null);
+    if (!venueUUID) return;
+    const supabase = createClient();
+    supabase
+      .from("venue_events")
+      .select("id, venue_id, event_name, day_of_week, start_time, end_time, dj, flyer_url, notes")
+      .eq("venue_id", venueUUID)
+      .order("start_time")
+      .then(({ data }) => {
+        if (data?.length) {
+          setDbEvents(data as DbEvent[]);
+          // Set flyer from first event that has one
+          const withFlyer = data.find((e: any) => e.flyer_url);
+          if (withFlyer?.flyer_url) setEventFlyerUrl(withFlyer.flyer_url);
+        }
+      });
+  }, [id, dbVenue]);
 
   // Fetch flyer URL from venue_events
   useEffect(() => {
@@ -337,8 +395,8 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
       <div className="max-w-4xl mx-auto">
         {/* Hero */}
         <div className="relative h-56 mt-20 bg-gradient-to-br from-primary/20 via-card-dark to-accent/10 flex items-center justify-center">
-          {venue.image || eventFlyerUrl ? (
-            <img src={(venue.image || eventFlyerUrl)!} alt={venue.name} className="w-full h-full object-cover" />
+          {eventFlyerUrl || event?.image || venue.image ? (
+            <img src={(eventFlyerUrl || event?.image || venue.image)!} alt={venue.name} className="w-full h-full object-cover" />
           ) : (
             <span className="material-icons-round text-6xl text-primary/30">mic</span>
           )}
@@ -424,10 +482,12 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
             </p>
             {event && (
               <div className="flex flex-wrap gap-2 mt-3">
-                <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-[10px] px-2.5 py-1 rounded-full font-bold">
-                  <span className="material-icons-round text-xs">event</span>
-                  {event.dayOfWeek}
-                </span>
+                {event.dayOfWeek && (
+                  <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-[10px] px-2.5 py-1 rounded-full font-bold">
+                    <span className="material-icons-round text-xs">event</span>
+                    {event.dayOfWeek}
+                  </span>
+                )}
                 {event.startTime && (
                   <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-[10px] px-2.5 py-1 rounded-full font-bold">
                     <span className="material-icons-round text-xs">schedule</span>
@@ -459,7 +519,7 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
         </section>
 
         {/* All Event Nights (if venue has multiple) */}
-        {venueEvents.length > 1 && (
+        {(venueEvents.length > 1 || dbEvents.length > 1) && (
           <section className="px-5 mt-5">
             <div className="glass-card rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-3">
@@ -467,15 +527,25 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
                 <h3 className="font-bold text-white">Karaoke Schedule</h3>
               </div>
               <div className="space-y-2">
-                {venueEvents.map((ev) => (
-                  <div key={ev.id} className="flex items-center justify-between py-2 border-b border-border/30 last:border-0">
-                    <div>
-                      <p className="text-sm text-white font-semibold">{ev.dayOfWeek}</p>
-                      <p className="text-xs text-text-muted">{ev.eventName}{ev.dj && ev.dj !== "Open" ? ` — KJ: ${ev.dj}` : ""}</p>
-                    </div>
-                    <span className="text-xs text-text-secondary">{ev.startTime}{ev.endTime ? ` - ${ev.endTime}` : ""}</span>
-                  </div>
-                ))}
+                {venueEvents.length > 1
+                  ? venueEvents.map((ev) => (
+                      <div key={ev.id} className="flex items-center justify-between py-2 border-b border-border/30 last:border-0">
+                        <div>
+                          <p className="text-sm text-white font-semibold">{ev.dayOfWeek}</p>
+                          <p className="text-xs text-text-muted">{ev.eventName}{ev.dj && ev.dj !== "Open" ? ` — KJ: ${ev.dj}` : ""}</p>
+                        </div>
+                        <span className="text-xs text-text-secondary">{ev.startTime}{ev.endTime ? ` - ${ev.endTime}` : ""}</span>
+                      </div>
+                    ))
+                  : dbEvents.map((ev) => (
+                      <div key={ev.id} className="flex items-center justify-between py-2 border-b border-border/30 last:border-0">
+                        <div>
+                          <p className="text-sm text-white font-semibold">{ev.day_of_week}</p>
+                          <p className="text-xs text-text-muted">{ev.event_name}{ev.dj && ev.dj !== "Open" ? ` — KJ: ${ev.dj}` : ""}</p>
+                        </div>
+                        <span className="text-xs text-text-secondary">{ev.start_time || ""}{ev.end_time ? ` - ${ev.end_time}` : ""}</span>
+                      </div>
+                    ))}
               </div>
             </div>
           </section>

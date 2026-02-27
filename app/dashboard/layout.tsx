@@ -16,9 +16,10 @@ const ownerLinks = [
   { href: "/dashboard/my-profile", icon: "person", label: "My Profile" },
 ];
 
-// ─── KJ: Events + everything operational ───
+// ─── KJ: Full venue management + operational tools ───
 const kjLinks = [
   { href: "/dashboard", icon: "dashboard", label: "Overview" },
+  { href: "/dashboard/listing", icon: "storefront", label: "Venue Listing" },
   { href: "/dashboard/events", icon: "event", label: "My Events" },
   { href: "/dashboard/media", icon: "photo_library", label: "Media" },
   { href: "/dashboard/flyers", icon: "auto_awesome", label: "Flyer Generator" },
