@@ -471,7 +471,7 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
         </div>
 
         {/* About / Event Info */}
-        <section className="px-5 mt-5 relative z-20">
+        <section className="px-5 mt-5">
           <div className="glass-card rounded-2xl p-4">
             <div className="flex items-center gap-2 mb-3">
               <span className="material-icons-round text-primary">info</span>
