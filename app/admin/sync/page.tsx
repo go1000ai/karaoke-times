@@ -43,6 +43,22 @@ export default function SyncPage() {
   const [sheetUrl, setSheetUrl] = useState(DEFAULT_SHEET_URL);
   const [columns, setColumns] = useState<string[]>(DEFAULT_COLUMNS);
   const [showColumnEditor, setShowColumnEditor] = useState(false);
+  const [importing, setImporting] = useState(false);
+
+  async function handleImportMockData() {
+    if (!confirm("This will import all mock data venues and events into the database. Existing records will be skipped. Continue?")) return;
+    setImporting(true);
+    setResult(null);
+    try {
+      const res = await fetch("/api/admin/import-mock-data", { method: "POST" });
+      const data = await res.json();
+      setResult(data);
+    } catch {
+      setResult({ success: false, message: "Network error. Please try again." });
+    } finally {
+      setImporting(false);
+    }
+  }
 
   async function handleSync() {
     if (!sheetUrl.trim()) return;
@@ -299,6 +315,45 @@ export default function SyncPage() {
             <>
               <span className="material-icons-round">publish</span>
               Submit CSV
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Import Mock Data */}
+      <div className="glass-card rounded-2xl p-6 mt-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 rounded-xl bg-yellow-400/10 flex items-center justify-center">
+            <span className="material-icons-round text-yellow-400 text-2xl">inventory</span>
+          </div>
+          <div>
+            <h3 className="text-white font-bold">Import Mock Data to Database</h3>
+            <p className="text-xs text-text-muted">
+              Import all ~200 hardcoded NYC karaoke events into the database so they become editable in the admin panel (flyers, details, etc.)
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-xl p-3 mb-4">
+          <p className="text-xs text-yellow-400">
+            <span className="font-bold">Safe to run multiple times</span> — existing venues and events will be skipped, only new ones are created.
+          </p>
+        </div>
+
+        <button
+          onClick={handleImportMockData}
+          disabled={importing}
+          className="w-full bg-yellow-500 text-black font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-yellow-500/30 transition-all disabled:opacity-50"
+        >
+          {importing ? (
+            <>
+              <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+              Importing...
+            </>
+          ) : (
+            <>
+              <span className="material-icons-round">database</span>
+              Import Mock Data Events
             </>
           )}
         </button>
