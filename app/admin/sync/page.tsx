@@ -44,6 +44,25 @@ export default function SyncPage() {
   const [columns, setColumns] = useState<string[]>(DEFAULT_COLUMNS);
   const [showColumnEditor, setShowColumnEditor] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
+  const [cleanupDetails, setCleanupDetails] = useState<string[]>([]);
+
+  async function handleCleanupDuplicates() {
+    if (!confirm("This will remove duplicate events (same venue + day), keeping the best version. Continue?")) return;
+    setCleaning(true);
+    setResult(null);
+    setCleanupDetails([]);
+    try {
+      const res = await fetch("/api/admin/cleanup-duplicates", { method: "POST" });
+      const data = await res.json();
+      setResult(data);
+      if (data.details) setCleanupDetails(data.details);
+    } catch {
+      setResult({ success: false, message: "Network error. Please try again." });
+    } finally {
+      setCleaning(false);
+    }
+  }
 
   async function handleImportMockData() {
     if (!confirm("This will import all mock data venues and events into the database. Existing records will be skipped. Continue?")) return;
@@ -357,6 +376,49 @@ export default function SyncPage() {
             </>
           )}
         </button>
+      </div>
+
+      {/* Cleanup Duplicates */}
+      <div className="glass-card rounded-2xl p-6 mt-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 rounded-xl bg-red-400/10 flex items-center justify-center">
+            <span className="material-icons-round text-red-400 text-2xl">cleaning_services</span>
+          </div>
+          <div>
+            <h3 className="text-white font-bold">Cleanup Duplicate Events</h3>
+            <p className="text-xs text-text-muted">
+              Remove duplicate events where the same venue has multiple entries for the same day. Keeps the best version (with flyer, oldest).
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={handleCleanupDuplicates}
+          disabled={cleaning}
+          className="w-full bg-red-500 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-red-500/30 transition-all disabled:opacity-50"
+        >
+          {cleaning ? (
+            <>
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              Scanning...
+            </>
+          ) : (
+            <>
+              <span className="material-icons-round">delete_sweep</span>
+              Find &amp; Remove Duplicates
+            </>
+          )}
+        </button>
+
+        {cleanupDetails.length > 0 && (
+          <div className="mt-4 max-h-48 overflow-y-auto space-y-1">
+            {cleanupDetails.map((d, i) => (
+              <p key={i} className="text-xs text-text-muted">
+                <span className="text-red-400">Removed:</span> {d}
+              </p>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Result message */}
