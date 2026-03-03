@@ -137,7 +137,7 @@ export const karaokeEvents: KaraokeEvent[] = [
     startTime: "8:00 PM",
     endTime: "12:00 AM",
     notes: "Food And Drinks Available",
-    image: null,
+    image: "/venues/sunset-bar-monday.jpg",
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,

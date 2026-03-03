@@ -34,6 +34,15 @@ export default async function AdminVenuesPage() {
   const mediaCounts: Record<string, number> = {};
   (media ?? []).forEach((m) => { mediaCounts[m.venue_id] = (mediaCounts[m.venue_id] || 0) + 1; });
 
+  // Primary images
+  const { data: primaryImages } = await supabase
+    .from("venue_media")
+    .select("venue_id, url")
+    .eq("is_primary", true)
+    .eq("type", "image");
+  const primaryImageMap: Record<string, string> = {};
+  (primaryImages ?? []).forEach((img) => { primaryImageMap[img.venue_id] = img.url; });
+
   const venuesEnhanced = (venues ?? []).map((v) => ({
     ...v,
     _event_count: eventCounts[v.id] || 0,
@@ -41,6 +50,7 @@ export default async function AdminVenuesPage() {
     _avg_rating: reviewStats[v.id] ? (reviewStats[v.id].total / reviewStats[v.id].count).toFixed(1) : null,
     _promo_count: promoCounts[v.id] || 0,
     _media_count: mediaCounts[v.id] || 0,
+    _primary_image: primaryImageMap[v.id] || null,
   }));
 
   // Owners for dropdown

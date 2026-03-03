@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useRef, useTransition } from "react";
 import { deleteVenue, assignVenueOwner, updateVenue } from "../actions";
+import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
 interface Venue {
@@ -23,6 +24,7 @@ interface Venue {
   _avg_rating: string | null;
   _promo_count: number;
   _media_count: number;
+  _primary_image: string | null;
 }
 
 interface Owner {
@@ -39,6 +41,14 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
   const [accessFilter, setAccessFilter] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Venue>>({});
+
+  // Image upload state
+  const supabase = createClient();
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const [editImageFile, setEditImageFile] = useState<File | null>(null);
+  const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
+  const [removeImage, setRemoveImage] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
 
   const filteredVenues = venues.filter((v) => {
     const matchesSearch =
@@ -85,15 +95,105 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
       zip_code: venue.zip_code || "",
       neighborhood: venue.neighborhood,
     });
+    setEditImageFile(null);
+    setEditImagePreview(venue._primary_image);
+    setRemoveImage(false);
+    setImageError(null);
+    if (imageInputRef.current) imageInputRef.current.value = "";
   }
 
   function cancelEdit() {
     setEditingId(null);
     setEditForm({});
+    setEditImageFile(null);
+    setEditImagePreview(null);
+    setRemoveImage(false);
+    setImageError(null);
+    if (imageInputRef.current) imageInputRef.current.value = "";
   }
 
-  function handleSaveEdit(venueId: string) {
+  function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setImageError("Please select an image file.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setImageError("Image must be under 5MB.");
+      return;
+    }
+    setImageError(null);
+    setEditImageFile(file);
+    setEditImagePreview(URL.createObjectURL(file));
+    setRemoveImage(false);
+  }
+
+  function handleRemoveImage() {
+    setEditImageFile(null);
+    setEditImagePreview(null);
+    setRemoveImage(true);
+    if (imageInputRef.current) imageInputRef.current.value = "";
+  }
+
+  async function handleSaveEdit(venueId: string) {
     setProcessingId(venueId);
+
+    let newImageUrl: string | null = null;
+
+    // Handle image upload
+    if (editImageFile) {
+      const ext = editImageFile.name.split(".").pop() || "jpg";
+      const fileName = `${venueId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("venue-media")
+        .upload(fileName, editImageFile, { contentType: editImageFile.type });
+
+      if (uploadError) {
+        setImageError("Failed to upload image: " + uploadError.message);
+        setProcessingId(null);
+        return;
+      }
+
+      const { data: urlData } = supabase.storage.from("venue-media").getPublicUrl(fileName);
+      newImageUrl = urlData.publicUrl;
+
+      // Remove old primary image record (if any)
+      await supabase
+        .from("venue_media")
+        .delete()
+        .eq("venue_id", venueId)
+        .eq("is_primary", true);
+
+      // Insert new primary image
+      await supabase.from("venue_media").insert({
+        venue_id: venueId,
+        url: newImageUrl,
+        type: "image",
+        is_primary: true,
+        sort_order: 0,
+      });
+    } else if (removeImage) {
+      // Delete existing primary image
+      const { data: existing } = await supabase
+        .from("venue_media")
+        .select("id, url")
+        .eq("venue_id", venueId)
+        .eq("is_primary", true)
+        .single();
+
+      if (existing) {
+        // Try to remove from storage (extract path from URL)
+        const urlParts = existing.url.split("/venue-media/");
+        if (urlParts[1]) {
+          await supabase.storage.from("venue-media").remove([urlParts[1]]);
+        }
+        await supabase.from("venue_media").delete().eq("id", existing.id);
+      }
+      newImageUrl = null;
+    }
+
     startTransition(async () => {
       const result = await updateVenue(venueId, {
         name: editForm.name,
@@ -104,15 +204,29 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
         neighborhood: editForm.neighborhood,
       });
       if (result.success) {
+        const updatedImage = editImageFile ? newImageUrl : removeImage ? null : undefined;
         setVenues((prev) =>
           prev.map((v) =>
             v.id === venueId
-              ? { ...v, name: editForm.name || v.name, address: editForm.address || v.address, city: editForm.city || v.city, state: editForm.state || v.state, zip_code: editForm.zip_code || "", neighborhood: editForm.neighborhood || v.neighborhood }
+              ? {
+                  ...v,
+                  name: editForm.name || v.name,
+                  address: editForm.address || v.address,
+                  city: editForm.city || v.city,
+                  state: editForm.state || v.state,
+                  zip_code: editForm.zip_code || "",
+                  neighborhood: editForm.neighborhood || v.neighborhood,
+                  _primary_image: updatedImage !== undefined ? updatedImage : v._primary_image,
+                }
               : v
           )
         );
         setEditingId(null);
         setEditForm({});
+        setEditImageFile(null);
+        setEditImagePreview(null);
+        setRemoveImage(false);
+        setImageError(null);
       }
       setProcessingId(null);
     });
@@ -170,6 +284,54 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
             {editingId === venue.id ? (
               /* ─── Edit Mode ─── */
               <div className="space-y-3">
+                {/* Venue Image */}
+                <div>
+                  <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Venue Image</label>
+                  <div className="flex items-center gap-3">
+                    {editImagePreview ? (
+                      <img
+                        src={editImagePreview}
+                        alt="Venue"
+                        className="w-20 h-20 rounded-xl object-cover border border-border"
+                      />
+                    ) : (
+                      <div className="w-20 h-20 rounded-xl bg-white/5 border border-border flex items-center justify-center">
+                        <span className="material-icons-round text-text-muted text-2xl">image</span>
+                      </div>
+                    )}
+                    <div className="flex flex-col gap-1.5">
+                      <input
+                        ref={imageInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={handleImageSelect}
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => imageInputRef.current?.click()}
+                        className="px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-400 text-xs font-bold hover:bg-blue-500/20 transition-colors flex items-center gap-1"
+                      >
+                        <span className="material-icons-round text-sm">upload</span>
+                        {editImagePreview ? "Change" : "Upload"}
+                      </button>
+                      {editImagePreview && (
+                        <button
+                          type="button"
+                          onClick={handleRemoveImage}
+                          className="px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-xs font-bold hover:bg-red-500/20 transition-colors flex items-center gap-1"
+                        >
+                          <span className="material-icons-round text-sm">delete</span>
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {imageError && (
+                    <p className="text-xs text-red-400 mt-1">{imageError}</p>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Name</label>
@@ -244,7 +406,19 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
               /* ─── View Mode ─── */
               <>
                 {/* Venue name + badges */}
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-3">
+                  {venue._primary_image ? (
+                    <img
+                      src={venue._primary_image}
+                      alt={venue.name}
+                      className="w-10 h-10 rounded-lg object-cover border border-border flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-white/5 border border-border flex items-center justify-center flex-shrink-0">
+                      <span className="material-icons-round text-text-muted text-lg">storefront</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="text-white font-bold">{venue.name}</h3>
                   {venue.is_private_room && (
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-400/10 text-purple-400">Private Room</span>
@@ -270,6 +444,7 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
                       None
                     </span>
                   )}
+                  </div>
                 </div>
                 <p className="text-xs text-text-secondary mt-1">
                   {venue.address} — {venue.neighborhood ? `${venue.neighborhood}, ` : ""}{venue.city}, {venue.state}{venue.zip_code ? ` ${venue.zip_code}` : ""}

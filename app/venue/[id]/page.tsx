@@ -12,6 +12,7 @@ import { venues, karaokeEvents } from "@/lib/mock-data";
 import { createClient } from "@/lib/supabase/client";
 import { AddToCalendar } from "@/components/AddToCalendar";
 import ReportProblemModal from "@/components/ReportProblemModal";
+import { findVenueImage } from "@/lib/venue-images";
 
 interface FeaturedSpecial {
   id: string;
@@ -395,8 +396,8 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
       <div className="max-w-4xl mx-auto">
         {/* Hero */}
         <div className="relative h-56 mt-20 bg-gradient-to-br from-primary/20 via-card-dark to-accent/10 flex items-center justify-center">
-          {eventFlyerUrl || event?.image || venue.image ? (
-            <img src={(eventFlyerUrl || event?.image || venue.image)!} alt={venue.name} className="w-full h-full object-cover" />
+          {eventFlyerUrl || event?.image || venue.image || findVenueImage(venue.name) ? (
+            <img src={(eventFlyerUrl || event?.image || venue.image || findVenueImage(venue.name))!} alt={venue.name} className="w-full h-full object-cover" />
           ) : (
             <span className="material-icons-round text-6xl text-primary/30">mic</span>
           )}
