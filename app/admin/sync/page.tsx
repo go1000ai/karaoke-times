@@ -46,6 +46,8 @@ export default function SyncPage() {
   const [importing, setImporting] = useState(false);
   const [cleaning, setCleaning] = useState(false);
   const [cleanupDetails, setCleanupDetails] = useState<string[]>([]);
+  const [generating, setGenerating] = useState(false);
+  const [generateProgress, setGenerateProgress] = useState<string | null>(null);
 
   async function handleCleanupDuplicates() {
     if (!confirm("This will remove duplicate events (same venue + day), keeping the best version. Continue?")) return;
@@ -76,6 +78,27 @@ export default function SyncPage() {
       setResult({ success: false, message: "Network error. Please try again." });
     } finally {
       setImporting(false);
+    }
+  }
+
+  async function handleAutoGenerateFlyers() {
+    if (!confirm("This will use the n8n AI flyer generator to create flyers for ALL events that don't have one. This may take several minutes. Continue?")) return;
+    setGenerating(true);
+    setResult(null);
+    setGenerateProgress("Finding events without flyers...");
+    try {
+      const res = await fetch("/api/admin/auto-generate-flyers", { method: "POST" });
+      const data = await res.json();
+      setResult(data);
+      if (data.errors && data.errors.length > 0) {
+        setGenerateProgress(`Done. ${data.generated} generated, ${data.failed} failed.`);
+      } else {
+        setGenerateProgress(null);
+      }
+    } catch {
+      setResult({ success: false, message: "Network error or timeout. The generation may still be running on the server." });
+    } finally {
+      setGenerating(false);
     }
   }
 
@@ -418,6 +441,43 @@ export default function SyncPage() {
               </p>
             ))}
           </div>
+        )}
+      </div>
+
+      {/* Auto-Generate Flyers */}
+      <div className="glass-card rounded-2xl p-6 mt-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 rounded-xl bg-purple-400/10 flex items-center justify-center">
+            <span className="material-icons-round text-purple-400 text-2xl">auto_awesome</span>
+          </div>
+          <div>
+            <h3 className="text-white font-bold">Auto-Generate Flyers</h3>
+            <p className="text-xs text-text-muted">
+              Uses the n8n AI flyer generator to create flyers for all events that don&apos;t have one. Each flyer is auto-saved to the event.
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={handleAutoGenerateFlyers}
+          disabled={generating}
+          className="w-full bg-purple-500 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-purple-500/30 transition-all disabled:opacity-50"
+        >
+          {generating ? (
+            <>
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              Generating flyers...
+            </>
+          ) : (
+            <>
+              <span className="material-icons-round">auto_awesome</span>
+              Generate Missing Flyers
+            </>
+          )}
+        </button>
+
+        {generateProgress && (
+          <p className="text-xs text-purple-400 mt-3">{generateProgress}</p>
         )}
       </div>
 

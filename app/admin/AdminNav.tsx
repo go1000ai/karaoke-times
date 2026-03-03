@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 type NavLink = {
   href: string;
@@ -215,21 +215,64 @@ export function AdminMobileDrawer() {
                 </div>
               ))}
 
-              {/* Venue Dashboard link */}
-              <div className="mt-4 pt-3 border-t border-border">
-                <Link
-                  href="/dashboard"
-                  onClick={() => setOpen(false)}
-                  className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-text-secondary hover:text-white hover:bg-white/5 transition-colors"
-                >
-                  <span className="material-icons-round text-lg">dashboard</span>
-                  Venue Dashboard
-                </Link>
-              </div>
+              {/* Mimic Mode + Dashboard */}
+              <MobileMimicButtons onClose={() => setOpen(false)} />
             </nav>
           </div>
         </div>
       )}
     </>
+  );
+}
+
+function MobileMimicButtons({ onClose }: { onClose: () => void }) {
+  const router = useRouter();
+  const [loading, setLoading] = useState<string | null>(null);
+
+  const startMimic = async (role: "kj" | "owner") => {
+    setLoading(role);
+    try {
+      await fetch("/api/admin/mimic", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role }),
+      });
+      onClose();
+      router.push("/dashboard");
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  return (
+    <div className="mt-4 pt-3 border-t border-border">
+      <p className="text-[10px] text-text-muted/60 uppercase tracking-widest font-bold px-4 mb-2">
+        Mimic Mode
+      </p>
+      <button
+        onClick={() => startMimic("kj")}
+        disabled={loading !== null}
+        className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-text-secondary hover:text-accent hover:bg-accent/10 transition-colors disabled:opacity-50"
+      >
+        <span className="material-icons-round text-lg">headphones</span>
+        {loading === "kj" ? "Switching..." : "Mimic as KJ"}
+      </button>
+      <button
+        onClick={() => startMimic("owner")}
+        disabled={loading !== null}
+        className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-text-secondary hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+      >
+        <span className="material-icons-round text-lg">store</span>
+        {loading === "owner" ? "Switching..." : "Mimic as Owner"}
+      </button>
+      <Link
+        href="/dashboard"
+        onClick={onClose}
+        className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-text-secondary hover:text-white hover:bg-white/5 transition-colors"
+      >
+        <span className="material-icons-round text-lg">dashboard</span>
+        Venue Dashboard
+      </Link>
+    </div>
   );
 }

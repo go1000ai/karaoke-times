@@ -5,9 +5,34 @@ import { cookies } from "next/headers";
  * Get the active venue for the current dashboard user.
  * - Owners: returns their owned venue
  * - KJs: returns the venue they selected (from cookie), or their first connected venue
+ * - Admin (mimic mode): returns ALL venues so admin can switch between any
  */
-export async function getDashboardVenue(userId: string) {
+export async function getDashboardVenue(userId: string, isAdminMimic = false) {
   const supabase = await createClient();
+
+  // Admin in mimic mode: return ALL venues
+  if (isAdminMimic) {
+    const { data: allVenueRows } = await supabase
+      .from("venues")
+      .select("id, name")
+      .order("name");
+
+    const allVenues = (allVenueRows ?? []) as { id: string; name: string }[];
+
+    // Check cookie for selected venue
+    const cookieStore = await cookies();
+    const activeVenueId = cookieStore.get("active_venue_id")?.value;
+
+    const selectedVenue = activeVenueId
+      ? allVenues.find((v) => v.id === activeVenueId)
+      : null;
+
+    return {
+      venue: selectedVenue || allVenues[0] || null,
+      isOwner: true,
+      allVenues,
+    };
+  }
 
   // Check if user is a venue owner
   const { data: profile } = await supabase

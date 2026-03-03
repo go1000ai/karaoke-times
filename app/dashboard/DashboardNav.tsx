@@ -12,7 +12,7 @@ type NavLink = {
   label: string;
 };
 
-export function DashboardNav({ links, isAdmin = false }: { links: NavLink[]; isAdmin?: boolean }) {
+export function DashboardNav({ links, isAdmin = false, isMimicking = false }: { links: NavLink[]; isAdmin?: boolean; isMimicking?: boolean }) {
   const pathname = usePathname();
 
   return (
@@ -51,7 +51,7 @@ export function DashboardNav({ links, isAdmin = false }: { links: NavLink[]; isA
             className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-400 hover:bg-red-500/10 transition-colors"
           >
             <span className="material-icons-round text-xl text-red-400">admin_panel_settings</span>
-            Admin Panel
+            {isMimicking ? "Back to Admin" : "Admin Panel"}
           </Link>
         </div>
       )}
@@ -67,6 +67,7 @@ export function MobileDrawer({
   activeVenueId = null,
   isVenueRole = false,
   isAdmin = false,
+  isMimicking = false,
   userName,
   userEmail,
 }: {
@@ -77,6 +78,7 @@ export function MobileDrawer({
   activeVenueId?: string | null;
   isVenueRole?: boolean;
   isAdmin?: boolean;
+  isMimicking?: boolean;
   userName?: string;
   userEmail?: string;
 }) {
@@ -194,7 +196,7 @@ export function MobileDrawer({
                     className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-400 hover:bg-red-500/10 transition-colors"
                   >
                     <span className="material-icons-round text-xl text-red-400">admin_panel_settings</span>
-                    Admin Panel
+                    {isMimicking ? "Back to Admin" : "Admin Panel"}
                   </Link>
                 </div>
               )}

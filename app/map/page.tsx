@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
-import { venues } from "@/lib/mock-data";
+import { venues, karaokeEvents } from "@/lib/mock-data";
 import { haversine, geocodeZip } from "@/lib/geo";
 import {
   Map,
@@ -12,11 +12,24 @@ import {
   MapMarker,
   MarkerContent,
   MarkerPopup,
+  MarkerTooltip,
   MapControls,
 } from "@/components/ui/map";
 
 const NYC_CENTER: [number, number] = [-73.935242, 40.730610];
 const RADIUS_OPTIONS = [1, 3, 5, 10, 25, 50] as const;
+
+// Pre-compute events per venue for hover tooltips
+type VenueEventInfo = { dayOfWeek: string; startTime: string; dj: string };
+const venueEventsMap: Record<string, VenueEventInfo[]> = {};
+for (const event of karaokeEvents) {
+  if (!venueEventsMap[event.venueName]) venueEventsMap[event.venueName] = [];
+  venueEventsMap[event.venueName].push({ dayOfWeek: event.dayOfWeek, startTime: event.startTime, dj: event.dj });
+}
+const DAY_ABBREV: Record<string, string> = {
+  Monday: "Mon", Tuesday: "Tue", Wednesday: "Wed", Thursday: "Thu",
+  Friday: "Fri", Saturday: "Sat", Sunday: "Sun",
+};
 
 type VenueWithDistance = (typeof venues)[number] & { distance?: number };
 
@@ -199,6 +212,30 @@ function MapPageContent() {
                   </span>
                 </div>
               </MarkerContent>
+              <MarkerTooltip>
+                <div className="bg-card-dark rounded-lg p-2.5 min-w-[160px] max-w-[220px]">
+                  <h3 className="font-bold text-xs text-white mb-1 truncate">{venue.name}</h3>
+                  <p className="text-[10px] text-text-muted mb-1.5">
+                    {venue.neighborhood || venue.city}
+                  </p>
+                  {(() => {
+                    const events = venueEventsMap[venue.name];
+                    if (!events || events.length === 0) return null;
+                    return (
+                      <div className="flex flex-wrap gap-1">
+                        {events.slice(0, 4).map((ev, i) => (
+                          <span key={i} className="text-[9px] bg-primary/10 text-primary rounded px-1.5 py-0.5">
+                            {DAY_ABBREV[ev.dayOfWeek] || ev.dayOfWeek} {ev.startTime}
+                          </span>
+                        ))}
+                        {events.length > 4 && (
+                          <span className="text-[9px] text-text-muted">+{events.length - 4} more</span>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </MarkerTooltip>
               <MarkerPopup closeButton>
                 <div className="min-w-[180px] bg-card-dark rounded-lg p-3">
                   <h3 className="font-bold text-sm text-white mb-1">{venue.name}</h3>

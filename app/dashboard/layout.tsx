@@ -1,9 +1,11 @@
 import { requireAuth } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getDashboardVenue } from "@/lib/get-dashboard-venue";
+import { getAdminMimicRole } from "@/lib/admin-mimic";
 import Link from "next/link";
 import { SignOutButton } from "./SignOutButton";
 import { DashboardNav, MobileDrawer } from "./DashboardNav";
+import { MimicBanner } from "./MimicBanner";
 import VenueSwitcher from "@/components/VenueSwitcher";
 
 // ─── Owner: Listing + Staff + POS ───
@@ -117,12 +119,19 @@ export default async function DashboardLayout({
   const supabase = await createClient();
 
   // Parallelize profile + role queries
-  const [{ data: profile }, role] = await Promise.all([
+  const [{ data: profile }, role, mimicRole] = await Promise.all([
     supabase.from("profiles").select("display_name, role").eq("id", user.id).single(),
     getUserRole(user.id, supabase),
+    getAdminMimicRole(),
   ]);
 
-  const isVenueRole = role === "venue_owner" || role === "kj" || role === "admin";
+  // If admin is mimicking, override the effective role for navigation
+  const isMimicking = role === "admin" && mimicRole !== null;
+  const effectiveRole: UserRole = isMimicking
+    ? (mimicRole === "owner" ? "venue_owner" : "kj")
+    : role;
+
+  const isVenueRole = effectiveRole === "venue_owner" || effectiveRole === "kj" || effectiveRole === "admin";
 
   // Only fetch venue data for venue-related roles
   let venue = null;
@@ -130,26 +139,28 @@ export default async function DashboardLayout({
   let allVenues: { id: string; name: string }[] = [];
 
   if (isVenueRole) {
-    const venueData = await getDashboardVenue(user.id);
+    const venueData = await getDashboardVenue(user.id, isMimicking);
     venue = venueData.venue;
     isOwner = venueData.isOwner;
     allVenues = venueData.allVenues;
   }
 
-  const sidebarLinks = getLinksForRole(role);
+  const sidebarLinks = getLinksForRole(effectiveRole);
 
   // Sidebar header info
   let headerLabel: string;
   let headerValue: string;
 
   if (isVenueRole) {
-    if (role === "kj") {
+    if (isMimicking) {
+      headerLabel = mimicRole === "kj" ? "Mimic: KJ" : "Mimic: Owner";
+    } else if (effectiveRole === "kj") {
       headerLabel = allVenues.length > 1 ? "Active Venue" : "Connected Venue";
     } else {
       headerLabel = "Your Venue";
     }
-    headerValue = venue?.name || "No venue linked";
-  } else if (role === "advertiser") {
+    headerValue = venue?.name || "Select a venue";
+  } else if (effectiveRole === "advertiser") {
     headerLabel = "Advertiser";
     headerValue = profile?.display_name || user.email?.split("@")[0] || "My Account";
   } else {
@@ -184,7 +195,7 @@ export default async function DashboardLayout({
           )}
         </div>
 
-        <DashboardNav links={sidebarLinks} isAdmin={role === "admin"} />
+        <DashboardNav links={sidebarLinks} isAdmin={role === "admin"} isMimicking={isMimicking} />
 
         <div className="p-4 border-t border-border">
           <div className="px-3 py-2">
@@ -206,13 +217,17 @@ export default async function DashboardLayout({
         activeVenueId={venue?.id || null}
         isVenueRole={isVenueRole}
         isAdmin={role === "admin"}
+        isMimicking={isMimicking}
         userName={profile?.display_name || user.email?.split("@")[0]}
         userEmail={user.email}
       />
 
       {/* Main Content */}
       <main className="flex-1 md:ml-64 md:p-8 p-4 pt-20 md:pt-8 overflow-y-auto min-h-screen">
-        <div className="max-w-4xl mx-auto">{children}</div>
+        <div className="max-w-4xl mx-auto">
+          {isMimicking && <MimicBanner mimicRole={mimicRole!} />}
+          {children}
+        </div>
       </main>
     </div>
   );

@@ -85,6 +85,7 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [venueFilter, setVenueFilter] = useState("");
   const [dayFilter, setDayFilter] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [skips, setSkips] = useState<EventSkip[]>(initialSkips);
   const [skipModal, setSkipModal] = useState<{ eventId: string; eventName: string; dayOfWeek: string } | null>(null);
   const [skipReason, setSkipReason] = useState("");
@@ -329,11 +330,11 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row gap-2 mb-6">
         <select
           value={dayFilter}
           onChange={(e) => setDayFilter(e.target.value)}
-          className="bg-card-dark border border-border rounded-xl px-4 py-3 text-sm text-white cursor-pointer"
+          className="bg-card-dark border border-border rounded-lg px-3 py-2 text-xs text-white cursor-pointer"
         >
           <option value="">All Days</option>
           {dayOrder.map((d) => (
@@ -343,13 +344,31 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
         <select
           value={venueFilter}
           onChange={(e) => setVenueFilter(e.target.value)}
-          className="bg-card-dark border border-border rounded-xl px-4 py-3 text-sm text-white cursor-pointer flex-1"
+          className="bg-card-dark border border-border rounded-lg px-3 py-2 text-xs text-white cursor-pointer max-w-[180px]"
         >
           <option value="">All Venues</option>
           {venues.map((v) => (
             <option key={v.id} value={v.id}>{v.name}</option>
           ))}
         </select>
+        <div className="relative flex-1">
+          <span className="material-icons-round text-text-muted absolute left-3 top-1/2 -translate-y-1/2 text-base">search</span>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search events, venues, or KJs..."
+            className="w-full bg-card-dark border border-border rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder:text-text-muted/50 focus:outline-none focus:border-primary/50"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-white"
+            >
+              <span className="material-icons-round text-sm">close</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Grouped by Day */}
@@ -358,6 +377,14 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
           if (dayFilter && dayFilter !== day) return null;
           let events = grouped[day] || [];
           if (venueFilter) events = events.filter((e) => e.venue_id === venueFilter);
+          if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            events = events.filter((e) =>
+              e.event_name.toLowerCase().includes(q) ||
+              (e.venues?.name || "").toLowerCase().includes(q) ||
+              (e.dj || "").toLowerCase().includes(q)
+            );
+          }
           if (events.length === 0 && !dayFilter) return null;
 
           const isCollapsed = collapsed.has(day);
