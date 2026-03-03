@@ -568,6 +568,9 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
             >
               <span className="material-icons-round text-primary text-2xl">call</span>
               <span className="text-xs text-text-secondary font-semibold">Call</span>
+              {phone && (
+                <span className="hidden md:block text-[11px] text-text-muted">{phone}</span>
+              )}
             </a>
             {user ? (
               <button
