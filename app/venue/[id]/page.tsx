@@ -89,6 +89,8 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
   const [dbVenue, setDbVenue] = useState<SupabaseVenue | null>(null);
   const [dbEvents, setDbEvents] = useState<DbEvent[]>([]);
   const [eventFlyerUrl, setEventFlyerUrl] = useState<string | null>(null);
+  const [venueMediaImage, setVenueMediaImage] = useState<string | null>(null);
+  const [venuePhone, setVenuePhone] = useState<string | null>(null);
   const [loading, setLoading] = useState(!mockVenue);
 
   // Try to match mock venue by name (for image fallback when navigated by UUID)
@@ -131,7 +133,7 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
   // Combined event: prefer mock data, fall back to DB event
   const event = mockEvent || venueEvents[0] || dbEventAsEvent || mockEventsByName[0];
 
-  const phone = event?.phone || "";
+  const phone = venuePhone || event?.phone || "";
 
   // Fetch venue from Supabase when not found in mock data
   useEffect(() => {
@@ -242,6 +244,36 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
       }
     }
   }, [id, mockVenue, event, dbVenue]);
+
+  // Fetch primary venue image from venue_media and phone from venues table
+  useEffect(() => {
+    const venueUUID = dbVenue?.id || (isUUID(id) ? id : null);
+    if (!venueUUID) return;
+    const supabase = createClient();
+
+    // Primary image from venue_media
+    supabase
+      .from("venue_media")
+      .select("url")
+      .eq("venue_id", venueUUID)
+      .eq("is_primary", true)
+      .eq("type", "image")
+      .limit(1)
+      .single()
+      .then(({ data }) => {
+        if (data?.url) setVenueMediaImage(data.url);
+      });
+
+    // Phone number from venues table
+    supabase
+      .from("venues")
+      .select("phone")
+      .eq("id", venueUUID)
+      .single()
+      .then(({ data }) => {
+        if (data?.phone) setVenuePhone(data.phone);
+      });
+  }, [id, dbVenue]);
 
   // Fetch featured specials from POS
   useEffect(() => {
@@ -396,8 +428,8 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
       <div className="max-w-4xl mx-auto">
         {/* Hero */}
         <div className="relative h-56 mt-20 bg-gradient-to-br from-primary/20 via-card-dark to-accent/10 flex items-center justify-center">
-          {eventFlyerUrl || event?.image || venue.image || findVenueImage(venue.name) ? (
-            <img src={(eventFlyerUrl || event?.image || venue.image || findVenueImage(venue.name))!} alt={venue.name} className="w-full h-full object-cover" />
+          {venueMediaImage || eventFlyerUrl || event?.image || venue.image || findVenueImage(venue.name) ? (
+            <img src={(venueMediaImage || eventFlyerUrl || event?.image || venue.image || findVenueImage(venue.name))!} alt={venue.name} className="w-full h-full object-cover" />
           ) : (
             <span className="material-icons-round text-6xl text-primary/30">mic</span>
           )}

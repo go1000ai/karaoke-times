@@ -390,6 +390,8 @@ export async function updateVenue(
     description?: string | null;
     is_private_room?: boolean;
     accessibility?: string | null;
+    hours_open?: string | null;
+    booking_url?: string | null;
   }
 ) {
   await requireAdmin();

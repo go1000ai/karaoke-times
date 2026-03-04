@@ -17,6 +17,12 @@ interface Venue {
   is_private_room: boolean;
   queue_paused: boolean;
   accessibility: string | null;
+  phone: string;
+  website: string | null;
+  description: string | null;
+  cross_street: string;
+  hours_open: string | null;
+  booking_url: string | null;
   created_at: string;
   profiles: any;
   _event_count: number;
@@ -94,6 +100,14 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
       state: venue.state,
       zip_code: venue.zip_code || "",
       neighborhood: venue.neighborhood,
+      phone: venue.phone || "",
+      website: venue.website || "",
+      cross_street: venue.cross_street || "",
+      hours_open: venue.hours_open || "",
+      description: venue.description || "",
+      is_private_room: venue.is_private_room,
+      accessibility: venue.accessibility || "",
+      booking_url: venue.booking_url || "",
     });
     setEditImageFile(null);
     setEditImagePreview(venue._primary_image);
@@ -202,6 +216,14 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
         state: editForm.state,
         zip_code: editForm.zip_code || "",
         neighborhood: editForm.neighborhood,
+        phone: editForm.phone || "",
+        website: editForm.website || null,
+        cross_street: editForm.cross_street || "",
+        hours_open: editForm.hours_open || null,
+        description: editForm.description || null,
+        is_private_room: editForm.is_private_room ?? false,
+        accessibility: editForm.accessibility || null,
+        booking_url: editForm.booking_url || null,
       });
       if (result.success) {
         const updatedImage = editImageFile ? newImageUrl : removeImage ? null : undefined;
@@ -216,6 +238,14 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
                   state: editForm.state || v.state,
                   zip_code: editForm.zip_code || "",
                   neighborhood: editForm.neighborhood || v.neighborhood,
+                  phone: editForm.phone || "",
+                  website: editForm.website || null,
+                  cross_street: editForm.cross_street || "",
+                  hours_open: editForm.hours_open || null,
+                  description: editForm.description || null,
+                  is_private_room: editForm.is_private_room ?? v.is_private_room,
+                  accessibility: editForm.accessibility || null,
+                  booking_url: editForm.booking_url || null,
                   _primary_image: updatedImage !== undefined ? updatedImage : v._primary_image,
                 }
               : v
@@ -386,6 +416,103 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
                     />
                   </div>
                 </div>
+
+                {/* Contact & Links */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Phone</label>
+                    <input
+                      value={editForm.phone || ""}
+                      onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                      placeholder="(212) 555-1234"
+                      className={`${inputClass} w-full`}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Cross Street</label>
+                    <input
+                      value={editForm.cross_street || ""}
+                      onChange={(e) => setEditForm({ ...editForm, cross_street: e.target.value })}
+                      placeholder="Between 1st and 2nd Ave"
+                      className={`${inputClass} w-full`}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Website</label>
+                    <input
+                      value={editForm.website || ""}
+                      onChange={(e) => setEditForm({ ...editForm, website: e.target.value })}
+                      placeholder="https://example.com"
+                      className={`${inputClass} w-full`}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Booking URL</label>
+                    <input
+                      value={editForm.booking_url || ""}
+                      onChange={(e) => setEditForm({ ...editForm, booking_url: e.target.value })}
+                      placeholder="https://example.com/book"
+                      className={`${inputClass} w-full`}
+                    />
+                  </div>
+                </div>
+
+                {/* Hours of Operation */}
+                <div>
+                  <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Hours of Operation</label>
+                  <textarea
+                    value={editForm.hours_open || ""}
+                    onChange={(e) => setEditForm({ ...editForm, hours_open: e.target.value })}
+                    placeholder={"Mon-Thu: 5PM-2AM\nFri-Sat: 5PM-4AM\nSun: 3PM-12AM"}
+                    rows={3}
+                    className={`${inputClass} w-full resize-none`}
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Description</label>
+                  <textarea
+                    value={editForm.description || ""}
+                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                    placeholder="A brief description of the venue..."
+                    rows={3}
+                    className={`${inputClass} w-full resize-none`}
+                  />
+                </div>
+
+                {/* Toggles & Dropdowns */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="flex items-center gap-3">
+                    <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold">Private Room</label>
+                    <button
+                      type="button"
+                      onClick={() => setEditForm({ ...editForm, is_private_room: !editForm.is_private_room })}
+                      className={`relative w-10 h-5 rounded-full transition-colors ${editForm.is_private_room ? "bg-purple-500" : "bg-white/10"}`}
+                    >
+                      <span
+                        className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform"
+                        style={editForm.is_private_room ? { transform: "translateX(20px)" } : undefined}
+                      />
+                    </button>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Accessibility</label>
+                    <select
+                      value={editForm.accessibility || ""}
+                      onChange={(e) => setEditForm({ ...editForm, accessibility: e.target.value })}
+                      className={`${inputClass} w-full`}
+                    >
+                      <option value="">Unknown</option>
+                      <option value="full">Fully Accessible</option>
+                      <option value="partial">Partial Access</option>
+                      <option value="none">Not Accessible</option>
+                    </select>
+                  </div>
+                </div>
+
                 <div className="flex items-center gap-2 pt-1">
                   <button
                     onClick={() => handleSaveEdit(venue.id)}
@@ -449,6 +576,22 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
                 <p className="text-xs text-text-secondary mt-1">
                   {venue.address} — {venue.neighborhood ? `${venue.neighborhood}, ` : ""}{venue.city}, {venue.state}{venue.zip_code ? ` ${venue.zip_code}` : ""}
                 </p>
+                {(venue.phone || venue.hours_open) && (
+                  <div className="flex items-center gap-3 mt-1 flex-wrap">
+                    {venue.phone && (
+                      <span className="text-xs text-text-muted flex items-center gap-0.5">
+                        <span className="material-icons-round text-xs">call</span>
+                        {venue.phone}
+                      </span>
+                    )}
+                    {venue.hours_open && (
+                      <span className="text-xs text-text-muted flex items-center gap-0.5">
+                        <span className="material-icons-round text-xs">schedule</span>
+                        {venue.hours_open.split("\n")[0]}
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 {/* Stats row */}
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
