@@ -304,6 +304,19 @@ export async function GET() {
       });
     }
 
+    // Fetch primary venue images from venue_media
+    const { data: primaryImages } = await supabase
+      .from("venue_media")
+      .select("venue_id, url")
+      .eq("is_primary", true)
+      .eq("type", "image");
+
+    // Build venue_id → primary image map
+    const venueImageMap = new Map<string, string>();
+    for (const img of primaryImages || []) {
+      venueImageMap.set(img.venue_id, img.url);
+    }
+
     // Build venue name → venue_id map so synced events link to correct venue pages
     const venueIdMap = new Map<string, string>();
     const flyerMap = new Map<string, string>();
@@ -341,6 +354,18 @@ export async function GET() {
 
       // If already has an image (from synced_events), keep it
       if (ev.image) continue;
+
+      // Fallback: try venue_media primary image (admin-uploaded venue images)
+      if (ev.venueName) {
+        const vid = venueIdMap.get(normalizeName(ev.venueName as string));
+        if (vid) {
+          const mediaImg = venueImageMap.get(vid);
+          if (mediaImg) {
+            ev.image = mediaImg;
+            continue;
+          }
+        }
+      }
 
       // Fallback: try static VENUE_IMAGES map
       if (ev.venueName) {
