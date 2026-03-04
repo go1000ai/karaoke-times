@@ -1,6 +1,7 @@
 import { requireAuth } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getDashboardVenue } from "@/lib/get-dashboard-venue";
+import { getAdminMimicRole } from "@/lib/admin-mimic";
 import Link from "next/link";
 import { VenueSelector } from "./VenueSelector";
 import { FavoritesStatCard } from "./FavoritesCount";
@@ -31,15 +32,24 @@ export default async function DashboardOverview() {
   const user = await requireAuth();
   const supabase = await createClient();
 
-  const role = await getUserRole(user.id, supabase);
+  const [role, mimicRole] = await Promise.all([
+    getUserRole(user.id, supabase),
+    getAdminMimicRole(),
+  ]);
+
+  // Determine effective role for mimic mode
+  const isMimicking = role === "admin" && mimicRole !== null;
+  const effectiveRole = isMimicking
+    ? (mimicRole === "owner" ? "venue_owner" : "kj")
+    : role;
 
   // Singer dashboard
-  if (role === "user") {
+  if (effectiveRole === "user") {
     return <SingerDashboard userId={user.id} supabase={supabase} />;
   }
 
   // Venue owner / KJ / Admin — existing logic
-  const { venue, isOwner, allVenues } = await getDashboardVenue(user.id);
+  const { venue, isOwner, allVenues } = await getDashboardVenue(user.id, isMimicking);
 
   // KJ with no venue selected and multiple venues — show venue picker
   if (!isOwner && allVenues.length > 1 && !venue) {
@@ -76,7 +86,7 @@ export default async function DashboardOverview() {
     .eq("venue_id", venue.id)
     .eq("status", "pending");
 
-  if (isOwner || role === "admin") {
+  if (isOwner || (role === "admin" && !isMimicking) || effectiveRole === "venue_owner") {
     // Owner dashboard
     const { count: eventCount } = await supabase
       .from("venue_events")
