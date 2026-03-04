@@ -340,9 +340,12 @@ export async function GET() {
       }
     }
 
-    // Enrich all events: DB flyer_urls override everything, then static VENUE_IMAGES as fallback
+    // Enrich all events with images. Priority:
+    // 1. DB flyer_url (event-specific upload from admin events page)
+    // 2. venue_media primary image (admin venues page upload)
+    // 3. Existing synced_events image or static VENUE_IMAGES
     for (const ev of events) {
-      // Always prefer DB flyer_url (user uploads) over static images
+      // 1. Always prefer DB flyer_url (event-specific uploads) — highest priority
       if (ev.venueName && ev.dayOfWeek) {
         const key = `${normalizeName(ev.venueName as string)}|${ev.dayOfWeek}`;
         const dbFlyer = flyerMap.get(key);
@@ -352,10 +355,7 @@ export async function GET() {
         }
       }
 
-      // If already has an image (from synced_events), keep it
-      if (ev.image) continue;
-
-      // Fallback: try venue_media primary image (admin-uploaded venue images)
+      // 2. venue_media primary image (admin-uploaded venue images) — overrides static images
       if (ev.venueName) {
         const vid = venueIdMap.get(normalizeName(ev.venueName as string));
         if (vid) {
@@ -366,6 +366,9 @@ export async function GET() {
           }
         }
       }
+
+      // 3. If already has an image (from synced_events), keep it
+      if (ev.image) continue;
 
       // Fallback: try static VENUE_IMAGES map
       if (ev.venueName) {
