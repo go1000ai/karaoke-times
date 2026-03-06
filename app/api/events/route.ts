@@ -159,7 +159,6 @@ const VENUE_IMAGES: Record<string, string> = {
   "singsing-karaoke-bar-and-chicken": "/venues/singsing-karaoke-bar-and-chicken.jpg",
   "sissy-mcginty-s": "/venues/sissy-mcgintys-friday.jpg",
   "sissy-mcgintys": "/venues/sissy-mcgintys-friday.jpg",
-  "skinny-bar": "/venues/skinny-bar-monday.jpg",
   "stop-at-the-spot": "/venues/stop-at-the-spot-sunday.jpg",
   "sunset-bar-and-restaurant": "/venues/sunset-bar-monday.jpg",
   "sunset-bar": "/venues/sunset-bar-monday.jpg",
@@ -174,44 +173,6 @@ const VENUE_IMAGES: Record<string, string> = {
   "waterfall-lounge": "/venues/waterfall-lounge-monday.jpg",
   "whisky-reds": "/venues/whisky-red-s-saturday.jpg",
   "woodzy": "/venues/woodzy-friday.jpg",
-  // Generated flyers for remaining venues
-  "pianos": "/venues/pianos.jpg",
-  "sandy-jacks": "/venues/sandy-jacks.jpg",
-  "echo-bravo": "/venues/echo-bravo.jpg",
-  "edie-jo-s": "/venues/edie-jo-s.jpg",
-  "someplace-else-bar": "/venues/someplace-else-bar.jpg",
-  "lucky-13-saloon": "/venues/lucky-13-saloon.jpg",
-  "wraptor-restaurant-bar": "/venues/wraptor-restaurant-bar.jpg",
-  "flava-2": "/venues/flava-2.jpg",
-  "barbablu": "/venues/barbablu.jpg",
-  "royal-restaurant-2": "/venues/royal-restaurant-2.jpg",
-  "bamboo-walk": "/venues/bamboo-walk.jpg",
-  "boro-bar": "/venues/boro-bar.jpg",
-  "matrix-lounge": "/venues/matrix-lounge.jpg",
-  "the-angry-gnome-pub": "/venues/the-angry-gnome-pub.jpg",
-  "american-cheez": "/venues/american-cheez.jpg",
-  "alligator-lounge": "/venues/alligator-lounge.jpg",
-  "brixx-bar-and-grill": "/venues/brixx-bar-and-grill.jpg",
-  "mr-nancy-s": "/venues/mr-nancy-s.jpg",
-  "insa": "/venues/insa.jpg",
-  "merv-s": "/venues/merv-s.jpg",
-  "arirang-hibachi-steakhouse": "/venues/arirang-hibachi-steakhouse.jpg",
-  "brooklyn-chop-house-times-square": "/venues/brooklyn-chop-house-times-square.jpg",
-  "the-cobra-club": "/venues/the-cobra-club.jpg",
-  "hinterlands": "/venues/hinterlands.jpg",
-  "lvsiadas-restaurant": "/venues/lvsiadas-restaurant.jpg",
-  "roebling-sporting-club": "/venues/roebling-sporting-club.jpg",
-  "ek-s-hideaway": "/venues/ek-s-hideaway.jpg",
-  "pinebox-rockshop": "/venues/pinebox-rockshop.jpg",
-  "montero-s": "/venues/montero-s.jpg",
-  "sean-og-s": "/venues/sean-og-s.jpg",
-  "minnies-bar": "/venues/minnies-bar.jpg",
-  "the-coal-pot": "/venues/the-coal-pot.jpg",
-  "midwood-flats": "/venues/midwood-flats.jpg",
-  "rullo-s": "/venues/rullo-s.jpg",
-  "cassette": "/venues/cassette.jpg",
-  "whoopsie-daisy-bar": "/venues/whoopsie-daisy-bar.jpg",
-  "winnie-s-bar": "/venues/winnie-s-bar.jpg",
 };
 
 // Look up a static image for a venue name
@@ -304,12 +265,17 @@ export async function GET() {
       });
     }
 
-    // Fetch primary venue images from venue_media
-    const { data: primaryImages } = await supabase
-      .from("venue_media")
-      .select("venue_id, url")
-      .eq("is_primary", true)
-      .eq("type", "image");
+    // Fetch primary venue images from venue_media AND all venues for name→ID mapping
+    const [{ data: primaryImages }, { data: allVenues }] = await Promise.all([
+      supabase
+        .from("venue_media")
+        .select("venue_id, url")
+        .eq("is_primary", true)
+        .eq("type", "image"),
+      supabase
+        .from("venues")
+        .select("id, name"),
+    ]);
 
     // Build venue_id → primary image map
     const venueImageMap = new Map<string, string>();
@@ -317,15 +283,29 @@ export async function GET() {
       venueImageMap.set(img.venue_id, img.url);
     }
 
-    // Build venue name → venue_id map so synced events link to correct venue pages
+    // Build venue name → venue_id map from ALL venues (not just venue_events)
+    // This ensures every venue can be looked up for venue_media images
     const venueIdMap = new Map<string, string>();
+    for (const v of allVenues || []) {
+      if (v.name) venueIdMap.set(normalizeName(v.name), v.id);
+    }
+
+    // Build flyer maps: day-specific AND venue-only fallback
     const flyerMap = new Map<string, string>();
+    const flyerByVenueMap = new Map<string, string>();
     for (const ve of dbEvents) {
       const name = (ve.venues as any)?.name;
       if (name) {
-        venueIdMap.set(normalizeName(name), ve.venue_id);
+        // Also populate venueIdMap from venue_events (in case venue name differs slightly)
+        if (!venueIdMap.has(normalizeName(name))) {
+          venueIdMap.set(normalizeName(name), ve.venue_id);
+        }
         if (ve.flyer_url) {
-          flyerMap.set(`${normalizeName(name)}|${ve.day_of_week}`, ve.flyer_url);
+          flyerMap.set(`${normalizeName(name)}|${normalizeDay(ve.day_of_week)}`, ve.flyer_url);
+          // Venue-only fallback (first flyer wins)
+          if (!flyerByVenueMap.has(normalizeName(name))) {
+            flyerByVenueMap.set(normalizeName(name), ve.flyer_url);
+          }
         }
       }
     }
@@ -341,23 +321,30 @@ export async function GET() {
     }
 
     // Enrich all events with images. Priority:
-    // 1. DB flyer_url (event-specific upload from admin events page)
-    // 2. venue_media primary image (admin venues page upload)
-    // 3. Existing synced_events image or static VENUE_IMAGES
+    // 1. venue_events.flyer_url (event-specific, day-matched) — admin override per event
+    // 2. Existing per-event image (from synced_events CSV) — preserve event-specific flyers
+    // 3. venue_media primary image (venue-level fallback for events with no image)
+    // 4. Static VENUE_IMAGES map
+    // 5. Dynamic placeholder
     for (const ev of events) {
-      // 1. Always prefer DB flyer_url (event-specific uploads) — highest priority
-      if (ev.venueName && ev.dayOfWeek) {
-        const key = `${normalizeName(ev.venueName as string)}|${ev.dayOfWeek}`;
-        const dbFlyer = flyerMap.get(key);
+      const venueKey = ev.venueName ? normalizeName(ev.venueName as string) : null;
+
+      // 1. venue_events.flyer_url (event-specific, day-matched only) — highest priority
+      if (venueKey && ev.dayOfWeek) {
+        const dayKey = `${venueKey}|${normalizeDay(ev.dayOfWeek as string)}`;
+        const dbFlyer = flyerMap.get(dayKey);
         if (dbFlyer) {
           ev.image = dbFlyer;
           continue;
         }
       }
 
-      // 2. venue_media primary image (admin-uploaded venue images) — overrides static images
-      if (ev.venueName) {
-        const vid = venueIdMap.get(normalizeName(ev.venueName as string));
+      // 2. Keep existing per-event image (from synced_events/CSV) — each day has its own flyer
+      if (ev.image) continue;
+
+      // 3. venue_media primary image (venue-level fallback when event has no image)
+      if (venueKey) {
+        const vid = venueIdMap.get(venueKey);
         if (vid) {
           const mediaImg = venueImageMap.get(vid);
           if (mediaImg) {
@@ -367,15 +354,22 @@ export async function GET() {
         }
       }
 
-      // 3. If already has an image (from synced_events), keep it
-      if (ev.image) continue;
-
-      // Fallback: try static VENUE_IMAGES map
+      // 4. Static VENUE_IMAGES map
       if (ev.venueName) {
         const staticImg = findVenueImage(ev.venueName as string);
         if (staticImg) {
           ev.image = staticImg;
+          continue;
         }
+      }
+
+      // 5. Final fallback: dynamic venue image
+      if (ev.venueName) {
+        const params = new URLSearchParams({ venue: ev.venueName as string });
+        if (ev.eventName) params.set("event", ev.eventName as string);
+        if (ev.dayOfWeek) params.set("day", ev.dayOfWeek as string);
+        if (ev.dj) params.set("dj", ev.dj as string);
+        ev.image = `/api/venue-image?${params.toString()}`;
       }
     }
 

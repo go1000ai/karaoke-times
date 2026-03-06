@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
 import StarRating from "@/components/StarRating";
 import QueueStatus from "@/components/QueueStatus";
@@ -81,6 +81,8 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
   const mockEvent = karaokeEvents.find((e) => e.id === id);
   const { user } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const dayParam = searchParams.get("day");
   const [isFavorite, setIsFavorite] = useState(false);
   const [showSongRequest, setShowSongRequest] = useState(false);
   const [showReport, setShowReport] = useState(false);
@@ -204,21 +206,31 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
       });
   }, [id, dbVenue]);
 
-  // Fetch flyer URL from venue_events
+  // Fetch flyer URL from venue_events (day-specific when day param is available)
   useEffect(() => {
     const supabase = createClient();
     // Use dbVenue.id if available (resolved from slug lookup), otherwise use id directly
     const venueUUID = dbVenue?.id || (isUUID(id) ? id : null);
-    if (venueUUID) {
-      supabase
+
+    function fetchFlyer(venueId: string) {
+      let query = supabase
         .from("venue_events")
-        .select("flyer_url")
-        .eq("venue_id", venueUUID)
-        .not("flyer_url", "is", null)
-        .limit(1)
-        .then(({ data }) => {
-          if (data?.[0]?.flyer_url) setEventFlyerUrl(data[0].flyer_url);
-        });
+        .select("flyer_url, day_of_week")
+        .eq("venue_id", venueId)
+        .not("flyer_url", "is", null);
+
+      // Filter by day when available (so Monday shows Monday's flyer, not Friday's)
+      if (dayParam) {
+        query = query.eq("day_of_week", dayParam);
+      }
+
+      query.limit(1).then(({ data }) => {
+        if (data?.[0]?.flyer_url) setEventFlyerUrl(data[0].flyer_url);
+      });
+    }
+
+    if (venueUUID) {
+      fetchFlyer(venueUUID);
     } else if (!isUUID(id)) {
       // Slug-based ID — resolve venue name to UUID, then query for flyer
       const venueName = mockVenue?.name || event?.venueName;
@@ -229,21 +241,11 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
           .ilike("name", venueName)
           .limit(1)
           .then(({ data: venueData }) => {
-            if (venueData?.[0]?.id) {
-              supabase
-                .from("venue_events")
-                .select("flyer_url")
-                .eq("venue_id", venueData[0].id)
-                .not("flyer_url", "is", null)
-                .limit(1)
-                .then(({ data }) => {
-                  if (data?.[0]?.flyer_url) setEventFlyerUrl(data[0].flyer_url);
-                });
-            }
+            if (venueData?.[0]?.id) fetchFlyer(venueData[0].id);
           });
       }
     }
-  }, [id, mockVenue, event, dbVenue]);
+  }, [id, mockVenue, event, dbVenue, dayParam]);
 
   // Fetch primary venue image from venue_media and phone from venues table
   useEffect(() => {

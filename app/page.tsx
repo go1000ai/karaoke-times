@@ -9,6 +9,7 @@ import { TubesBackground } from "@/components/ui/neon-flow";
 import { CardStack, type CardStackItem } from "@/components/ui/card-stack";
 import { createClient } from "@/lib/supabase/client";
 import { karaokeEvents as staticEvents, DAY_ORDER, DAY_NORMALIZE, searchKJs, getKJSlugForName, type KaraokeEvent, type KJProfile } from "@/lib/mock-data";
+import { findVenueImage } from "@/lib/venue-images";
 import { extractYouTubeVideoId, getYouTubeThumbnail } from "@/lib/youtube";
 import CircularGallery, { type GalleryItem } from "@/components/CircularGallery";
 
@@ -91,19 +92,11 @@ const VenueCard = memo(function VenueCard({
     <div onClick={onClick} className="glass-card rounded-2xl overflow-hidden hover:border-primary/30 transition-all group cursor-pointer flex flex-col">
       {/* Image or Placeholder */}
       <div className="h-52 relative overflow-hidden flex-shrink-0">
-        {event.image ? (
-          <img
-            alt={event.venueName}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-            src={event.image}
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-navy via-card-dark to-bg-dark flex flex-col items-center justify-center p-4">
-            <span className="material-icons-round text-primary/30 text-6xl mb-2">mic</span>
-            <p className="text-white/60 text-sm font-bold text-center">{event.venueName}</p>
-            <p className="text-white/30 text-xs mt-1">{event.city}</p>
-          </div>
-        )}
+        <img
+          alt={event.venueName}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+          src={event.image || event.flyer || findVenueImage(event.venueName) || `/api/venue-image?venue=${encodeURIComponent(event.venueName)}&event=${encodeURIComponent(event.eventName || "")}&day=${encodeURIComponent(event.dayOfWeek || "")}&dj=${encodeURIComponent(event.dj || "")}`}
+        />
         {/* Day badge */}
         {event.dayOfWeek && (
           <div className="absolute top-3 left-3 bg-primary text-black text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
@@ -1051,18 +1044,11 @@ export default function HomePage() {
           <div className="relative w-full max-w-lg mx-auto bg-bg-dark border border-border rounded-t-3xl md:rounded-3xl max-h-[90vh] overflow-y-auto shadow-2xl animate-[slideUp_0.25s_ease-out]">
             {/* Hero image */}
             <div className="relative h-56">
-              {selectedEvent.image ? (
-                <img
-                  src={selectedEvent.image}
-                  alt={selectedEvent.venueName}
-                  className="w-full h-full object-cover rounded-t-3xl md:rounded-t-3xl"
-                />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-navy via-card-dark to-bg-dark flex flex-col items-center justify-center rounded-t-3xl">
-                  <span className="material-icons-round text-primary/30 text-7xl mb-2">mic</span>
-                  <p className="text-white/60 font-bold">{selectedEvent.venueName}</p>
-                </div>
-              )}
+              <img
+                src={selectedEvent.image || selectedEvent.flyer || findVenueImage(selectedEvent.venueName) || `/api/venue-image?venue=${encodeURIComponent(selectedEvent.venueName)}&event=${encodeURIComponent(selectedEvent.eventName || "")}&day=${encodeURIComponent(selectedEvent.dayOfWeek || "")}&dj=${encodeURIComponent(selectedEvent.dj || "")}`}
+                alt={selectedEvent.venueName}
+                className="w-full h-full object-cover rounded-t-3xl md:rounded-t-3xl"
+              />
               <div className="absolute inset-0 bg-gradient-to-t from-bg-dark via-bg-dark/30 to-transparent rounded-t-3xl" />
 
               {/* Close button */}
@@ -1176,7 +1162,7 @@ export default function HomePage() {
                 <button
                   onClick={() => {
                     if (navigator.share) {
-                      navigator.share({ title: selectedEvent.venueName, text: `${selectedEvent.eventName} at ${selectedEvent.venueName}`, url: `${window.location.origin}/venue/${selectedEvent.id}` });
+                      navigator.share({ title: selectedEvent.venueName, text: `${selectedEvent.eventName} at ${selectedEvent.venueName}`, url: `${window.location.origin}/venue/${selectedEvent.id}${selectedEvent.dayOfWeek ? `?day=${encodeURIComponent(selectedEvent.dayOfWeek)}` : ""}` });
                     }
                   }}
                   className="glass-card rounded-xl p-3 flex flex-col items-center gap-1.5 hover:border-primary/30 transition-all"
@@ -1211,7 +1197,7 @@ export default function HomePage() {
 
               {/* Full listing link */}
               <Link
-                href={`/venue/${selectedEvent.id}`}
+                href={`/venue/${selectedEvent.id}${selectedEvent.dayOfWeek ? `?day=${encodeURIComponent(selectedEvent.dayOfWeek)}` : ""}`}
                 onClick={() => setSelectedEvent(null)}
                 className="w-full bg-primary text-black font-bold py-3 rounded-full flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-primary/30 transition-all text-sm"
               >

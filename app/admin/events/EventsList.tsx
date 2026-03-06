@@ -414,6 +414,25 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
                       key={event.id}
                       className="flex items-center justify-between px-5 py-3 border-b border-border/10 last:border-0"
                     >
+                      {/* Flyer thumbnail */}
+                      <div className="flex-shrink-0 mr-3">
+                        {event.flyer_url ? (
+                          <img
+                            src={event.flyer_url}
+                            alt="Flyer"
+                            className="w-10 h-10 rounded-lg object-cover border border-border cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() => openEdit(event)}
+                          />
+                        ) : (
+                          <div
+                            className="w-10 h-10 rounded-lg border-2 border-dashed border-amber-500/30 bg-amber-500/5 flex items-center justify-center cursor-pointer hover:border-amber-500/50 transition-colors"
+                            onClick={() => openEdit(event)}
+                            title="No flyer — click to add"
+                          >
+                            <span className="material-icons-round text-amber-400/60 text-sm">image</span>
+                          </div>
+                        )}
+                      </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <p className="text-sm text-white font-semibold truncate">{event.event_name}</p>
@@ -425,8 +444,8 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
                               {RECURRENCE_BADGES[event.recurrence_type].label}
                             </span>
                           )}
-                          {event.flyer_url && (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-accent/10 text-accent">Flyer</span>
+                          {!event.flyer_url && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400">No Flyer</span>
                           )}
                         </div>
                         <p className="text-xs text-text-muted truncate">
