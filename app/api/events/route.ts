@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+export const dynamic = "force-dynamic";
+
 // Normalize venue names: "And" ↔ "&", trim, collapse whitespace
 const normalizeName = (n: string) =>
   n.toLowerCase().replace(/&/g, "and").replace(/\s+/g, " ").trim();
@@ -290,9 +292,9 @@ export async function GET() {
       if (v.name) venueIdMap.set(normalizeName(v.name), v.id);
     }
 
-    // Build flyer maps: day-specific AND venue-only fallback
+    // Build flyer maps: by name+day, by venue_id+day
     const flyerMap = new Map<string, string>();
-    const flyerByVenueMap = new Map<string, string>();
+    const flyerByIdMap = new Map<string, string>();
     for (const ve of dbEvents) {
       const name = (ve.venues as any)?.name;
       if (name) {
@@ -302,10 +304,7 @@ export async function GET() {
         }
         if (ve.flyer_url) {
           flyerMap.set(`${normalizeName(name)}|${normalizeDay(ve.day_of_week)}`, ve.flyer_url);
-          // Venue-only fallback (first flyer wins)
-          if (!flyerByVenueMap.has(normalizeName(name))) {
-            flyerByVenueMap.set(normalizeName(name), ve.flyer_url);
-          }
+          flyerByIdMap.set(`${ve.venue_id}|${normalizeDay(ve.day_of_week)}`, ve.flyer_url);
         }
       }
     }
@@ -322,16 +321,17 @@ export async function GET() {
 
     // Enrich all events with images. Priority:
     // 1. venue_events.flyer_url (event-specific, day-matched) — admin override per event
-    // 2. Existing per-event image (from synced_events CSV) — preserve event-specific flyers
+    // 2. Existing per-event image ONLY if it's a valid URL (not a stale static path)
     // 3. venue_media primary image (venue-level fallback for events with no image)
     // 4. Static VENUE_IMAGES map
     // 5. Dynamic placeholder
     for (const ev of events) {
       const venueKey = ev.venueName ? normalizeName(ev.venueName as string) : null;
+      const normalizedDay = ev.dayOfWeek ? normalizeDay(ev.dayOfWeek as string) : null;
 
-      // 1. venue_events.flyer_url (event-specific, day-matched only) — highest priority
-      if (venueKey && ev.dayOfWeek) {
-        const dayKey = `${venueKey}|${normalizeDay(ev.dayOfWeek as string)}`;
+      // 1a. venue_events.flyer_url by name+day — highest priority
+      if (venueKey && normalizedDay) {
+        const dayKey = `${venueKey}|${normalizedDay}`;
         const dbFlyer = flyerMap.get(dayKey);
         if (dbFlyer) {
           ev.image = dbFlyer;
@@ -339,8 +339,19 @@ export async function GET() {
         }
       }
 
-      // 2. Keep existing per-event image (from synced_events/CSV) — each day has its own flyer
-      if (ev.image) continue;
+      // 1b. venue_events.flyer_url by venue_id+day — fallback if name mismatch
+      if (ev.id && uuidRe.test(ev.id as string) && normalizedDay) {
+        const idDayKey = `${ev.id}|${normalizedDay}`;
+        const dbFlyer = flyerByIdMap.get(idDayKey);
+        if (dbFlyer) {
+          ev.image = dbFlyer;
+          continue;
+        }
+      }
+
+      // 2. Keep existing per-event image ONLY if it's a real URL (https://...)
+      // Stale static paths like /venues/*.png may be wrong for multi-event venues
+      if (ev.image && typeof ev.image === "string" && ev.image.startsWith("http")) continue;
 
       // 3. venue_media primary image (venue-level fallback when event has no image)
       if (venueKey) {

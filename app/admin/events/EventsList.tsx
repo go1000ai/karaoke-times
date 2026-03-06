@@ -415,21 +415,23 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
                       className="flex items-center justify-between px-5 py-3 border-b border-border/10 last:border-0"
                     >
                       {/* Flyer thumbnail */}
-                      <div className="flex-shrink-0 mr-3">
+                      <div className="flex-shrink-0 mr-4">
                         {event.flyer_url ? (
                           <img
                             src={event.flyer_url}
-                            alt="Flyer"
-                            className="w-10 h-10 rounded-lg object-cover border border-border cursor-pointer hover:opacity-80 transition-opacity"
+                            alt={`${event.event_name} flyer`}
+                            className="w-16 h-16 rounded-xl object-cover border border-border/50 cursor-pointer hover:opacity-80 hover:scale-105 transition-all shadow-md"
                             onClick={() => openEdit(event)}
+                            title="Click to edit"
                           />
                         ) : (
                           <div
-                            className="w-10 h-10 rounded-lg border-2 border-dashed border-amber-500/30 bg-amber-500/5 flex items-center justify-center cursor-pointer hover:border-amber-500/50 transition-colors"
+                            className="w-16 h-16 rounded-xl border-2 border-dashed border-amber-500/30 bg-amber-500/5 flex flex-col items-center justify-center cursor-pointer hover:border-amber-500/50 hover:bg-amber-500/10 transition-colors"
                             onClick={() => openEdit(event)}
                             title="No flyer — click to add"
                           >
-                            <span className="material-icons-round text-amber-400/60 text-sm">image</span>
+                            <span className="material-icons-round text-amber-400/60 text-lg">image</span>
+                            <span className="text-[8px] text-amber-400/50 font-bold mt-0.5">ADD</span>
                           </div>
                         )}
                       </div>
@@ -443,6 +445,9 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${RECURRENCE_BADGES[event.recurrence_type].cls}`}>
                               {RECURRENCE_BADGES[event.recurrence_type].label}
                             </span>
+                          )}
+                          {event.flyer_url && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-500/10 text-green-400">Flyer</span>
                           )}
                           {!event.flyer_url && (
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400">No Flyer</span>

@@ -95,7 +95,7 @@ const VenueCard = memo(function VenueCard({
         <img
           alt={event.venueName}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-          src={event.image || event.flyer || findVenueImage(event.venueName) || `/api/venue-image?venue=${encodeURIComponent(event.venueName)}&event=${encodeURIComponent(event.eventName || "")}&day=${encodeURIComponent(event.dayOfWeek || "")}&dj=${encodeURIComponent(event.dj || "")}`}
+          src={event.image || (event.flyer && event.flyer.startsWith("http") ? event.flyer : null) || findVenueImage(event.venueName) || `/api/venue-image?venue=${encodeURIComponent(event.venueName)}&event=${encodeURIComponent(event.eventName || "")}&day=${encodeURIComponent(event.dayOfWeek || "")}&dj=${encodeURIComponent(event.dj || "")}`}
         />
         {/* Day badge */}
         {event.dayOfWeek && (
@@ -1045,7 +1045,7 @@ export default function HomePage() {
             {/* Hero image */}
             <div className="relative h-56">
               <img
-                src={selectedEvent.image || selectedEvent.flyer || findVenueImage(selectedEvent.venueName) || `/api/venue-image?venue=${encodeURIComponent(selectedEvent.venueName)}&event=${encodeURIComponent(selectedEvent.eventName || "")}&day=${encodeURIComponent(selectedEvent.dayOfWeek || "")}&dj=${encodeURIComponent(selectedEvent.dj || "")}`}
+                src={selectedEvent.image || (selectedEvent.flyer && selectedEvent.flyer.startsWith("http") ? selectedEvent.flyer : null) || findVenueImage(selectedEvent.venueName) || `/api/venue-image?venue=${encodeURIComponent(selectedEvent.venueName)}&event=${encodeURIComponent(selectedEvent.eventName || "")}&day=${encodeURIComponent(selectedEvent.dayOfWeek || "")}&dj=${encodeURIComponent(selectedEvent.dj || "")}`}
                 alt={selectedEvent.venueName}
                 className="w-full h-full object-cover rounded-t-3xl md:rounded-t-3xl"
               />
