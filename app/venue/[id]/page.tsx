@@ -83,6 +83,16 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
   const router = useRouter();
   const searchParams = useSearchParams();
   const dayParam = searchParams.get("day");
+  // Detect the target day from URL param or slug (e.g. "fusion-east-monday" → "Monday")
+  const targetDay = (() => {
+    if (dayParam) return dayParam;
+    if (!isUUID(id)) {
+      const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+      const slugLower = id.toLowerCase();
+      return days.find((d) => slugLower.endsWith(d.toLowerCase())) || null;
+    }
+    return null;
+  })();
   const [isFavorite, setIsFavorite] = useState(false);
   const [showSongRequest, setShowSongRequest] = useState(false);
   const [showReport, setShowReport] = useState(false);
@@ -118,7 +128,8 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
   } : null);
 
   // Build event from DB events when mock event is not available
-  const dbEvent = dbEvents[0];
+  // Prefer the event matching the target day (from URL slug or param)
+  const dbEvent = (targetDay ? dbEvents.find((e) => e.day_of_week === targetDay) : null) || dbEvents[0];
   const dbEventAsEvent = dbEvent ? {
     id: dbEvent.id,
     dayOfWeek: dbEvent.day_of_week,
@@ -199,53 +210,16 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
       .then(({ data }) => {
         if (data?.length) {
           setDbEvents(data as DbEvent[]);
-          // Set flyer from first event that has one
-          const withFlyer = data.find((e: any) => e.flyer_url);
-          if (withFlyer?.flyer_url) setEventFlyerUrl(withFlyer.flyer_url);
+          // Pick the flyer matching the target day, or today's day, or first available
+          const todayDay = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date().getDay()];
+          const dayMatch = data.find((e: any) => e.flyer_url && e.day_of_week === targetDay);
+          const todayMatch = data.find((e: any) => e.flyer_url && e.day_of_week === todayDay);
+          const anyMatch = data.find((e: any) => e.flyer_url);
+          const best = dayMatch || todayMatch || anyMatch;
+          if (best?.flyer_url) setEventFlyerUrl(best.flyer_url);
         }
       });
-  }, [id, dbVenue]);
-
-  // Fetch flyer URL from venue_events (day-specific when day param is available)
-  useEffect(() => {
-    const supabase = createClient();
-    // Use dbVenue.id if available (resolved from slug lookup), otherwise use id directly
-    const venueUUID = dbVenue?.id || (isUUID(id) ? id : null);
-
-    function fetchFlyer(venueId: string) {
-      let query = supabase
-        .from("venue_events")
-        .select("flyer_url, day_of_week")
-        .eq("venue_id", venueId)
-        .not("flyer_url", "is", null);
-
-      // Filter by day when available (so Monday shows Monday's flyer, not Friday's)
-      if (dayParam) {
-        query = query.eq("day_of_week", dayParam);
-      }
-
-      query.limit(1).then(({ data }) => {
-        if (data?.[0]?.flyer_url) setEventFlyerUrl(data[0].flyer_url);
-      });
-    }
-
-    if (venueUUID) {
-      fetchFlyer(venueUUID);
-    } else if (!isUUID(id)) {
-      // Slug-based ID — resolve venue name to UUID, then query for flyer
-      const venueName = mockVenue?.name || event?.venueName;
-      if (venueName) {
-        supabase
-          .from("venues")
-          .select("id")
-          .ilike("name", venueName)
-          .limit(1)
-          .then(({ data: venueData }) => {
-            if (venueData?.[0]?.id) fetchFlyer(venueData[0].id);
-          });
-      }
-    }
-  }, [id, mockVenue, event, dbVenue, dayParam]);
+  }, [id, dbVenue, targetDay]);
 
   // Fetch primary venue image from venue_media and phone from venues table
   useEffect(() => {
