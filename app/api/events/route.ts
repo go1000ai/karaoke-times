@@ -320,16 +320,21 @@ export async function GET() {
     }
 
     // Enrich all events with images. Priority:
-    // 1. venue_events.flyer_url (event-specific, day-matched) — admin override per event
-    // 2. Existing per-event image ONLY if it's a valid URL (not a stale static path)
-    // 3. venue_media primary image (venue-level fallback for events with no image)
+    // 1. Keep existing valid URL images (http/https) — don't replace working images
+    // 2. For events without valid images, use venue_events.flyer_url (day-matched)
+    // 3. venue_media primary image (venue-level fallback)
     // 4. Static VENUE_IMAGES map
     // 5. Dynamic placeholder
     for (const ev of events) {
+      const hasValidImage = ev.image && typeof ev.image === "string" && ev.image.startsWith("http");
+
+      // 1. Keep existing valid URL images — don't replace them
+      if (hasValidImage) continue;
+
       const venueKey = ev.venueName ? normalizeName(ev.venueName as string) : null;
       const normalizedDay = ev.dayOfWeek ? normalizeDay(ev.dayOfWeek as string) : null;
 
-      // 1a. venue_events.flyer_url by name+day — highest priority
+      // 2a. venue_events.flyer_url by name+day
       if (venueKey && normalizedDay) {
         const dayKey = `${venueKey}|${normalizedDay}`;
         const dbFlyer = flyerMap.get(dayKey);
@@ -339,7 +344,7 @@ export async function GET() {
         }
       }
 
-      // 1b. venue_events.flyer_url by venue_id+day — fallback if name mismatch
+      // 2b. venue_events.flyer_url by venue_id+day — fallback if name mismatch
       if (ev.id && uuidRe.test(ev.id as string) && normalizedDay) {
         const idDayKey = `${ev.id}|${normalizedDay}`;
         const dbFlyer = flyerByIdMap.get(idDayKey);
@@ -348,10 +353,6 @@ export async function GET() {
           continue;
         }
       }
-
-      // 2. Keep existing per-event image ONLY if it's a real URL (https://...)
-      // Stale static paths like /venues/*.png may be wrong for multi-event venues
-      if (ev.image && typeof ev.image === "string" && ev.image.startsWith("http")) continue;
 
       // 3. venue_media primary image (venue-level fallback when event has no image)
       if (venueKey) {
