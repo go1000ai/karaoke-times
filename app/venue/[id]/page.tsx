@@ -183,8 +183,16 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
     image: dbEvent.flyer_url || mockEventsByName[0]?.image || null,
   } : null;
 
-  // Combined event: prefer mock data, fall back to DB event
-  const event = mockEvent || venueEvents[0] || dbEventAsEvent || mockEventsByName[0];
+  // Pick the best day-matching event from mock or DB lists
+  const venueEventForDay = venueEvents.length > 0
+    ? (targetDay ? (venueEvents.find((e) => normalizeDay(e.dayOfWeek) === targetDay) ?? venueEvents[0]) : venueEvents[0])
+    : null;
+  const mockEventForDay = targetDay
+    ? (mockEventsByName.find((e) => normalizeDay(e.dayOfWeek) === targetDay) ?? mockEventsByName[0])
+    : mockEventsByName[0];
+
+  // Combined event: prefer mock data by ID, then day-matched venue/DB/mock events
+  const event = mockEvent || venueEventForDay || dbEventAsEvent || mockEventForDay;
 
   const phone = venuePhone || event?.phone || "";
 
@@ -445,8 +453,10 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
       <div className="max-w-4xl mx-auto">
         {/* Hero */}
         <div className="relative h-56 mt-20 bg-gradient-to-br from-primary/20 via-card-dark to-accent/10 flex items-center justify-center">
-          {venueMediaImage || eventFlyerUrl || event?.image || venue.image || findVenueImage(venue.name, targetDay || event?.dayOfWeek) ? (
-            <img src={(venueMediaImage || eventFlyerUrl || event?.image || venue.image || findVenueImage(venue.name, targetDay || event?.dayOfWeek))!} alt={venue.name} className="w-full h-full object-cover" />
+          {(eventFlyerUrl || venueMediaImage || event?.image || venue.image || findVenueImage(venue.name, targetDay || event?.dayOfWeek) || venue.name) ? (
+            <img
+              src={eventFlyerUrl || venueMediaImage || event?.image || venue.image || findVenueImage(venue.name, targetDay || event?.dayOfWeek) || `/api/venue-image?venue=${encodeURIComponent(venue.name)}&event=${encodeURIComponent((event as any)?.eventName || "")}&day=${encodeURIComponent(targetDay || (event as any)?.dayOfWeek || "")}&dj=${encodeURIComponent((event as any)?.dj || "")}`}
+              alt={venue.name} className="w-full h-full object-cover" />
           ) : (
             <span className="material-icons-round text-6xl text-primary/30">mic</span>
           )}
@@ -640,33 +650,39 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
             )}
           </div>
 
-          {/* Website and Menu buttons — only shown when URL exists */}
-          {(dbVenue?.website || event?.website || dbVenue?.menu_url) && (
-            <div className="flex gap-3 mt-3">
-              {(dbVenue?.website || event?.website) && (
-                <a
-                  href={(dbVenue?.website || event?.website)!}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 glass-card rounded-2xl p-4 flex flex-col items-center gap-2 hover:border-primary/30 transition-all"
-                >
-                  <span className="material-icons-round text-primary text-2xl">language</span>
-                  <span className="text-xs text-text-secondary font-semibold">Website</span>
-                </a>
-              )}
-              {dbVenue?.menu_url && (
-                <a
-                  href={dbVenue.menu_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 glass-card rounded-2xl p-4 flex flex-col items-center gap-2 hover:border-primary/30 transition-all"
-                >
-                  <span className="material-icons-round text-primary text-2xl">menu_book</span>
-                  <span className="text-xs text-text-secondary font-semibold">Menu</span>
-                </a>
-              )}
-            </div>
-          )}
+          {/* Website and Menu buttons — only shown when a real URL exists */}
+          {(() => {
+            const isRealUrl = (u?: string | null) => !!u && u !== "N/A" && u !== "n/a" && u.startsWith("http");
+            const websiteUrl = isRealUrl(dbVenue?.website) ? dbVenue!.website : isRealUrl((event as any)?.website) ? (event as any).website : null;
+            const menuUrl = isRealUrl(dbVenue?.menu_url) ? dbVenue!.menu_url : null;
+            if (!websiteUrl && !menuUrl) return null;
+            return (
+              <div className="flex gap-3 mt-3">
+                {websiteUrl && (
+                  <a
+                    href={websiteUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 glass-card rounded-2xl p-4 flex flex-col items-center gap-2 hover:border-primary/30 transition-all"
+                  >
+                    <span className="material-icons-round text-primary text-2xl">language</span>
+                    <span className="text-xs text-text-secondary font-semibold">Website</span>
+                  </a>
+                )}
+                {menuUrl && (
+                  <a
+                    href={menuUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 glass-card rounded-2xl p-4 flex flex-col items-center gap-2 hover:border-primary/30 transition-all"
+                  >
+                    <span className="material-icons-round text-primary text-2xl">menu_book</span>
+                    <span className="text-xs text-text-secondary font-semibold">Menu</span>
+                  </a>
+                )}
+              </div>
+            );
+          })()}
         </section>
 
         {/* Live Queue Status */}
@@ -719,8 +735,8 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
               <p className="text-xs text-text-secondary mt-1">
                 {venue.neighborhood ? `${venue.neighborhood}, ` : ""}{venue.city}, {venue.state}
               </p>
-              {event?.crossStreet && (
-                <p className="text-xs text-text-muted mt-0.5">Cross: {event.crossStreet}</p>
+              {(event as any)?.crossStreet && (
+                <p className="text-xs text-text-muted mt-0.5">Cross: {(event as any).crossStreet}</p>
               )}
             </div>
             <div className="border-t border-border grid grid-cols-3 divide-x divide-border">
