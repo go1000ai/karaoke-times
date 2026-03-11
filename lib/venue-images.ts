@@ -2,6 +2,22 @@
 const slugify = (n: string) =>
   n.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
+// Standard day names for filename matching
+const IMAGE_DAY_NAMES = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+
+// Returns false if the image filename contains a day that doesn't match the event's day
+function staticImageMatchesDay(imagePath: string, eventDay: string | null): boolean {
+  if (!eventDay) return true;
+  const lowerPath = imagePath.toLowerCase();
+  const lowerDay = eventDay.toLowerCase();
+  for (const d of IMAGE_DAY_NAMES) {
+    if (lowerPath.includes(d)) {
+      return d === lowerDay;
+    }
+  }
+  return true;
+}
+
 // Static venue image map: slugified venue name → image path
 // This matches the venue name (without day) to an image file in /public/venues/
 export const VENUE_IMAGES: Record<string, string> = {
@@ -42,6 +58,7 @@ export const VENUE_IMAGES: Record<string, string> = {
   "fusion-east": "/venues/fusion-east-monday.jpg",
   "good-company": "/venues/good-company-friday.jpg",
   "gt-kingston": "/venues/gt-kingston-wednesday.jpg",
+  "gt-kingston-monday": "/venues/gt-kingston-monday.jpg",
   "guest-house": "/venues/guest-house-tuesday.jpg",
   "hamilton-hall": "/venues/hamilton-hall-wednesday.jpg",
   "harlem-nights": "/venues/harlem-nights.jpg",
@@ -120,21 +137,35 @@ export const VENUE_IMAGES: Record<string, string> = {
   "woodzy": "/venues/woodzy-friday.jpg",
 };
 
-// Look up a static image for a venue name
-export function findVenueImage(venueName: string): string | null {
-  // Try raw slugify first
+// Look up a static image for a venue name, optionally filtered by day
+export function findVenueImage(venueName: string, day?: string | null): string | null {
   const slug = slugify(venueName);
-  if (VENUE_IMAGES[slug]) return VENUE_IMAGES[slug];
-
-  // Try with "&" → "and" normalization before slugifying
   const normalized = slugify(venueName.replace(/&/g, " and "));
-  if (VENUE_IMAGES[normalized]) return VENUE_IMAGES[normalized];
 
-  // Try without "the-" prefix
+  // When a day is provided, try day-specific keys first (exact match, no day-filter needed)
+  if (day) {
+    const daySlug = day.toLowerCase();
+    for (const s of [slug, normalized]) {
+      const dayKey = `${s}-${daySlug}`;
+      if (VENUE_IMAGES[dayKey]) return VENUE_IMAGES[dayKey];
+      const noThe = s.replace(/^the-/, "");
+      if (VENUE_IMAGES[`${noThe}-${daySlug}`]) return VENUE_IMAGES[`${noThe}-${daySlug}`];
+    }
+  }
+
+  // Fall back to generic keys, but filter out images whose filename encodes a different day
+  const candidates: string[] = [];
+  if (VENUE_IMAGES[slug]) candidates.push(VENUE_IMAGES[slug]);
+  if (VENUE_IMAGES[normalized] && !candidates.includes(VENUE_IMAGES[normalized])) candidates.push(VENUE_IMAGES[normalized]);
+
   for (const s of [slug, normalized]) {
     const noThe = s.replace(/^the-/, "");
-    if (VENUE_IMAGES[noThe]) return VENUE_IMAGES[noThe];
-    if (VENUE_IMAGES[`the-${s}`]) return VENUE_IMAGES[`the-${s}`];
+    if (VENUE_IMAGES[noThe] && !candidates.includes(VENUE_IMAGES[noThe])) candidates.push(VENUE_IMAGES[noThe]);
+    if (VENUE_IMAGES[`the-${s}`] && !candidates.includes(VENUE_IMAGES[`the-${s}`])) candidates.push(VENUE_IMAGES[`the-${s}`]);
+  }
+
+  for (const img of candidates) {
+    if (staticImageMatchesDay(img, day ?? null)) return img;
   }
 
   return null;

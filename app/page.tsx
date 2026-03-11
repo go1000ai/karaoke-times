@@ -9,7 +9,7 @@ import { TubesBackground } from "@/components/ui/neon-flow";
 import { CardStack, type CardStackItem } from "@/components/ui/card-stack";
 import { createClient } from "@/lib/supabase/client";
 import { karaokeEvents as staticEvents, DAY_ORDER, DAY_NORMALIZE, searchKJs, getKJSlugForName, type KaraokeEvent, type KJProfile } from "@/lib/mock-data";
-import { findVenueImage } from "@/lib/venue-images";
+
 import { extractYouTubeVideoId, getYouTubeThumbnail } from "@/lib/youtube";
 import CircularGallery, { type GalleryItem } from "@/components/CircularGallery";
 
@@ -95,7 +95,7 @@ const VenueCard = memo(function VenueCard({
         <img
           alt={event.venueName}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-          src={event.image || (event.flyer && event.flyer.startsWith("http") ? event.flyer : null) || findVenueImage(event.venueName) || `/api/venue-image?venue=${encodeURIComponent(event.venueName)}&event=${encodeURIComponent(event.eventName || "")}&day=${encodeURIComponent(event.dayOfWeek || "")}&dj=${encodeURIComponent(event.dj || "")}`}
+          src={event.image || `/api/venue-image?venue=${encodeURIComponent(event.venueName)}&event=${encodeURIComponent(event.eventName || "")}&day=${encodeURIComponent(event.dayOfWeek || "")}&dj=${encodeURIComponent(event.dj || "")}`}
         />
         {/* Day badge */}
         {event.dayOfWeek && (
@@ -286,7 +286,8 @@ export default function HomePage() {
   const [selectedEvent, setSelectedEvent] = useState<KaraokeEvent | null>(null);
   const [searchFilter, setSearchFilter] = useState<"all" | "kjs" | "venues">("all");
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
-  const [karaokeEvents, setKaraokeEvents] = useState<KaraokeEvent[]>(staticEvents);
+  const [karaokeEvents, setKaraokeEvents] = useState<KaraokeEvent[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(true);
   const venueCount = Math.floor(karaokeEvents.length / 10) * 10;
   const [featuredSingers, setFeaturedSingers] = useState<{
     id: string;
@@ -318,9 +319,14 @@ export default function HomePage() {
       .then((data) => {
         if (data.events && Array.isArray(data.events) && data.events.length > 0) {
           setKaraokeEvents(data.events);
+        } else {
+          setKaraokeEvents(staticEvents);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        setKaraokeEvents(staticEvents);
+      })
+      .finally(() => setEventsLoading(false));
   }, []);
 
   // Load favorites + featured singers on mount
@@ -833,7 +839,20 @@ export default function HomePage() {
           </div>
 
           {/* Listings Grid */}
-          {activeDay === "All" ? (
+          {eventsLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="glass-card rounded-2xl overflow-hidden animate-pulse">
+                  <div className="h-52 bg-card-dark" />
+                  <div className="p-4 space-y-3">
+                    <div className="h-5 bg-white/5 rounded w-2/3" />
+                    <div className="h-3 bg-white/5 rounded w-1/2" />
+                    <div className="h-3 bg-white/5 rounded w-full" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : activeDay === "All" ? (
             // Show grouped by day — first 6 per day with "View More"
             DAY_ORDER.map((day) => {
               const dayEvents = eventsByDay[day];
@@ -1045,7 +1064,7 @@ export default function HomePage() {
             {/* Hero image */}
             <div className="relative h-56">
               <img
-                src={selectedEvent.image || (selectedEvent.flyer && selectedEvent.flyer.startsWith("http") ? selectedEvent.flyer : null) || findVenueImage(selectedEvent.venueName) || `/api/venue-image?venue=${encodeURIComponent(selectedEvent.venueName)}&event=${encodeURIComponent(selectedEvent.eventName || "")}&day=${encodeURIComponent(selectedEvent.dayOfWeek || "")}&dj=${encodeURIComponent(selectedEvent.dj || "")}`}
+                src={selectedEvent.image || `/api/venue-image?venue=${encodeURIComponent(selectedEvent.venueName)}&event=${encodeURIComponent(selectedEvent.eventName || "")}&day=${encodeURIComponent(selectedEvent.dayOfWeek || "")}&dj=${encodeURIComponent(selectedEvent.dj || "")}`}
                 alt={selectedEvent.venueName}
                 className="w-full h-full object-cover rounded-t-3xl md:rounded-t-3xl"
               />
@@ -1197,7 +1216,7 @@ export default function HomePage() {
 
               {/* Full listing link */}
               <Link
-                href={`/venue/${selectedEvent.id}${selectedEvent.dayOfWeek ? `?day=${encodeURIComponent(selectedEvent.dayOfWeek)}` : ""}`}
+                href={`/venue/${selectedEvent.id}?name=${encodeURIComponent(selectedEvent.venueName)}${selectedEvent.dayOfWeek ? `&day=${encodeURIComponent(selectedEvent.dayOfWeek)}` : ""}`}
                 onClick={() => setSelectedEvent(null)}
                 className="w-full bg-primary text-black font-bold py-3 rounded-full flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-primary/30 transition-all text-sm"
               >

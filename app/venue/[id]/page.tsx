@@ -39,6 +39,8 @@ interface SupabaseVenue {
   neighborhood: string | null;
   is_private_room: boolean;
   accessibility: string | null;
+  website: string | null;
+  menu_url: string | null;
 }
 
 interface DbEvent {
@@ -74,6 +76,19 @@ function isUUID(id: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 }
 
+// Normalize non-standard day strings to their canonical day name
+// e.g. "Every 3rd Monday" → "Monday", "Mondays" → "Monday"
+const STANDARD_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+function normalizeDay(raw: string): string {
+  if (!raw) return raw;
+  if (STANDARD_DAYS.includes(raw)) return raw;
+  const lower = raw.toLowerCase();
+  for (const d of STANDARD_DAYS) {
+    if (lower.includes(d.toLowerCase())) return d;
+  }
+  return raw;
+}
+
 export default function VenueDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const mockVenue = venues.find((v) => v.id === id);
@@ -83,6 +98,8 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
   const router = useRouter();
   const searchParams = useSearchParams();
   const dayParam = searchParams.get("day");
+  // Venue name passed from listing page — used as fallback if Supabase lookup fails
+  const nameParam = searchParams.get("name");
   // Detect the target day from URL param or slug (e.g. "fusion-east-monday" → "Monday")
   const targetDay = (() => {
     if (dayParam) return dayParam;
@@ -105,15 +122,25 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
   const [venuePhone, setVenuePhone] = useState<string | null>(null);
   const [loading, setLoading] = useState(!mockVenue);
 
-  // Try to match mock venue by name (for image fallback when navigated by UUID)
-  const mockVenueByName = !mockVenue && dbVenue
-    ? venues.find((v) => v.name.toLowerCase() === dbVenue.name.toLowerCase())
+  // Normalize venue name for comparison: lowercase, strip apostrophes, & → and
+  const normalizeVenueName = (n: string) =>
+    n.toLowerCase().replace(/&/g, "and").replace(/'/g, "").replace(/\s+/g, " ").trim();
+
+  // Resolve the canonical name to use for mock-data fallback.
+  // Prefer dbVenue.name (from Supabase); fall back to the ?name= URL param if lookup failed.
+  const resolvedName = dbVenue?.name ?? nameParam ?? null;
+
+  // Try to match mock venue by name (for image/event fallback when navigated by UUID)
+  // Uses normalized comparison to handle "&" vs "and", apostrophes, etc.
+  const mockVenueByName = !mockVenue && resolvedName
+    ? venues.find((v) => normalizeVenueName(v.name) === normalizeVenueName(resolvedName))
     : null;
   const mockEventsByName = mockVenueByName
-    ? karaokeEvents.filter((e) => e.venueName === mockVenueByName.name)
+    ? karaokeEvents.filter((e) => e.venueName === mockVenueByName.name ||
+        normalizeVenueName(e.venueName) === normalizeVenueName(mockVenueByName.name))
     : [];
 
-  // Resolved venue: mock data first, then Supabase fallback
+  // Resolved venue: mock data first → Supabase → mock-by-name fallback (for UUID routes where Supabase lookup failed)
   const venue = mockVenue || (dbVenue ? {
     id: dbVenue.id,
     name: dbVenue.name,
@@ -125,11 +152,24 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
     isPrivateRoom: dbVenue.is_private_room,
     latitude: null as number | null,
     longitude: null as number | null,
+  } : mockVenueByName ? {
+    // Supabase lookup failed but we matched mock data by name (via ?name= param)
+    id: mockVenueByName.id,
+    name: mockVenueByName.name,
+    address: mockVenueByName.address,
+    city: mockVenueByName.city,
+    state: mockVenueByName.state,
+    neighborhood: mockVenueByName.neighborhood || "",
+    image: mockVenueByName.image || null as string | null,
+    isPrivateRoom: mockVenueByName.isPrivateRoom,
+    latitude: mockVenueByName.latitude,
+    longitude: mockVenueByName.longitude,
   } : null);
 
   // Build event from DB events when mock event is not available
   // Prefer the event matching the target day (from URL slug or param)
-  const dbEvent = (targetDay ? dbEvents.find((e) => e.day_of_week === targetDay) : null) || dbEvents[0];
+  // Normalize stored day values so "Every 3rd Monday" matches targetDay "Monday"
+  const dbEvent = (targetDay ? dbEvents.find((e) => normalizeDay(e.day_of_week) === targetDay) : null) || dbEvents[0];
   const dbEventAsEvent = dbEvent ? {
     id: dbEvent.id,
     dayOfWeek: dbEvent.day_of_week,
@@ -158,7 +198,7 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
       if (isUUID(id)) {
         const { data } = await supabase
           .from("venues")
-          .select("id, name, address, city, state, neighborhood, is_private_room, accessibility")
+          .select("id, name, address, city, state, neighborhood, is_private_room, accessibility, website, menu_url")
           .eq("id", id)
           .single();
         if (data) { setDbVenue(data as SupabaseVenue); setLoading(false); return; }
@@ -179,7 +219,7 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
 
       const { data: matches } = await supabase
         .from("venues")
-        .select("id, name, address, city, state, neighborhood, is_private_room, accessibility");
+        .select("id, name, address, city, state, neighborhood, is_private_room, accessibility, website, menu_url");
 
       if (matches) {
         // Find best match: compare normalized names
@@ -212,7 +252,7 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
           setDbEvents(data as DbEvent[]);
           // Pick the flyer matching the target day, or today's day, or first available
           const todayDay = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date().getDay()];
-          const dayMatch = data.find((e: any) => e.flyer_url && e.day_of_week === targetDay);
+          const dayMatch = data.find((e: any) => e.flyer_url && normalizeDay(e.day_of_week) === targetDay);
           const todayMatch = data.find((e: any) => e.flyer_url && e.day_of_week === todayDay);
           const anyMatch = data.find((e: any) => e.flyer_url);
           const best = dayMatch || todayMatch || anyMatch;
@@ -374,7 +414,8 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${address}`, "_blank");
   };
 
-  if (loading) {
+  // Show spinner only when we have no venue data yet (not resolved from mock or Supabase)
+  if (loading && !venue) {
     return (
       <div className="min-h-screen bg-bg-dark flex items-center justify-center">
         <div className="text-center">
@@ -404,8 +445,8 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
       <div className="max-w-4xl mx-auto">
         {/* Hero */}
         <div className="relative h-56 mt-20 bg-gradient-to-br from-primary/20 via-card-dark to-accent/10 flex items-center justify-center">
-          {venueMediaImage || eventFlyerUrl || event?.image || venue.image || findVenueImage(venue.name) ? (
-            <img src={(venueMediaImage || eventFlyerUrl || event?.image || venue.image || findVenueImage(venue.name))!} alt={venue.name} className="w-full h-full object-cover" />
+          {venueMediaImage || eventFlyerUrl || event?.image || venue.image || findVenueImage(venue.name, targetDay || event?.dayOfWeek) ? (
+            <img src={(venueMediaImage || eventFlyerUrl || event?.image || venue.image || findVenueImage(venue.name, targetDay || event?.dayOfWeek))!} alt={venue.name} className="w-full h-full object-cover" />
           ) : (
             <span className="material-icons-round text-6xl text-primary/30">mic</span>
           )}
@@ -598,6 +639,34 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
               </Link>
             )}
           </div>
+
+          {/* Website and Menu buttons — only shown when URL exists */}
+          {(dbVenue?.website || event?.website || dbVenue?.menu_url) && (
+            <div className="flex gap-3 mt-3">
+              {(dbVenue?.website || event?.website) && (
+                <a
+                  href={(dbVenue?.website || event?.website)!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 glass-card rounded-2xl p-4 flex flex-col items-center gap-2 hover:border-primary/30 transition-all"
+                >
+                  <span className="material-icons-round text-primary text-2xl">language</span>
+                  <span className="text-xs text-text-secondary font-semibold">Website</span>
+                </a>
+              )}
+              {dbVenue?.menu_url && (
+                <a
+                  href={dbVenue.menu_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 glass-card rounded-2xl p-4 flex flex-col items-center gap-2 hover:border-primary/30 transition-all"
+                >
+                  <span className="material-icons-round text-primary text-2xl">menu_book</span>
+                  <span className="text-xs text-text-secondary font-semibold">Menu</span>
+                </a>
+              )}
+            </div>
+          )}
         </section>
 
         {/* Live Queue Status */}

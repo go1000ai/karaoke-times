@@ -200,7 +200,7 @@ export const karaokeEvents: KaraokeEvent[] = [
     startTime: "9:00 PM",
     endTime: "1:00 AM",
     notes: "Food And Drinks Available",
-    image: null,
+    image: "/venues/gt-kingston-monday.jpg",
     isPrivateRoom: false,
     bookingUrl: null,
     website: null,

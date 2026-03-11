@@ -99,6 +99,7 @@ const VENUE_IMAGES: Record<string, string> = {
   "fusion-east": "/venues/fusion-east-monday.jpg",
   "good-company": "/venues/good-company-friday.jpg",
   "gt-kingston": "/venues/gt-kingston-wednesday.jpg",
+  "gt-kingston-monday": "/venues/gt-kingston-monday.jpg",
   "guest-house": "/venues/guest-house-tuesday.jpg",
   "hamilton-hall": "/venues/hamilton-hall-wednesday.jpg",
   "harlem-nights": "/venues/harlem-nights.jpg",
@@ -177,21 +178,59 @@ const VENUE_IMAGES: Record<string, string> = {
   "woodzy": "/venues/woodzy-friday.jpg",
 };
 
-// Look up a static image for a venue name
-function findVenueImage(venueName: string): string | null {
-  // Try raw slugify first
+// Day names used to detect day-specific static images
+const IMAGE_DAY_NAMES = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+
+// Check if a static image filename contains a day that doesn't match the event's day.
+// e.g. "blu-room-friday.jpg" should NOT be used for a Saturday event.
+function staticImageMatchesDay(imagePath: string, eventDay: string | null): boolean {
+  if (!eventDay) return true; // no day info — allow the image
+  const lowerPath = imagePath.toLowerCase();
+  const lowerDay = eventDay.toLowerCase();
+  for (const d of IMAGE_DAY_NAMES) {
+    if (lowerPath.includes(d)) {
+      // Image has a day baked in — only allow if it matches
+      return d === lowerDay;
+    }
+  }
+  // Image filename has no day — always OK
+  return true;
+}
+
+// Look up a static image for a venue name, optionally filtering by day
+function findVenueImage(venueName: string, eventDay?: string | null): string | null {
+  const candidates: string[] = [];
+
   const slug = slugify(venueName);
-  if (VENUE_IMAGES[slug]) return VENUE_IMAGES[slug];
-
-  // Try with "&" → "and" normalization before slugifying
   const normalized = slugify(venueName.replace(/&/g, " and "));
-  if (VENUE_IMAGES[normalized]) return VENUE_IMAGES[normalized];
 
-  // Try without "the-" prefix
+  // Try day-specific keys first (e.g., "gt-kingston-monday") — exact day match
+  if (eventDay) {
+    const daySlug = eventDay.toLowerCase();
+    for (const s of [slug, normalized]) {
+      const dayKey = `${s}-${daySlug}`;
+      if (VENUE_IMAGES[dayKey] && !candidates.includes(VENUE_IMAGES[dayKey])) candidates.push(VENUE_IMAGES[dayKey]);
+      const noThe = s.replace(/^the-/, "");
+      const dayKeyNoThe = `${noThe}-${daySlug}`;
+      if (VENUE_IMAGES[dayKeyNoThe] && !candidates.includes(VENUE_IMAGES[dayKeyNoThe])) candidates.push(VENUE_IMAGES[dayKeyNoThe]);
+    }
+    // Return immediately if a day-specific key matched
+    if (candidates.length > 0) return candidates[0];
+  }
+
+  // Then generic keys, filtered by day via staticImageMatchesDay
+  if (VENUE_IMAGES[slug]) candidates.push(VENUE_IMAGES[slug]);
+  if (VENUE_IMAGES[normalized] && !candidates.includes(VENUE_IMAGES[normalized])) candidates.push(VENUE_IMAGES[normalized]);
+
   for (const s of [slug, normalized]) {
     const noThe = s.replace(/^the-/, "");
-    if (VENUE_IMAGES[noThe]) return VENUE_IMAGES[noThe];
-    if (VENUE_IMAGES[`the-${s}`]) return VENUE_IMAGES[`the-${s}`];
+    if (VENUE_IMAGES[noThe] && !candidates.includes(VENUE_IMAGES[noThe])) candidates.push(VENUE_IMAGES[noThe]);
+    if (VENUE_IMAGES[`the-${s}`] && !candidates.includes(VENUE_IMAGES[`the-${s}`])) candidates.push(VENUE_IMAGES[`the-${s}`]);
+  }
+
+  // Return first candidate that matches the event's day (or has no day in filename)
+  for (const img of candidates) {
+    if (staticImageMatchesDay(img, eventDay || null)) return img;
   }
 
   return null;
@@ -293,18 +332,25 @@ export async function GET() {
     }
 
     // Build flyer maps: by name+day, by venue_id+day
+    // KJ/Admin uploaded flyers go in flyerMap (top priority)
+    // Gemini auto-generated flyers go in autoFlyerMap (lower priority, after static images)
     const flyerMap = new Map<string, string>();
     const flyerByIdMap = new Map<string, string>();
+    const autoFlyerMap = new Map<string, string>();
     for (const ve of dbEvents) {
       const name = (ve.venues as any)?.name;
       if (name) {
-        // Also populate venueIdMap from venue_events (in case venue name differs slightly)
         if (!venueIdMap.has(normalizeName(name))) {
           venueIdMap.set(normalizeName(name), ve.venue_id);
         }
         if (ve.flyer_url) {
-          flyerMap.set(`${normalizeName(name)}|${normalizeDay(ve.day_of_week)}`, ve.flyer_url);
-          flyerByIdMap.set(`${ve.venue_id}|${normalizeDay(ve.day_of_week)}`, ve.flyer_url);
+          const key = `${normalizeName(name)}|${normalizeDay(ve.day_of_week)}`;
+          if (ve.flyer_url.includes("auto-flyers/")) {
+            autoFlyerMap.set(key, ve.flyer_url);
+          } else {
+            flyerMap.set(key, ve.flyer_url);
+            flyerByIdMap.set(`${ve.venue_id}|${normalizeDay(ve.day_of_week)}`, ve.flyer_url);
+          }
         }
       }
     }
@@ -320,21 +366,14 @@ export async function GET() {
     }
 
     // Enrich all events with images. Priority:
-    // 1. Keep existing valid URL images (http/https) — don't replace working images
-    // 2. For events without valid images, use venue_events.flyer_url (day-matched)
-    // 3. venue_media primary image (venue-level fallback)
-    // 4. Static VENUE_IMAGES map
-    // 5. Dynamic placeholder
+    // 1. KJ uploaded flyer (venue_events.flyer_url, day-matched)
+    // 2. Admin curated images (static /venues/*.jpg photos)
+    // 3. AI-generated (Gemini stored in auto-flyers, or on-the-fly placeholder)
     for (const ev of events) {
-      const hasValidImage = ev.image && typeof ev.image === "string" && ev.image.startsWith("http");
-
-      // 1. Keep existing valid URL images — don't replace them
-      if (hasValidImage) continue;
-
       const venueKey = ev.venueName ? normalizeName(ev.venueName as string) : null;
       const normalizedDay = ev.dayOfWeek ? normalizeDay(ev.dayOfWeek as string) : null;
 
-      // 2a. venue_events.flyer_url by name+day
+      // 1a. KJ flyer by venue name + day
       if (venueKey && normalizedDay) {
         const dayKey = `${venueKey}|${normalizedDay}`;
         const dbFlyer = flyerMap.get(dayKey);
@@ -344,7 +383,7 @@ export async function GET() {
         }
       }
 
-      // 2b. venue_events.flyer_url by venue_id+day — fallback if name mismatch
+      // 1b. KJ flyer by venue_id + day (fallback if name mismatch)
       if (ev.id && uuidRe.test(ev.id as string) && normalizedDay) {
         const idDayKey = `${ev.id}|${normalizedDay}`;
         const dbFlyer = flyerByIdMap.get(idDayKey);
@@ -354,7 +393,16 @@ export async function GET() {
         }
       }
 
-      // 3. venue_media primary image (venue-level fallback when event has no image)
+      // 2. Admin curated static images (/venues/*.jpg) — day-aware
+      if (ev.venueName) {
+        const staticImg = findVenueImage(ev.venueName as string, normalizedDay);
+        if (staticImg) {
+          ev.image = staticImg;
+          continue;
+        }
+      }
+
+      // 3. venue_media primary image (admin uploaded via dashboard)
       if (venueKey) {
         const vid = venueIdMap.get(venueKey);
         if (vid) {
@@ -366,16 +414,17 @@ export async function GET() {
         }
       }
 
-      // 4. Static VENUE_IMAGES map
-      if (ev.venueName) {
-        const staticImg = findVenueImage(ev.venueName as string);
-        if (staticImg) {
-          ev.image = staticImg;
+      // 4. Gemini auto-generated flyer (stored in auto-flyers/)
+      if (venueKey && normalizedDay) {
+        const dayKey = `${venueKey}|${normalizedDay}`;
+        const autoFlyer = autoFlyerMap.get(dayKey);
+        if (autoFlyer) {
+          ev.image = autoFlyer;
           continue;
         }
       }
 
-      // 5. Final fallback: dynamic venue image
+      // 5. OG placeholder (on-the-fly, always correct day/venue info)
       if (ev.venueName) {
         const params = new URLSearchParams({ venue: ev.venueName as string });
         if (ev.eventName) params.set("event", ev.eventName as string);
