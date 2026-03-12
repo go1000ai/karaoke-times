@@ -107,7 +107,7 @@ export const VENUE_IMAGES: Record<string, string> = {
   "richards": "/venues/richards-monday.jpg",
   "roaddog-karaoke": "/venues/roaddog-karaoke-friday.jpg",
   "the-rock": "/venues/the-rock-wednesday.jpg",
-  "rollin-greens": "/venues/rollin-greens-thursday.jpg",
+  // "rollin-greens" removed — static flyer had a specific date baked in; use AI flyer instead
   "rpm-underground": "/venues/rpm-underground.jpg",
   "saints-and-scholars": "/venues/saints-scholars-monday.jpg",
   "saints-scholars": "/venues/saints-scholars-monday.jpg",
