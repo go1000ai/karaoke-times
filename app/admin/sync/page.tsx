@@ -102,6 +102,27 @@ export default function SyncPage() {
     }
   }
 
+  async function handleForceRegenerateFlyers() {
+    if (!confirm("This will REPLACE all AI-generated flyers with new ones (removes old flyers with dates or incorrect content). This may take several minutes. Continue?")) return;
+    setGenerating(true);
+    setResult(null);
+    setGenerateProgress("Replacing all AI-generated flyers...");
+    try {
+      const res = await fetch("/api/admin/auto-generate-flyers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ forceRegenerate: true }),
+      });
+      const data = await res.json();
+      setResult(data);
+      setGenerateProgress(`Done. ${data.generated} regenerated, ${data.failed ?? 0} failed.`);
+    } catch {
+      setResult({ success: false, message: "Network error or timeout. The generation may still be running on the server." });
+    } finally {
+      setGenerating(false);
+    }
+  }
+
   async function handleSync() {
     if (!sheetUrl.trim()) return;
     setSyncing(true);
@@ -472,6 +493,24 @@ export default function SyncPage() {
             <>
               <span className="material-icons-round">auto_awesome</span>
               Generate Missing Flyers
+            </>
+          )}
+        </button>
+
+        <button
+          onClick={handleForceRegenerateFlyers}
+          disabled={generating}
+          className="w-full mt-3 bg-red-500/20 border border-red-500/30 text-red-400 font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-red-500/30 transition-all disabled:opacity-50"
+        >
+          {generating ? (
+            <>
+              <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+              Regenerating...
+            </>
+          ) : (
+            <>
+              <span className="material-icons-round text-sm">refresh</span>
+              Force Regenerate All AI Flyers (Replaces Flyers with Dates)
             </>
           )}
         </button>
