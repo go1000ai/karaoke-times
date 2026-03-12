@@ -298,6 +298,12 @@ export default function HomePage() {
     if (event.phone) p.set("phone", event.phone);
     return `/venue/${event.id}?${p}`;
   };
+
+  // Navigate to venue detail, saving active day so back-navigation restores scroll position
+  const navigateToVenue = (event: KaraokeEvent) => {
+    sessionStorage.setItem("returnToDay", activeDay);
+    router.push(venueDetailUrl(event));
+  };
   const { user } = useAuth();
   const [activeDay, setActiveDay] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState("");
@@ -330,6 +336,21 @@ export default function HomePage() {
     return grouped;
   }, [karaokeEvents]);
   const tabBarRef = useRef<HTMLDivElement>(null);
+
+  // Restore active day and scroll position when returning from venue detail
+  useEffect(() => {
+    const savedDay = sessionStorage.getItem("returnToDay");
+    if (savedDay) {
+      sessionStorage.removeItem("returnToDay");
+      setActiveDay(savedDay);
+      // Scroll to the listings/tab section after events load
+      const scrollToTabs = () => {
+        tabBarRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      };
+      // Small delay to let events render first
+      setTimeout(scrollToTabs, 300);
+    }
+  }, []);
 
   // Load synced events from Supabase (if admin has synced via CSV/Google Sheet)
   useEffect(() => {
@@ -448,7 +469,7 @@ export default function HomePage() {
     activeDay === "All"
       ? karaokeEvents
       : karaokeEvents.filter((e) => (DAY_NORMALIZE[e.dayOfWeek] || e.dayOfWeek) === activeDay),
-    [activeDay]
+    [activeDay, karaokeEvents]
   );
 
   // Count by day for badges (memoized — eventsByDay is stable module-level data)
@@ -896,7 +917,7 @@ export default function HomePage() {
                       <VenueCard
                         key={`${event.id}-${event.dayOfWeek}-${idx}`}
                         event={event}
-                        onClick={() => router.push(venueDetailUrl(event))}
+                        onClick={() => navigateToVenue(event)}
                         showActions={!!user}
                         isFavorited={favorites.has(event.id)}
                         onToggleFavorite={() => toggleFavorite(event.id)}
@@ -928,7 +949,7 @@ export default function HomePage() {
                 <VenueCard
                         key={`${event.id}-${event.dayOfWeek}-${idx}`}
                         event={event}
-                        onClick={() => router.push(venueDetailUrl(event))}
+                        onClick={() => navigateToVenue(event)}
                         showActions={!!user}
                         isFavorited={favorites.has(event.id)}
                         onToggleFavorite={() => toggleFavorite(event.id)}
