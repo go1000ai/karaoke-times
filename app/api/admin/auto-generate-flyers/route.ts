@@ -1,94 +1,80 @@
 import { NextResponse } from "next/server";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
+import promptConfig from "@/lib/flyer-prompts.json";
 
 export const maxDuration = 300; // 5 minutes max for batch processing
 
 // ── Theme detection from event name / notes / DJ ──────────────────────
-const THEME_KEYWORDS: Record<string, string[]> = {
-  "Hip-Hop & R&B Night": [
-    "hip hop", "hip-hop", "hiphop", "r&b", "rnb", "r & b", "rap",
-    "trap", "urban", "old school", "90s hip", "throwback hip",
-  ],
-  "Latin Karaoke": [
-    "latin", "latina", "latino", "salsa", "bachata", "merengue",
-    "cumbia", "latin night", "noche latina",
-  ],
-  "Reggaeton Night": [
-    "reggaeton", "reggaetón", "perreo", "dembow", "bad bunny",
-  ],
-  "K-Pop Night": ["k-pop", "kpop", "k pop", "korean"],
-  "80s/90s Throwback": [
-    "80s", "90s", "80's", "90's", "throwback", "retro", "old school night",
-  ],
-  "Rock & Metal Karaoke": [
-    "rock", "metal", "punk", "grunge", "classic rock", "hard rock",
-  ],
-  "Broadway & Show Tunes": [
-    "broadway", "show tunes", "musical", "theater", "theatre",
-  ],
-  "Country Karaoke": ["country", "honky", "nashville", "cowboy"],
-  "Duets Night": ["duet", "duets", "couples", "duo"],
-  "Karaoke Contest": [
-    "contest", "competition", "battle", "showdown", "idol",
-    "star search", "sing-off", "sing off",
-  ],
-};
-
-function detectTheme(eventName: string, notes: string, dj: string): string {
+function detectStyle(eventName: string, notes: string, dj: string, dayOfWeek: string): string {
   const text = `${eventName} ${notes} ${dj}`.toLowerCase();
-  for (const [theme, keywords] of Object.entries(THEME_KEYWORDS)) {
-    if (keywords.some((kw) => text.includes(kw))) return theme;
+
+  // Check keyword-based theme overrides first
+  for (const [style, keywords] of Object.entries(promptConfig.theme_keywords)) {
+    if ((keywords as string[]).some((kw) => text.includes(kw))) return style;
   }
-  return "Open Mic Karaoke";
+
+  // Fall back to day-based style hints with deterministic variety
+  const dayHints = (promptConfig.day_style_hints as Record<string, string[]>)[dayOfWeek];
+  if (dayHints && dayHints.length > 0) {
+    // Use venue name hash for consistent but varied selection
+    const hash = text.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+    return dayHints[hash % dayHints.length];
+  }
+
+  return "neon_stage"; // default
 }
 
-// ── Compute next occurrence of a given day of week ────────────────────
-const DAY_MAP: Record<string, number> = {
-  sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
-  thursday: 4, friday: 5, saturday: 6,
-};
+// ── Build the full prompt from config ──────────────────────────────────
+function buildPrompt(styleName: string, venueHash: number): string {
+  const styles = promptConfig.styles as Record<string, {
+    prompt: string;
+    colors: string[][];
+  }>;
+  const style = styles[styleName] || styles["neon_stage"];
+  const colorSet = style.colors[venueHash % style.colors.length];
+  const [color1, color2] = colorSet;
 
-function getNextDate(dayOfWeek: string): string {
-  const target = DAY_MAP[dayOfWeek.toLowerCase().split(" ")[0]];
-  if (target === undefined) return ""; // can't parse — let n8n handle it
-  const now = new Date();
-  const current = now.getDay();
-  let daysAhead = target - current;
-  if (daysAhead <= 0) daysAhead += 7; // always pick the *next* occurrence
-  const next = new Date(now);
-  next.setDate(now.getDate() + daysAhead);
-  return next.toISOString().slice(0, 10); // YYYY-MM-DD
+  const styledPrompt = style.prompt
+    .replace(/\{color1\}/g, color1)
+    .replace(/\{color2\}/g, color2);
+
+  return `${styledPrompt} ${promptConfig.base_instructions}`;
 }
 
-// ── Day-based color palettes for visual consistency per day ────────────
-const DAY_COLORS: Record<string, string[]> = {
-  Monday:    ["#00FFC2", "#0066FF"],         // Cyan + Electric Blue
-  Tuesday:   ["#FF007A", "#7B2FBE"],         // Hot Pink + Royal Purple
-  Wednesday: ["#FFD700", "#FF6B35"],         // Gold + Sunset Orange
-  Thursday:  ["#39FF14", "#0066FF"],         // Lime + Electric Blue
-  Friday:    ["#FF2D00", "#FFD700"],         // Fire Red + Gold
-  Saturday:  ["#7B2FBE", "#FF007A"],         // Purple + Hot Pink
-  Sunday:    ["#F7E7CE", "#FF5CA1"],         // Champagne + Rose
-};
+// ── Call Imagen 4.0 Fast to generate an image (with retry on rate limit) ──
+async function generateImage(prompt: string, apiKey: string, attempt = 0): Promise<Buffer> {
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-fast-generate-001:predict?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        instances: [{ prompt }],
+        parameters: { sampleCount: 1, aspectRatio: "4:3" },
+      }),
+    }
+  );
 
-// ── Build a richer mood description ───────────────────────────────────
-function buildMoodDescription(
-  eventName: string,
-  venueName: string,
-  dj: string,
-  notes: string,
-  dayOfWeek: string,
-): string {
-  const parts: string[] = [];
-  parts.push(`${eventName} at ${venueName}`);
-  if (dj) parts.push(`Hosted by ${dj}`);
-  if (dayOfWeek) parts.push(`Every ${dayOfWeek} night`);
-  if (notes) parts.push(notes);
-  return parts.join(". ");
+  if (!res.ok) {
+    const err = await res.text();
+    // Retry once on rate limit (429) or server error (500/503) after a delay
+    if ((res.status === 429 || res.status >= 500) && attempt < 2) {
+      const delay = res.status === 429 ? 8000 : 4000;
+      await new Promise((r) => setTimeout(r, delay));
+      return generateImage(prompt, apiKey, attempt + 1);
+    }
+    throw new Error(`Imagen API ${res.status}: ${err.slice(0, 200)}`);
+  }
+
+  const data = await res.json();
+  const b64 = data?.predictions?.[0]?.bytesBase64Encoded;
+  if (!b64) throw new Error("No image data in response");
+
+  return Buffer.from(b64, "base64");
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   // Verify admin
   const serverSupabase = await createServerClient();
   const {
@@ -109,11 +95,11 @@ export async function POST() {
     return NextResponse.json({ success: false, message: "Admin access required" }, { status: 403 });
   }
 
-  const webhookUrl = process.env.N8N_WEBHOOK_URL;
-  if (!webhookUrl) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
     return NextResponse.json({
       success: false,
-      message: "N8N_WEBHOOK_URL not configured. Cannot generate flyers.",
+      message: "GEMINI_API_KEY not configured.",
     });
   }
 
@@ -122,13 +108,33 @@ export async function POST() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // Find all events without a flyer_url — include promos for specials
-  const { data: events, error } = await supabase
+  // Check for optional body params
+  let limit: number | undefined;
+  let forceRegenerate = false;
+  try {
+    const body = await request.json();
+    limit = body?.limit;
+    forceRegenerate = body?.forceRegenerate === true;
+  } catch {
+    // No body — that's fine
+  }
+
+  // Find events that need flyers
+  // If forceRegenerate: include events with auto-generated flyers too
+  let query = supabase
     .from("venue_events")
-    .select("id, venue_id, day_of_week, event_name, dj, start_time, end_time, notes, venues(name, address, city, state)")
-    .is("flyer_url", null)
+    .select("id, venue_id, day_of_week, event_name, dj, notes, venues(name, address, city)")
     .eq("is_active", true)
     .order("day_of_week");
+
+  if (forceRegenerate) {
+    // Get events with no flyer OR with auto-generated flyers
+    query = query.or("flyer_url.is.null,flyer_url.like.*auto-flyers*");
+  } else {
+    query = query.is("flyer_url", null);
+  }
+
+  const { data: events, error } = await query;
 
   if (error || !events) {
     return NextResponse.json({
@@ -146,159 +152,61 @@ export async function POST() {
     });
   }
 
-  // Batch-fetch promos for all relevant venues
-  const venueIds = [...new Set(events.map((e) => e.venue_id))];
-  const { data: promos } = await supabase
-    .from("venue_promos")
-    .select("venue_id, event_id, title, description")
-    .in("venue_id", venueIds)
-    .eq("is_active", true);
-
-  // Index promos by event_id, then by venue_id as fallback
-  const promosByEvent = new Map<string, { title: string; description: string }[]>();
-  const promosByVenue = new Map<string, { title: string; description: string }[]>();
-  for (const p of promos ?? []) {
-    if (p.event_id) {
-      const arr = promosByEvent.get(p.event_id) || [];
-      arr.push({ title: p.title, description: p.description });
-      promosByEvent.set(p.event_id, arr);
-    } else {
-      const arr = promosByVenue.get(p.venue_id) || [];
-      arr.push({ title: p.title, description: p.description });
-      promosByVenue.set(p.venue_id, arr);
-    }
-  }
+  // Optionally limit batch size
+  const batch = limit ? events.slice(0, limit) : events;
 
   let generated = 0;
   let failed = 0;
   const errors: string[] = [];
+  const results: { venue: string; event: string; style: string; success: boolean }[] = [];
 
-  // Process in batches of 3 to avoid overwhelming n8n
-  const BATCH_SIZE = 3;
-  for (let i = 0; i < events.length; i += BATCH_SIZE) {
-    const batch = events.slice(i, i + BATCH_SIZE);
+  // Process one at a time to avoid rate limits
+  const BATCH_SIZE = 1;
+  for (let i = 0; i < batch.length; i += BATCH_SIZE) {
+    const chunk = batch.slice(i, i + BATCH_SIZE);
 
-    const results = await Promise.allSettled(
-      batch.map(async (event) => {
-        const venue = event.venues as unknown as {
-          name: string;
-          address: string;
-          city: string;
-          state: string;
-        } | null;
-
+    const chunkResults = await Promise.allSettled(
+      chunk.map(async (ev) => {
+        const venue = ev.venues as unknown as { name: string; address: string; city: string } | null;
         const venueName = venue?.name || "Karaoke Venue";
-        const venueAddress = venue?.address || "";
-        const eventName = event.event_name || "Karaoke Night";
-        const dj = event.dj || "";
-        const notes = event.notes || "";
-        const dayOfWeek = event.day_of_week || "";
+        const eventName = ev.event_name || "Karaoke Night";
+        const dj = ev.dj || "";
+        const notes = ev.notes || "";
+        const dayOfWeek = ev.day_of_week || "";
 
-        // Smart theme detection from event name / notes / DJ
-        const theme = detectTheme(eventName, notes, dj);
-
-        // Calculate real date for next occurrence
-        const eventDate = getNextDate(dayOfWeek) || dayOfWeek;
-
-        // Build richer mood description
-        const moodDescription = buildMoodDescription(eventName, venueName, dj, notes, dayOfWeek);
-
-        // Pull promos/specials from DB
-        const eventPromos = promosByEvent.get(event.id) || promosByVenue.get(event.venue_id) || [];
-        const drinkSpecials = eventPromos
-          .filter((p) => /drink|shot|beer|cocktail|happy hour|2.for.1|bogo/i.test(p.title + " " + p.description))
-          .map((p) => p.title)
-          .join(", ");
-        const otherSpecials = eventPromos
-          .filter((p) => !/drink|shot|beer|cocktail|happy hour|2.for.1|bogo/i.test(p.title + " " + p.description))
-          .map((p) => p.title)
-          .join(", ");
-
-        // Day-consistent colors so same-day events have matching visual style
-        const dayColors = DAY_COLORS[dayOfWeek] || [];
-
-        // Detect features from event name / notes
-        const features: string[] = [];
-        const textLower = `${eventName} ${notes} ${dj}`.toLowerCase();
-        if (/contest|competition|battle|showdown/i.test(textLower)) features.push("Karaoke Contest");
-        if (/prize|cash|win/i.test(textLower)) features.push("Cash Prizes");
-        if (/dj /i.test(textLower) || /dj$/i.test(textLower)) features.push("DJ Set");
-        if (/band|live music/i.test(textLower)) features.push("Live Band");
-        if (/drink|happy hour|special/i.test(textLower)) features.push("Drink Specials");
-
-        const payload = {
-          eventName,
-          venueName,
-          venueAddress: `${venueAddress}${venue?.city ? `, ${venue.city}` : ""}${venue?.state ? `, ${venue.state}` : ""}`,
-          eventDate,
-          startTime: event.start_time || "9:00 PM",
-          endTime: event.end_time || "",
-          coverCharge: "",
-          theme,
-          moodDescription,
-          dressCode: "",
-          specialFeatures: features,
-          drinkSpecials,
-          foodDeals: "",
-          prizes: otherSpecials,
-          promoText: dj ? `Hosted by ${dj}` : "",
-          venueId: event.venue_id,
-          userId: user.id,
-          autoGenerated: true,
-          generatedAt: new Date().toISOString(),
-          ...(dayColors.length > 0 && { colors: dayColors }),
-        };
+        // Pick the visual style
+        const styleName = detectStyle(eventName, notes, dj, dayOfWeek);
+        const venueHash = venueName.split("").reduce((a: number, c: string) => a + c.charCodeAt(0), 0);
+        const prompt = buildPrompt(styleName, venueHash);
 
         try {
-          const res = await fetch(webhookUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
+          // Generate image via Imagen 4.0
+          const imageBuffer = await generateImage(prompt, apiKey);
 
-          if (!res.ok) {
-            throw new Error(`n8n returned ${res.status}`);
-          }
+          // Upload to Supabase storage
+          const fileName = `auto-flyers/${ev.id}-${Date.now()}.png`;
+          const { error: uploadError } = await supabase.storage
+            .from("flyer-uploads")
+            .upload(fileName, imageBuffer, {
+              contentType: "image/png",
+              upsert: true,
+            });
 
-          const result = await res.json();
+          if (uploadError) throw new Error("Upload failed: " + uploadError.message);
 
-          if (!result.success || (!result.imageUrl && !result.imageBase64)) {
-            throw new Error(result.error || "No image returned");
-          }
+          const { data: urlData } = supabase.storage
+            .from("flyer-uploads")
+            .getPublicUrl(fileName);
 
-          // Get the image URL (prefer direct URL over base64)
-          let imageUrl = result.imageUrl;
-
-          // If only base64 was returned, upload it to Supabase storage
-          if (!imageUrl && result.imageBase64) {
-            const fileName = `auto-flyers/${event.id}-${Date.now()}.webp`;
-            const buffer = Buffer.from(result.imageBase64, "base64");
-
-            const { error: uploadError } = await supabase.storage
-              .from("flyer-uploads")
-              .upload(fileName, buffer, {
-                contentType: "image/webp",
-                upsert: true,
-              });
-
-            if (uploadError) throw new Error("Upload failed: " + uploadError.message);
-
-            const { data: urlData } = supabase.storage
-              .from("flyer-uploads")
-              .getPublicUrl(fileName);
-
-            imageUrl = urlData.publicUrl;
-          }
-
-          // Update the event's flyer_url
+          // Update event's flyer_url
           const { error: updateError } = await supabase
             .from("venue_events")
-            .update({ flyer_url: imageUrl })
-            .eq("id", event.id);
+            .update({ flyer_url: urlData.publicUrl })
+            .eq("id", ev.id);
 
           if (updateError) throw new Error("DB update failed: " + updateError.message);
 
-          return { eventId: event.id, venueName, theme, success: true };
+          return { venue: venueName, event: eventName, style: styleName, success: true };
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : "Unknown error";
           throw new Error(`${venueName} — ${eventName}: ${msg}`);
@@ -306,27 +214,29 @@ export async function POST() {
       })
     );
 
-    for (const result of results) {
+    for (const result of chunkResults) {
       if (result.status === "fulfilled") {
         generated++;
+        results.push(result.value);
       } else {
         failed++;
         errors.push(result.reason?.message || "Unknown error");
       }
     }
 
-    // Small delay between batches to avoid rate limits
-    if (i + BATCH_SIZE < events.length) {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+    // Delay between requests to respect rate limits
+    if (i + BATCH_SIZE < batch.length) {
+      await new Promise((resolve) => setTimeout(resolve, 5000));
     }
   }
 
   return NextResponse.json({
     success: true,
-    message: `Generated ${generated} flyers. ${failed > 0 ? `${failed} failed.` : "All succeeded!"}`,
+    message: `Generated ${generated} flyers via Imagen 4.0. ${failed > 0 ? `${failed} failed.` : "All succeeded!"}`,
     generated,
     failed,
-    total: events.length,
+    total: batch.length,
+    results: results.slice(0, 20),
     errors: errors.length > 0 ? errors.slice(0, 10) : undefined,
   });
 }
