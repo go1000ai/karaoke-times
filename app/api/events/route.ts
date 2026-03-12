@@ -244,8 +244,8 @@ export async function GET() {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    // Fetch synced events (CSV-sourced) and all active venue_events from DB in parallel
-    const [syncResult, dbResult] = await Promise.all([
+    // Fetch synced events (CSV-sourced), active venue_events, and inactive venue_events in parallel
+    const [syncResult, dbResult, inactiveResult] = await Promise.all([
       supabase
         .from("synced_events")
         .select("events_json, synced_at")
@@ -255,19 +255,30 @@ export async function GET() {
         .from("venue_events")
         .select("id, venue_id, day_of_week, event_name, dj, start_time, end_time, notes, flyer_url, is_active, venues(name, address, city, state, zip_code, neighborhood, cross_street, phone, website)")
         .neq("is_active", false),
+      supabase
+        .from("venue_events")
+        .select("day_of_week, venues(name)")
+        .eq("is_active", false),
     ]);
+
+    // Build blocklist: inactive venue+day combos that should be suppressed from synced_events
+    const blockedKeys = new Set<string>();
+    for (const ie of (inactiveResult.data || [])) {
+      const name = (ie.venues as any)?.name;
+      if (name) blockedKeys.add(`${normalizeName(name)}|${normalizeDay(ie.day_of_week || "")}`);
+    }
 
     const syncedEvents = (syncResult.data?.events_json && Array.isArray(syncResult.data.events_json))
       ? syncResult.data.events_json as Record<string, unknown>[]
       : [];
 
-    // Deduplicate synced events (normalize dayOfWeek before dedup to prevent
-    // variants like "Bi Monthly Sundays" and "Bi-Monthly Sundays" both appearing)
+    // Deduplicate synced events; also suppress any that have been deactivated in venue_events
     const seen = new Set<string>();
     const events = syncedEvents.filter((e) => {
       const rawDay = (e.dayOfWeek as string) || "";
       const normalizedDay = normalizeDay(rawDay);
       const key = `${normalizeName((e.venueName as string) || "")}|${normalizedDay}`;
+      if (blockedKeys.has(key)) return false; // admin marked inactive
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -434,15 +445,6 @@ export async function GET() {
       }
     }
 
-    // Normalize non-standard dayOfWeek values to standard days
-    for (const ev of events) {
-      if (ev.dayOfWeek) {
-        const normalized = normalizeDay(ev.dayOfWeek as string);
-        if (normalized !== ev.dayOfWeek) {
-          ev.dayOfWeek = normalized;
-        }
-      }
-    }
 
     // Final dedup pass: catch any remaining duplicates after all normalization
     const finalSeen = new Set<string>();

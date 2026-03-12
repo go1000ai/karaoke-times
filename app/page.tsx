@@ -151,14 +151,19 @@ const VenueCard = memo(function VenueCard({
         </p>
 
         {/* Notes */}
-        {event.notes && (
+        {(event.notes || DAY_NORMALIZE[event.dayOfWeek]) && (
           <p className="text-text-secondary text-xs leading-relaxed mb-3">
             {event.notes}
+            {DAY_NORMALIZE[event.dayOfWeek] && (
+              <span className="text-primary font-semibold">
+                {event.notes ? " · " : ""}{event.dayOfWeek}
+              </span>
+            )}
           </p>
         )}
 
         {/* Cross street */}
-        {event.crossStreet && (
+        {event.crossStreet && event.crossStreet.toLowerCase() !== "n/a" && (
           <p className="text-text-muted text-[10px] mb-3">
             <span className="material-icons-round text-[10px] align-middle mr-0.5">near_me</span>
             Near {event.crossStreet}
@@ -177,7 +182,7 @@ const VenueCard = memo(function VenueCard({
             {event.startTime && (
               <span className="shrink-0 inline-flex items-center gap-1 bg-primary/10 text-primary text-[10px] px-2.5 py-1 rounded-full font-bold">
                 <span className="material-icons-round text-xs">schedule</span>
-                {event.startTime}{event.endTime ? ` – ${event.endTime}` : ""}
+                {event.startTime}{event.endTime && event.endTime !== event.startTime ? ` – ${event.endTime}` : ""}
               </span>
             )}
             {event.dj && event.dj !== "Open" && (() => {
@@ -279,6 +284,20 @@ export default function HomePage() {
   const scrollRef = useScrollReveal();
   const router = useRouter();
   const isMobile = useIsMobile();
+
+  // Build venue detail URL with event data as fallback params (for synced-only venues not in Supabase)
+  const venueDetailUrl = (event: KaraokeEvent) => {
+    const p = new URLSearchParams({ name: event.venueName });
+    if (event.dayOfWeek) p.set("day", event.dayOfWeek);
+    if (event.address) p.set("address", event.address);
+    if (event.neighborhood) p.set("neighborhood", event.neighborhood);
+    if (event.startTime) p.set("startTime", event.startTime);
+    if (event.endTime) p.set("endTime", event.endTime);
+    if (event.dj) p.set("dj", event.dj);
+    if (event.notes) p.set("notes", event.notes);
+    if (event.phone) p.set("phone", event.phone);
+    return `/venue/${event.id}?${p}`;
+  };
   const { user } = useAuth();
   const [activeDay, setActiveDay] = useState<string>("All");
   const [searchQuery, setSearchQuery] = useState("");
@@ -877,7 +896,7 @@ export default function HomePage() {
                       <VenueCard
                         key={`${event.id}-${event.dayOfWeek}-${idx}`}
                         event={event}
-                        onClick={() => setSelectedEvent(event)}
+                        onClick={() => router.push(venueDetailUrl(event))}
                         showActions={!!user}
                         isFavorited={favorites.has(event.id)}
                         onToggleFavorite={() => toggleFavorite(event.id)}
@@ -909,7 +928,7 @@ export default function HomePage() {
                 <VenueCard
                         key={`${event.id}-${event.dayOfWeek}-${idx}`}
                         event={event}
-                        onClick={() => setSelectedEvent(event)}
+                        onClick={() => router.push(venueDetailUrl(event))}
                         showActions={!!user}
                         isFavorited={favorites.has(event.id)}
                         onToggleFavorite={() => toggleFavorite(event.id)}

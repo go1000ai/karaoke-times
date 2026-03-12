@@ -113,6 +113,8 @@ export async function updateEvent(
     drink_minimum?: string;
     restrictions?: string[];
     flyer_url?: string | null;
+    website?: string | null;
+    is_active?: boolean;
   }
 ) {
   await requireAdmin();

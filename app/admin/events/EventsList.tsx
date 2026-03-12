@@ -24,6 +24,7 @@ interface VenueEvent {
   cover_charge?: string | null;
   drink_minimum?: string | null;
   restrictions?: string[] | null;
+  website?: string | null;
   venues: { name: string } | null;
 }
 
@@ -287,6 +288,8 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
       happy_hour_details: (fd.get("happy_hour_details") as string) || null,
       dress_code: (fd.get("dress_code") as string) || "casual",
       cover_charge: (fd.get("cover_charge") as string) || "free",
+      website: (fd.get("website") as string) || null,
+      is_active: editEvent.is_active !== false,
       flyer_url: flyerUrl,
     };
 
@@ -743,6 +746,37 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
                   placeholder="Special details, drink specials, etc."
                   className={`${inputClass} resize-none`}
                 />
+              </div>
+
+              {/* Website */}
+              <div>
+                <label className={labelClass}>Website / Booking URL</label>
+                <input
+                  type="url"
+                  name="website"
+                  defaultValue={editEvent.website || ""}
+                  placeholder="https://..."
+                  className={inputClass}
+                />
+              </div>
+
+              {/* Active / Inactive */}
+              <div className="flex items-center justify-between glass-card rounded-xl px-4 py-3">
+                <div>
+                  <p className="text-sm font-bold text-white">Event Status</p>
+                  <p className="text-xs text-text-muted mt-0.5">Inactive events are hidden from the public site</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditEvent((prev) => prev ? { ...prev, is_active: !prev.is_active } : prev)}
+                  className={`px-4 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                    editEvent.is_active !== false
+                      ? "bg-green-500/20 text-green-400 hover:bg-green-500/30"
+                      : "bg-red-500/20 text-red-400 hover:bg-red-500/30"
+                  }`}
+                >
+                  {editEvent.is_active !== false ? "Active" : "Inactive"}
+                </button>
               </div>
 
               {/* ── Flyer Upload ── */}

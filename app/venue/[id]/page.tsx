@@ -100,9 +100,18 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
   const dayParam = searchParams.get("day");
   // Venue name passed from listing page — used as fallback if Supabase lookup fails
   const nameParam = searchParams.get("name");
+  // Extra event data passed as URL params — fallback for synced-only venues not in Supabase
+  const urlAddress = searchParams.get("address");
+  const urlNeighborhood = searchParams.get("neighborhood");
+  const urlStartTime = searchParams.get("startTime");
+  const urlEndTime = searchParams.get("endTime");
+  const urlDj = searchParams.get("dj");
+  const urlNotes = searchParams.get("notes");
+  const urlPhone = searchParams.get("phone");
   // Detect the target day from URL param or slug (e.g. "fusion-east-monday" → "Monday")
+  // Normalize so "Every 3rd Monday" → "Monday" for DB matching
   const targetDay = (() => {
-    if (dayParam) return dayParam;
+    if (dayParam) return normalizeDay(dayParam);
     if (!isUUID(id)) {
       const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
       const slugLower = id.toLowerCase();
@@ -140,7 +149,7 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
         normalizeVenueName(e.venueName) === normalizeVenueName(mockVenueByName.name))
     : [];
 
-  // Resolved venue: mock data first → Supabase → mock-by-name fallback (for UUID routes where Supabase lookup failed)
+  // Resolved venue: mock data first → Supabase → mock-by-name → URL param fallback (synced-only venues)
   const venue = mockVenue || (dbVenue ? {
     id: dbVenue.id,
     name: dbVenue.name,
@@ -164,6 +173,18 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
     isPrivateRoom: mockVenueByName.isPrivateRoom,
     latitude: mockVenueByName.latitude,
     longitude: mockVenueByName.longitude,
+  } : nameParam && !loading ? {
+    // Final fallback: venue exists only in synced_events — build from URL params
+    id: id,
+    name: nameParam,
+    address: urlAddress || "",
+    city: "",
+    state: "",
+    neighborhood: urlNeighborhood || "",
+    image: null as string | null,
+    isPrivateRoom: false,
+    latitude: null as number | null,
+    longitude: null as number | null,
   } : null);
 
   // Build event from DB events when mock event is not available
@@ -191,10 +212,24 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
     ? (mockEventsByName.find((e) => normalizeDay(e.dayOfWeek) === targetDay) ?? mockEventsByName[0])
     : mockEventsByName[0];
 
-  // Combined event: prefer mock data by ID, then day-matched venue/DB/mock events
-  const event = mockEvent || venueEventForDay || dbEventAsEvent || mockEventForDay;
+  // URL-param fallback event for synced-only venues not in Supabase
+  const urlParamEvent = !mockEvent && !venueEventForDay && !dbEventAsEvent && !mockEventForDay && nameParam ? {
+    id: id,
+    dayOfWeek: dayParam || "",
+    eventName: "Karaoke Night",
+    venueName: nameParam,
+    startTime: urlStartTime || "",
+    endTime: urlEndTime || "",
+    dj: urlDj || "",
+    notes: urlNotes || "",
+    phone: urlPhone || "",
+    image: null,
+  } : null;
 
-  const phone = venuePhone || event?.phone || "";
+  // Combined event: prefer mock data by ID, then day-matched venue/DB/mock events
+  const event = mockEvent || venueEventForDay || dbEventAsEvent || mockEventForDay || urlParamEvent;
+
+  const phone = venuePhone || event?.phone || urlPhone || "";
 
   // Fetch venue from Supabase when not found in mock data
   useEffect(() => {
@@ -212,16 +247,21 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
         if (data) { setDbVenue(data as SupabaseVenue); setLoading(false); return; }
       }
 
-      // Fallback: extract venue name from slug and search by name
-      // "patriot-lounge-tuesday" → try matching "patriot lounge" against venue names
-      const slug = id.replace(/-/g, " ");
-      const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
-      // Remove day suffix if present
-      let namePart = slug;
-      for (const day of days) {
-        if (slug.endsWith(` ${day}`)) {
-          namePart = slug.slice(0, -(day.length + 1));
-          break;
+      // Fallback: search by name — prefer ?name= param, then extract from slug
+      let namePart: string;
+      if (nameParam) {
+        // URL carries the venue name explicitly (e.g. ?name=Pitch)
+        namePart = nameParam;
+      } else {
+        // Extract from slug: "patriot-lounge-tuesday" → "patriot lounge"
+        const slug = id.replace(/-/g, " ");
+        const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+        namePart = slug;
+        for (const day of days) {
+          if (slug.endsWith(` ${day}`)) {
+            namePart = slug.slice(0, -(day.length + 1));
+            break;
+          }
         }
       }
 
@@ -232,10 +272,15 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
       if (matches) {
         // Find best match: compare normalized names
         const norm = namePart.toLowerCase().replace(/[^a-z0-9]/g, "");
-        const match = matches.find((v) => {
-          const vNorm = v.name.toLowerCase().replace(/[^a-z0-9]/g, "");
-          return vNorm === norm || vNorm.includes(norm) || norm.includes(vNorm);
-        });
+        // Exact match first (always)
+        let match = matches.find((v) => v.name.toLowerCase().replace(/[^a-z0-9]/g, "") === norm);
+        // Partial match only when name came from slug (no nameParam) and exact fails
+        if (!match && !nameParam) {
+          match = matches.find((v) => {
+            const vNorm = v.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+            return vNorm.includes(norm) || norm.includes(vNorm);
+          });
+        }
         if (match) { setDbVenue(match as SupabaseVenue); setLoading(false); return; }
       }
 
@@ -258,12 +303,12 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
       .then(({ data }) => {
         if (data?.length) {
           setDbEvents(data as DbEvent[]);
-          // Pick the flyer matching the target day, or today's day, or first available
-          const todayDay = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date().getDay()];
+          // Pick the flyer matching the target day only.
+          // Don't fall back to other days — that would show the wrong image.
           const dayMatch = data.find((e: any) => e.flyer_url && normalizeDay(e.day_of_week) === targetDay);
-          const todayMatch = data.find((e: any) => e.flyer_url && e.day_of_week === todayDay);
-          const anyMatch = data.find((e: any) => e.flyer_url);
-          const best = dayMatch || todayMatch || anyMatch;
+          // Only use a non-day flyer if there's no targetDay at all (e.g. UUID route with no day param)
+          const fallback = !targetDay ? data.find((e: any) => e.flyer_url) : null;
+          const best = dayMatch || fallback;
           if (best?.flyer_url) setEventFlyerUrl(best.flyer_url);
         }
       });
@@ -453,9 +498,9 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
       <div className="max-w-4xl mx-auto">
         {/* Hero */}
         <div className="relative h-56 mt-20 bg-gradient-to-br from-primary/20 via-card-dark to-accent/10 flex items-center justify-center">
-          {(eventFlyerUrl || venueMediaImage || event?.image || venue.image || findVenueImage(venue.name, targetDay || event?.dayOfWeek) || venue.name) ? (
+          {(eventFlyerUrl || event?.image || venue.image || findVenueImage(venue.name, targetDay || event?.dayOfWeek) || venueMediaImage || venue.name) ? (
             <img
-              src={eventFlyerUrl || venueMediaImage || event?.image || venue.image || findVenueImage(venue.name, targetDay || event?.dayOfWeek) || `/api/venue-image?venue=${encodeURIComponent(venue.name)}&event=${encodeURIComponent((event as any)?.eventName || "")}&day=${encodeURIComponent(targetDay || (event as any)?.dayOfWeek || "")}&dj=${encodeURIComponent((event as any)?.dj || "")}`}
+              src={eventFlyerUrl || event?.image || venue.image || findVenueImage(venue.name, targetDay || event?.dayOfWeek) || venueMediaImage || `/api/venue-image?venue=${encodeURIComponent(venue.name)}&event=${encodeURIComponent((event as any)?.eventName || "")}&day=${encodeURIComponent(targetDay || (event as any)?.dayOfWeek || "")}&dj=${encodeURIComponent((event as any)?.dj || "")}`}
               alt={venue.name} className="w-full h-full object-cover" />
           ) : (
             <span className="material-icons-round text-6xl text-primary/30">mic</span>
