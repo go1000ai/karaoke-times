@@ -4,6 +4,16 @@ import { CreateEventForm } from "./CreateEventForm";
 
 const DAY_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
+// Normalize special schedule labels to their base day for grouping
+function normalizeToBaseDay(day: string): string {
+  if (DAY_ORDER.includes(day)) return day;
+  const lower = day.toLowerCase();
+  for (const d of DAY_ORDER) {
+    if (lower.includes(d.toLowerCase())) return d;
+  }
+  return day;
+}
+
 export default async function AdminEventsPage() {
   const supabase = await createClient();
 
@@ -17,14 +27,14 @@ export default async function AdminEventsPage() {
     .select("id, name")
     .order("name");
 
-  // Group by day
+  // Group by base day — special schedules like "Every 3rd Monday" go under "Monday"
   const grouped: Record<string, any[]> = {};
   DAY_ORDER.forEach((day) => { grouped[day] = []; });
 
   (events ?? []).forEach((e: any) => {
-    const day = e.day_of_week || "Unknown";
-    if (!grouped[day]) grouped[day] = [];
-    grouped[day].push(e);
+    const baseDay = normalizeToBaseDay(e.day_of_week || "Unknown");
+    if (!grouped[baseDay]) grouped[baseDay] = [];
+    grouped[baseDay].push(e);
   });
 
   // Fetch upcoming event skips

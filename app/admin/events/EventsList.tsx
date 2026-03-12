@@ -35,6 +35,16 @@ const RECURRENCE_BADGES: Record<string, { label: string; cls: string }> = {
 
 const DAY_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
+const SPECIAL_SCHEDULES = [
+  "Every 3rd Monday",
+  "1st And 3rd Mondays",
+  "1st & 3rd Mondays",
+  "Every 1st & 3rd Saturdays",
+  "Every 1st And 3rd Saturdays",
+  "Bi-Monthly Sundays",
+  "Monthly Fridays",
+];
+
 const RECURRENCE_OPTIONS = [
   { value: "weekly", label: "Every Week" },
   { value: "biweekly", label: "Every 2 Weeks" },
@@ -446,6 +456,11 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
                               {RECURRENCE_BADGES[event.recurrence_type].label}
                             </span>
                           )}
+                          {!DAY_ORDER.includes(event.day_of_week) && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400" title="Special schedule">
+                              {event.day_of_week}
+                            </span>
+                          )}
                           {event.flyer_url && (
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-500/10 text-green-400">Flyer</span>
                           )}
@@ -578,9 +593,16 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
                     defaultValue={editEvent.day_of_week}
                     className={selectClass}
                   >
-                    {DAY_ORDER.map((d) => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
+                    <optgroup label="Standard">
+                      {DAY_ORDER.map((d) => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Special Schedules">
+                      {SPECIAL_SCHEDULES.map((d) => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                    </optgroup>
                   </select>
                 </div>
               </div>

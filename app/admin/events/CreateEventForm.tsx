@@ -20,6 +20,17 @@ interface Venue {
 
 const DAY_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
+// Special/recurring schedule labels stored as-is in day_of_week
+const SPECIAL_SCHEDULES = [
+  "Every 3rd Monday",
+  "1st And 3rd Mondays",
+  "1st & 3rd Mondays",
+  "Every 1st & 3rd Saturdays",
+  "Every 1st And 3rd Saturdays",
+  "Bi-Monthly Sundays",
+  "Monthly Fridays",
+];
+
 const RECURRENCE_OPTIONS = [
   { value: "weekly", label: "Every Week" },
   { value: "biweekly", label: "Every 2 Weeks" },
@@ -374,9 +385,16 @@ export function CreateEventForm({ venues: initialVenues }: { venues: Venue[] }) 
                 <label className={labelClass}>Day of Week *</label>
                 <select name="day_of_week" required className={selectClass}>
                   <option value="">Select day...</option>
-                  {DAY_ORDER.map((d) => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
+                  <optgroup label="Standard">
+                    {DAY_ORDER.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Special Schedules">
+                    {SPECIAL_SCHEDULES.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </optgroup>
                 </select>
               </div>
             </div>
