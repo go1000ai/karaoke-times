@@ -1,0 +1,171 @@
+{
+  "description": "Prompt templates for AI-generated karaoke venue flyer backgrounds. Each style produces a unique visual atmosphere. The generator picks a style based on venue/event characteristics or cycles through them for variety.",
+
+  "base_instructions": "Photorealistic, cinematic composition, ultra high quality, dramatic lighting, rich colors, atmospheric haze and bokeh. ABSOLUTELY NO TEXT OF ANY KIND. No words, no letters, no numbers, no dates, no times, no addresses, no names, no signs with writing, no banners, no captions, no watermarks, no logos, no UI elements. Pure visual atmosphere only. Shot on professional camera with wide angle lens.",
+
+  "styles": {
+    "neon_stage": {
+      "name": "Neon Stage Spotlight",
+      "prompt": "Luxurious karaoke stage interior. Gleaming chrome vintage microphone center stage under a dramatic spotlight. Neon {color1} and {color2} lights piercing through atmospheric haze. Dark audience silhouettes. Bokeh light orbs floating. Velvet curtains. Professional concert lighting rig above.",
+      "colors": [
+        ["purple", "magenta"],
+        ["cyan", "electric blue"],
+        ["hot pink", "violet"],
+        ["emerald green", "teal"],
+        ["crimson red", "amber"]
+      ]
+    },
+    "luxury_lounge": {
+      "name": "VIP Luxury Lounge",
+      "prompt": "Ultra luxurious VIP karaoke lounge interior. Plush velvet seating, gold accents, crystal chandeliers casting warm amber light. Moody {color1} and {color2} LED underglow. Premium cocktail bar in background. Intimate private room vibes. Rich dark wood and leather textures. Atmospheric candle light and bokeh.",
+      "colors": [
+        ["purple", "gold"],
+        ["deep blue", "champagne"],
+        ["ruby red", "warm amber"],
+        ["emerald", "brass"],
+        ["rose gold", "burgundy"]
+      ]
+    },
+    "concert_hall": {
+      "name": "Concert Hall Energy",
+      "prompt": "Epic karaoke concert stage from audience perspective. Massive LED screen wall glowing {color1} and {color2}. Laser beams cutting through fog machine haze. Professional moving head lights creating dramatic patterns. Crowd hands raised in silhouette. Arena rock concert energy. Confetti particles in air.",
+      "colors": [
+        ["electric blue", "white"],
+        ["fire red", "orange"],
+        ["neon green", "cyan"],
+        ["purple", "pink"],
+        ["gold", "white"]
+      ]
+    },
+    "neon_street": {
+      "name": "NYC Neon Nightlife",
+      "prompt": "Atmospheric New York City karaoke bar exterior at night. Glowing neon signs in {color1} and {color2}. Rain-slicked streets reflecting colorful lights. Moody urban nightlife scene. Brick building facade with illuminated entrance. Steam rising from street grates. Cinematic noir aesthetic with vibrant neon accents.",
+      "colors": [
+        ["pink", "blue"],
+        ["red", "yellow"],
+        ["cyan", "purple"],
+        ["green", "orange"],
+        ["magenta", "teal"]
+      ]
+    },
+    "retro_disco": {
+      "name": "Retro Disco Glam",
+      "prompt": "Glamorous retro disco karaoke venue. Spinning mirror disco ball casting {color1} and {color2} light fragments across the room. Funky patterned walls, chrome accents. Vintage microphone on a glowing pedestal. Dance floor with LED tiles. 70s meets modern luxury. Dramatic wide angle shot with lens flare.",
+      "colors": [
+        ["gold", "silver"],
+        ["hot pink", "electric blue"],
+        ["orange", "purple"],
+        ["turquoise", "magenta"],
+        ["red", "gold"]
+      ]
+    },
+    "tropical_night": {
+      "name": "Tropical Night Party",
+      "prompt": "Vibrant tropical themed karaoke bar. Palm leaf decorations with {color1} and {color2} neon accent lighting. Tiki bar aesthetic meets modern nightclub. Exotic cocktails glowing under UV light. Bamboo textures and lush greenery. Warm festive atmosphere with string lights and lanterns. Party vibes.",
+      "colors": [
+        ["lime green", "hot pink"],
+        ["turquoise", "sunset orange"],
+        ["coral", "teal"],
+        ["yellow", "electric blue"],
+        ["magenta", "tropical green"]
+      ]
+    },
+    "underground": {
+      "name": "Underground Speakeasy",
+      "prompt": "Atmospheric underground speakeasy karaoke bar. Exposed brick walls, industrial pipes, and Edison bulb string lights. {color1} and {color2} accent neon tubes mounted on walls. Vintage leather bar stools. Smoky jazz club atmosphere. Microphone stand in spotlight. Dark and mysterious with pockets of warm light.",
+      "colors": [
+        ["amber", "red"],
+        ["blue", "warm white"],
+        ["green", "copper"],
+        ["purple", "gold"],
+        ["cyan", "orange"]
+      ]
+    },
+    "galaxy": {
+      "name": "Galaxy Space Lounge",
+      "prompt": "Futuristic space-themed karaoke lounge. Ceiling designed like a galaxy with stars and nebula projections in {color1} and {color2}. Sleek modern furniture with LED edges. Holographic displays. Microphone floating in a beam of light. Cosmic atmosphere with deep space backdrop. Sci-fi luxury lounge aesthetic.",
+      "colors": [
+        ["deep purple", "cyan"],
+        ["dark blue", "magenta"],
+        ["black", "electric blue"],
+        ["indigo", "pink"],
+        ["teal", "violet"]
+      ]
+    },
+    "rooftop": {
+      "name": "NYC Rooftop Karaoke",
+      "prompt": "Stunning rooftop karaoke setup with New York City skyline at night. {color1} and {color2} string lights and lanterns. Open air stage with professional microphone. Manhattan skyscrapers glittering in background. Elegant lounge furniture. Warm ambient lighting mixed with city glow. Premium outdoor nightlife.",
+      "colors": [
+        ["warm white", "gold"],
+        ["pink", "amber"],
+        ["blue", "champagne"],
+        ["purple", "city lights"],
+        ["green", "warm white"]
+      ]
+    },
+    "hip_hop": {
+      "name": "Hip Hop & R&B Vibes",
+      "prompt": "Urban hip hop themed karaoke venue. Graffiti art walls illuminated by {color1} and {color2} neon. DJ turntables and speakers in background. Street art meets luxury nightclub. Chrome microphone under dramatic single spotlight. Smoke machine haze. Bass-heavy atmosphere you can feel. Raw energy.",
+      "colors": [
+        ["red", "gold"],
+        ["purple", "orange"],
+        ["blue", "pink"],
+        ["green", "yellow"],
+        ["cyan", "red"]
+      ]
+    },
+    "latin_night": {
+      "name": "Latin Night Fiesta",
+      "prompt": "Vibrant Latin karaoke night venue. {color1} and {color2} dramatic lighting over a dance floor. Salsa and reggaeton energy. Colorful papel picado decorations. Professional sound system and microphone. Passionate warm atmosphere with rich textures. Latin American cultural touches mixed with modern nightclub design.",
+      "colors": [
+        ["red", "gold"],
+        ["orange", "hot pink"],
+        ["green", "red"],
+        ["purple", "yellow"],
+        ["turquoise", "coral"]
+      ]
+    },
+    "elegant_stage": {
+      "name": "Elegant Broadway Stage",
+      "prompt": "Elegant theatrical karaoke stage. Rich red velvet curtains dramatically parted. Single spotlight on a golden vintage microphone. {color1} and {color2} theatrical lighting from above. Orchestra pit area visible. Grand theater architecture with ornate gold moldings. Broadway show quality production. Dramatic and refined.",
+      "colors": [
+        ["warm amber", "red"],
+        ["gold", "white"],
+        ["blue", "warm white"],
+        ["pink", "champagne"],
+        ["purple", "gold"]
+      ]
+    }
+  },
+
+  "day_style_hints": {
+    "Monday": ["underground", "elegant_stage", "neon_stage"],
+    "Tuesday": ["neon_street", "luxury_lounge", "hip_hop"],
+    "Wednesday": ["retro_disco", "tropical_night", "galaxy"],
+    "Thursday": ["concert_hall", "neon_stage", "underground"],
+    "Friday": ["concert_hall", "hip_hop", "neon_street", "rooftop"],
+    "Saturday": ["luxury_lounge", "retro_disco", "concert_hall", "galaxy"],
+    "Sunday": ["elegant_stage", "tropical_night", "rooftop"],
+    "Private Room Karaoke": ["luxury_lounge", "galaxy"]
+  },
+
+  "theme_overrides": {
+    "Hip-Hop & R&B Night": "hip_hop",
+    "Latin Karaoke": "latin_night",
+    "Reggaeton Night": "latin_night",
+    "80s/90s Throwback": "retro_disco",
+    "Broadway & Show Tunes": "elegant_stage",
+    "Rock & Metal Karaoke": "concert_hall",
+    "Karaoke Contest": "concert_hall",
+    "Duets Night": "luxury_lounge"
+  },
+
+  "theme_keywords": {
+    "hip_hop": ["hip hop", "hip-hop", "r&b", "rnb", "rap", "urban", "old school"],
+    "latin_night": ["latin", "salsa", "bachata", "reggaeton", "cumbia", "noche"],
+    "retro_disco": ["80s", "90s", "throwback", "retro", "disco", "old school night"],
+    "concert_hall": ["contest", "competition", "battle", "showdown", "rock", "metal", "live band"],
+    "elegant_stage": ["broadway", "show tunes", "musical", "theater", "open mic"],
+    "tropical_night": ["tropical", "island", "caribbean", "jamaican", "tiki"]
+  }
+}
