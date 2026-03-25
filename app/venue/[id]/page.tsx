@@ -40,6 +40,9 @@ interface SupabaseVenue {
   is_private_room: boolean;
   accessibility: string | null;
   website: string | null;
+  instagram: string | null;
+  menu_url: string | null;
+  menu_items: { name: string; description?: string; price?: string; category?: string }[] | null;
 }
 
 interface DbEvent {
@@ -633,11 +636,35 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
                     </a>
                   ) : null;
                 })()}
-                {/* Menu pill — coming soon (not clickable) */}
-                <span className="inline-flex items-center gap-1 bg-gray-500/10 text-gray-500 text-[10px] px-2.5 py-1 rounded-full font-bold cursor-default opacity-50">
-                  <span className="material-icons-round text-xs">menu_book</span>
-                  Menu Coming Soon
-                </span>
+                {/* Menu pill */}
+                {dbVenue?.menu_url ? (
+                  <a
+                    href={dbVenue.menu_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 bg-amber-500/10 text-amber-400 text-[10px] px-2.5 py-1 rounded-full font-bold hover:bg-amber-500/20 transition-colors"
+                  >
+                    <span className="material-icons-round text-xs">restaurant_menu</span>
+                    Menu
+                  </a>
+                ) : (
+                  <span className="inline-flex items-center gap-1 bg-gray-500/10 text-gray-500 text-[10px] px-2.5 py-1 rounded-full font-bold cursor-default opacity-50">
+                    <span className="material-icons-round text-xs">menu_book</span>
+                    Menu Coming Soon
+                  </span>
+                )}
+                {/* Instagram pill */}
+                {dbVenue?.instagram && (
+                  <a
+                    href={dbVenue.instagram.startsWith("http") ? dbVenue.instagram : `https://instagram.com/${dbVenue.instagram.replace("@", "")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 bg-pink-500/10 text-pink-400 text-[10px] px-2.5 py-1 rounded-full font-bold hover:bg-pink-500/20 transition-colors"
+                  >
+                    <span className="material-icons-round text-xs">photo_camera</span>
+                    {dbVenue.instagram.startsWith("http") ? "Instagram" : dbVenue.instagram}
+                  </a>
+                )}
               </div>
             )}
           </div>
@@ -733,12 +760,68 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
                 </a>
               ) : null;
             })()}
-            <div className="flex-1 glass-card rounded-2xl p-4 flex flex-col items-center gap-2 opacity-40 cursor-default">
-              <span className="material-icons-round text-text-muted text-2xl">menu_book</span>
-              <span className="text-xs text-text-muted font-semibold">Menu Coming Soon</span>
-            </div>
+            {dbVenue?.menu_url ? (
+              <a
+                href={dbVenue.menu_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 glass-card rounded-2xl p-4 flex flex-col items-center gap-2 hover:border-amber-500/30 transition-all"
+              >
+                <span className="material-icons-round text-amber-400 text-2xl">restaurant_menu</span>
+                <span className="text-xs text-amber-400 font-semibold">Menu</span>
+              </a>
+            ) : (
+              <div className="flex-1 glass-card rounded-2xl p-4 flex flex-col items-center gap-2 opacity-40 cursor-default">
+                <span className="material-icons-round text-text-muted text-2xl">menu_book</span>
+                <span className="text-xs text-text-muted font-semibold">Menu Coming Soon</span>
+              </div>
+            )}
           </div>
         </section>
+
+        {/* Menu Section */}
+        {dbVenue?.menu_items && dbVenue.menu_items.length > 0 && (
+          <section className="px-5 mt-5">
+            <div className="glass-card rounded-2xl p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="material-icons-round text-amber-400">restaurant_menu</span>
+                <h3 className="text-white font-bold text-lg">Menu</h3>
+                <span className="text-[10px] text-text-muted bg-white/5 px-2 py-0.5 rounded-full">{dbVenue.menu_items.length} items</span>
+              </div>
+              {(() => {
+                // Group by category
+                const categories = new Map<string, typeof dbVenue.menu_items>();
+                for (const item of dbVenue.menu_items!) {
+                  const cat = item.category || "Other";
+                  if (!categories.has(cat)) categories.set(cat, []);
+                  categories.get(cat)!.push(item);
+                }
+                return Array.from(categories.entries()).map(([category, items]) => (
+                  <div key={category} className="mb-4 last:mb-0">
+                    {categories.size > 1 && (
+                      <h4 className="text-xs text-primary font-bold uppercase tracking-wider mb-2">{category}</h4>
+                    )}
+                    <div className="space-y-2">
+                      {items.map((item, idx) => (
+                        <div key={idx} className="flex justify-between items-start gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm text-white font-semibold">{item.name}</p>
+                            {item.description && (
+                              <p className="text-xs text-text-muted mt-0.5 line-clamp-2">{item.description}</p>
+                            )}
+                          </div>
+                          {item.price && (
+                            <span className="text-sm text-primary font-bold shrink-0">{item.price}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+          </section>
+        )}
 
         {/* Live Queue Status */}
         <section className="px-5 mt-5">

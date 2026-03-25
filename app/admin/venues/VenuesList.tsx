@@ -25,6 +25,7 @@ interface Venue {
   booking_url: string | null;
   instagram: string | null;
   menu_url: string | null;
+  menu_items: { name: string; description?: string; price?: string; category?: string }[] | null;
   created_at: string;
   profiles: any;
   _event_count: number;
@@ -53,6 +54,9 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
   // Image upload state
   const supabase = createClient();
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const [menuExtractUrl, setMenuExtractUrl] = useState("");
+  const [menuExtracting, setMenuExtracting] = useState<string | null>(null);
+  const [menuPreview, setMenuPreview] = useState<{ venueId: string; items: { name: string; description?: string; price?: string; category?: string }[] } | null>(null);
   const [editImageFile, setEditImageFile] = useState<File | null>(null);
   const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
   const [removeImage, setRemoveImage] = useState(false);
@@ -268,6 +272,43 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
       }
       setProcessingId(null);
     });
+  }
+
+  async function handleExtractMenu(venueId: string) {
+    if (!menuExtractUrl.trim()) return;
+    setMenuExtracting(venueId);
+    setMenuPreview(null);
+    try {
+      const res = await fetch("/api/admin/extract-menu", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: menuExtractUrl.trim(), venueId }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        alert("Error: " + data.error);
+      } else if (data.items && data.items.length > 0) {
+        if (data.saved) {
+          setVenues((prev) => prev.map((v) => v.id === venueId ? { ...v, menu_items: data.items, menu_url: menuExtractUrl.trim() } : v));
+          setMenuExtractUrl("");
+          setMenuPreview(null);
+        } else {
+          setMenuPreview({ venueId, items: data.items });
+        }
+      } else {
+        alert("No menu items found on that page. Try a different URL.");
+      }
+    } catch {
+      alert("Failed to extract menu. Check the URL and try again.");
+    }
+    setMenuExtracting(null);
+  }
+
+  async function handleClearMenu(venueId: string) {
+    if (!confirm("Remove the extracted menu from this venue?")) return;
+    const sb = createClient();
+    await sb.from("venues").update({ menu_items: null }).eq("id", venueId);
+    setVenues((prev) => prev.map((v) => v.id === venueId ? { ...v, menu_items: null } : v));
   }
 
   const inputClass = "bg-card-dark border border-border rounded-lg py-1.5 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 placeholder:text-text-muted";
@@ -665,6 +706,63 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
                     <span className="text-xs text-text-muted bg-white/5 px-2 py-0.5 rounded-full">
                       {venue._media_count} media
                     </span>
+                  )}
+                </div>
+
+                {/* Menu Extractor */}
+                <div className="mt-3 pt-3 border-t border-border/20">
+                  {venue.menu_items && venue.menu_items.length > 0 ? (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs text-amber-400 font-bold flex items-center gap-1">
+                          <span className="material-icons-round text-xs">restaurant_menu</span>
+                          Menu ({venue.menu_items.length} items)
+                        </span>
+                        <button
+                          onClick={() => handleClearMenu(venue.id)}
+                          className="text-[10px] text-red-400 hover:text-red-300 transition-colors"
+                        >
+                          Remove menu
+                        </button>
+                      </div>
+                      <div className="max-h-32 overflow-y-auto space-y-0.5 bg-white/5 rounded-lg p-2">
+                        {venue.menu_items.map((item, idx) => (
+                          <div key={idx} className="flex justify-between text-xs">
+                            <span className="text-text-secondary truncate mr-2">{item.category ? <span className="text-text-muted">{item.category} · </span> : null}{item.name}</span>
+                            {item.price && <span className="text-primary font-bold shrink-0">{item.price}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input
+                        value={menuExtracting === venue.id ? menuExtractUrl : (menuPreview?.venueId === venue.id ? menuExtractUrl : "")}
+                        onChange={(e) => setMenuExtractUrl(e.target.value)}
+                        onFocus={() => setMenuExtractUrl(venue.menu_url || "")}
+                        placeholder="Paste restaurant menu URL..."
+                        className="flex-1 bg-white/5 border border-border rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-amber-400/30"
+                      />
+                      <button
+                        onClick={() => handleExtractMenu(venue.id)}
+                        disabled={menuExtracting === venue.id}
+                        className="px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 text-xs font-bold hover:bg-amber-500/20 transition-colors disabled:opacity-50 flex items-center gap-1"
+                      >
+                        <span className="material-icons-round text-sm">{menuExtracting === venue.id ? "hourglass_top" : "restaurant_menu"}</span>
+                        {menuExtracting === venue.id ? "Extracting..." : "Extract Menu"}
+                      </button>
+                    </div>
+                  )}
+                  {menuPreview?.venueId === venue.id && (
+                    <div className="mt-2 bg-white/5 rounded-lg p-2 max-h-40 overflow-y-auto">
+                      <p className="text-[10px] text-amber-400 font-bold mb-1">Preview — {menuPreview.items.length} items found (saved automatically)</p>
+                      {menuPreview.items.map((item, idx) => (
+                        <div key={idx} className="flex justify-between text-xs">
+                          <span className="text-text-secondary truncate mr-2">{item.name}</span>
+                          {item.price && <span className="text-primary font-bold shrink-0">{item.price}</span>}
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </div>
 
