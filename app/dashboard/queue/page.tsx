@@ -47,12 +47,12 @@ export default function QueuePage() {
     if (!user) return;
 
     const findVenue = async () => {
-      console.log("[KJ Queue] Finding venue for user:", user.id);
+      // console.log("[KJ Queue] Finding venue for user:", user.id);
 
       // 1. Check cookie for an explicitly-selected venue
       const res = await fetch("/api/active-venue");
       const { venueId: activeId } = await res.json();
-      console.log("[KJ Queue] Cookie active_venue_id:", activeId || "(none)");
+      // console.log("[KJ Queue] Cookie active_venue_id:", activeId || "(none)");
       if (activeId) {
         const { data: venue } = await supabase
           .from("venues")
@@ -60,7 +60,7 @@ export default function QueuePage() {
           .eq("id", activeId)
           .single();
         if (venue) {
-          console.log("[KJ Queue] Using cookie venue:", venue.name, activeId);
+          // console.log("[KJ Queue] Using cookie venue:", venue.name, activeId);
           setVenueId(activeId);
           setVenueName(venue.name);
           setPaused(venue.queue_paused);
@@ -76,7 +76,7 @@ export default function QueuePage() {
         .not("accepted_at", "is", null)
         .limit(1);
 
-      console.log("[KJ Queue] venue_staff records:", staffRecords?.length ?? 0, staffError ? `error: ${staffError.message}` : "");
+      // console.log("[KJ Queue] venue_staff records:", staffRecords?.length ?? 0, staffError ? `error: ${staffError.message}` : "");
 
       if (staffRecords?.[0]) {
         const vid = staffRecords[0].venue_id;
@@ -86,7 +86,7 @@ export default function QueuePage() {
           .select("queue_paused")
           .eq("id", vid)
           .single();
-        console.log("[KJ Queue] Using staff venue:", staffVenueName, vid);
+        // console.log("[KJ Queue] Using staff venue:", staffVenueName, vid);
         setVenueId(vid);
         setVenueName(staffVenueName);
         if (venue) setPaused(venue.queue_paused);
@@ -100,7 +100,7 @@ export default function QueuePage() {
         .eq("owner_id", user.id)
         .single();
 
-      console.log("[KJ Queue] Owned venue:", owned?.name ?? "(none)", ownedError ? `error: ${ownedError.message}` : "");
+      // console.log("[KJ Queue] Owned venue:", owned?.name ?? "(none)", ownedError ? `error: ${ownedError.message}` : "");
 
       if (owned) {
         setVenueId(owned.id);
@@ -137,7 +137,7 @@ export default function QueuePage() {
       if (error) {
         console.error("[KJ Queue] Fetch error:", error.message, "venueId:", venueId);
       } else {
-        console.log("[KJ Queue] Fetched", data?.length ?? 0, "entries for venue", venueId);
+        // console.log("[KJ Queue] Fetched", data?.length ?? 0, "entries for venue", venueId);
       }
 
       setQueue((data as unknown as QueueEntry[]) ?? []);

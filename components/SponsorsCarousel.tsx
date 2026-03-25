@@ -192,6 +192,14 @@ function SponsorCard({ sponsor }: { sponsor: Sponsor }) {
   );
 
   if (sponsor.link_url) {
+    // Venue sponsors should link to our listing, not an external site
+    if (sponsor.category === "venue") {
+      return (
+        <a href={`/search?q=${encodeURIComponent(sponsor.name)}`}>
+          {inner}
+        </a>
+      );
+    }
     return (
       <a href={sponsor.link_url} target="_blank" rel="noopener noreferrer">
         {inner}

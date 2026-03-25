@@ -111,7 +111,7 @@ export default function ReportProblemModal({ open, onClose, venueName, venueId }
                 Please sign in to report a problem with this listing.
               </p>
               <a
-                href="/auth"
+                href="/signin"
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-accent text-black font-bold text-sm hover:bg-accent/90 transition-colors"
               >
                 <span className="material-icons-round text-lg">login</span>

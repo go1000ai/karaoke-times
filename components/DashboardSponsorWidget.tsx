@@ -92,6 +92,13 @@ export default function DashboardSponsorWidget() {
   );
 
   if (s.link_url) {
+    if (s.category === "venue") {
+      return (
+        <a href={`/search?q=${encodeURIComponent(s.name)}`} className="block px-3 mb-2">
+          {inner}
+        </a>
+      );
+    }
     return (
       <a href={s.link_url} target="_blank" rel="noopener noreferrer" className="block px-3 mb-2">
         {inner}
