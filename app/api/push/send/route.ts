@@ -25,8 +25,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing userId or body" }, { status: 400 });
   }
 
-  const supabase = await createClient();
-
   // Get user's push subscription
   const { data: sub } = await supabase
     .from("push_subscriptions")
