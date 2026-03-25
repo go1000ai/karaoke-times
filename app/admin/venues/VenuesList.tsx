@@ -23,6 +23,8 @@ interface Venue {
   cross_street: string;
   hours_open: string | null;
   booking_url: string | null;
+  instagram: string | null;
+  menu_url: string | null;
   created_at: string;
   profiles: any;
   _event_count: number;
@@ -108,6 +110,8 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
       is_private_room: venue.is_private_room,
       accessibility: venue.accessibility || "",
       booking_url: venue.booking_url || "",
+      instagram: venue.instagram || "",
+      menu_url: venue.menu_url || "",
     });
     setEditImageFile(null);
     setEditImagePreview(venue._primary_image);
@@ -224,6 +228,8 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
         is_private_room: editForm.is_private_room ?? false,
         accessibility: editForm.accessibility || null,
         booking_url: editForm.booking_url || null,
+        instagram: editForm.instagram || null,
+        menu_url: editForm.menu_url || null,
       });
       if (result.success) {
         const updatedImage = editImageFile ? newImageUrl : removeImage ? null : undefined;
@@ -246,6 +252,8 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
                   is_private_room: editForm.is_private_room ?? v.is_private_room,
                   accessibility: editForm.accessibility || null,
                   booking_url: editForm.booking_url || null,
+                  instagram: editForm.instagram || null,
+                  menu_url: editForm.menu_url || null,
                   _primary_image: updatedImage !== undefined ? updatedImage : v._primary_image,
                 }
               : v
@@ -459,6 +467,28 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
                   </div>
                 </div>
 
+                {/* Instagram & Menu */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Instagram</label>
+                    <input
+                      value={editForm.instagram || ""}
+                      onChange={(e) => setEditForm({ ...editForm, instagram: e.target.value })}
+                      placeholder="@venuename or URL"
+                      className={`${inputClass} w-full`}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Menu URL</label>
+                    <input
+                      value={editForm.menu_url || ""}
+                      onChange={(e) => setEditForm({ ...editForm, menu_url: e.target.value })}
+                      placeholder="https://example.com/menu"
+                      className={`${inputClass} w-full`}
+                    />
+                  </div>
+                </div>
+
                 {/* Hours of Operation */}
                 <div>
                   <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Hours of Operation</label>
@@ -576,7 +606,7 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
                 <p className="text-xs text-text-secondary mt-1">
                   {venue.address} — {venue.neighborhood ? `${venue.neighborhood}, ` : ""}{venue.city}, {venue.state}{venue.zip_code ? ` ${venue.zip_code}` : ""}
                 </p>
-                {(venue.phone || venue.hours_open) && (
+                {(venue.phone || venue.hours_open || venue.instagram || venue.menu_url) && (
                   <div className="flex items-center gap-3 mt-1 flex-wrap">
                     {venue.phone && (
                       <span className="text-xs text-text-muted flex items-center gap-0.5">
@@ -589,6 +619,28 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
                         <span className="material-icons-round text-xs">schedule</span>
                         {venue.hours_open.split("\n")[0]}
                       </span>
+                    )}
+                    {venue.instagram && (
+                      <a
+                        href={venue.instagram.startsWith("http") ? venue.instagram : `https://instagram.com/${venue.instagram.replace("@", "")}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-pink-400 flex items-center gap-0.5 hover:text-pink-300 transition-colors"
+                      >
+                        <span className="material-icons-round text-xs">photo_camera</span>
+                        {venue.instagram.startsWith("http") ? "Instagram" : venue.instagram}
+                      </a>
+                    )}
+                    {venue.menu_url && (
+                      <a
+                        href={venue.menu_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-amber-400 flex items-center gap-0.5 hover:text-amber-300 transition-colors"
+                      >
+                        <span className="material-icons-round text-xs">restaurant_menu</span>
+                        Menu
+                      </a>
                     )}
                   </div>
                 )}

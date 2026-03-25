@@ -204,6 +204,30 @@ const VenueCard = memo(function VenueCard({
                 </span>
               );
             })()}
+            {event.instagram && (
+              <a
+                href={event.instagram.startsWith("http") ? event.instagram : `https://instagram.com/${event.instagram.replace("@", "")}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 min-w-0 bg-pink-500/10 text-pink-400 text-[10px] px-2.5 py-1 rounded-full font-bold hover:bg-pink-500/20 transition-colors"
+              >
+                <span className="material-icons-round text-xs shrink-0">photo_camera</span>
+                <span className="truncate">{event.instagram.startsWith("http") ? "Instagram" : event.instagram}</span>
+              </a>
+            )}
+            {event.menuUrl && (
+              <a
+                href={event.menuUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 min-w-0 bg-amber-500/10 text-amber-400 text-[10px] px-2.5 py-1 rounded-full font-bold hover:bg-amber-500/20 transition-colors"
+              >
+                <span className="material-icons-round text-xs shrink-0">restaurant_menu</span>
+                <span className="truncate">Menu</span>
+              </a>
+            )}
           </div>
 
           {/* Actions */}

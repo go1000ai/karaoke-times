@@ -21,6 +21,8 @@ export interface KaraokeEvent {
   website: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  instagram?: string | null;
+  menuUrl?: string | null;
 }
 
 export const DAY_ORDER = [

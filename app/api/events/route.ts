@@ -253,7 +253,7 @@ export async function GET() {
         .single(),
       supabase
         .from("venue_events")
-        .select("id, venue_id, day_of_week, event_name, dj, start_time, end_time, notes, flyer_url, is_active, venues(name, address, city, state, zip_code, neighborhood, cross_street, phone, website)")
+        .select("id, venue_id, day_of_week, event_name, dj, start_time, end_time, notes, flyer_url, is_active, venues(name, address, city, state, zip_code, neighborhood, cross_street, phone, website, instagram, menu_url)")
         .neq("is_active", false),
       supabase
         .from("venue_events")
@@ -312,6 +312,8 @@ export async function GET() {
         notes: ve.notes || "",
         image: ve.flyer_url || null,
         website: venue.website || null,
+        instagram: venue.instagram || null,
+        menuUrl: venue.menu_url || null,
         isPrivateRoom: false,
         bookingUrl: null,
       });
@@ -326,7 +328,7 @@ export async function GET() {
         .eq("type", "image"),
       supabase
         .from("venues")
-        .select("id, name"),
+        .select("id, name, instagram, menu_url"),
     ]);
 
     // Build venue_id → primary image map
@@ -338,8 +340,14 @@ export async function GET() {
     // Build venue name → venue_id map from ALL venues (not just venue_events)
     // This ensures every venue can be looked up for venue_media images
     const venueIdMap = new Map<string, string>();
+    const venueInstagramMap = new Map<string, string>();
+    const venueMenuMap = new Map<string, string>();
     for (const v of allVenues || []) {
-      if (v.name) venueIdMap.set(normalizeName(v.name), v.id);
+      if (v.name) {
+        venueIdMap.set(normalizeName(v.name), v.id);
+        if (v.instagram) venueInstagramMap.set(normalizeName(v.name), v.instagram);
+        if (v.menu_url) venueMenuMap.set(normalizeName(v.name), v.menu_url);
+      }
     }
 
     // Build flyer maps: by name+day, by venue_id+day
@@ -445,6 +453,15 @@ export async function GET() {
       }
     }
 
+
+    // Enrich all events with instagram/menu from venue data
+    for (const ev of events) {
+      const venueKey = ev.venueName ? normalizeName(ev.venueName as string) : null;
+      if (venueKey) {
+        if (!ev.instagram) ev.instagram = venueInstagramMap.get(venueKey) || null;
+        if (!ev.menuUrl) ev.menuUrl = venueMenuMap.get(venueKey) || null;
+      }
+    }
 
     // Final dedup pass: catch any remaining duplicates after all normalization
     const finalSeen = new Set<string>();
