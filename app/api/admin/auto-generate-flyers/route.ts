@@ -111,23 +111,30 @@ export async function POST(request: Request) {
   // Check for optional body params
   let limit: number | undefined;
   let forceRegenerate = false;
+  let venueEventIds: string[] | undefined;
   try {
     const body = await request.json();
     limit = body?.limit;
     forceRegenerate = body?.forceRegenerate === true;
+    venueEventIds = Array.isArray(body?.venueEventIds) ? body.venueEventIds : undefined;
   } catch {
     // No body — that's fine
   }
 
   // Find events that need flyers
+  // If venueEventIds provided: regenerate only those specific events
   // If forceRegenerate: include events with auto-generated flyers too
+  // Otherwise: only events without any flyer
   let query = supabase
     .from("venue_events")
     .select("id, venue_id, day_of_week, event_name, dj, notes, venues(name, address, city)")
     .eq("is_active", true)
     .order("day_of_week");
 
-  if (forceRegenerate) {
+  if (venueEventIds && venueEventIds.length > 0) {
+    // Regenerate specific events by ID (always regenerate regardless of flyer status)
+    query = query.in("id", venueEventIds);
+  } else if (forceRegenerate) {
     // Get events with no flyer OR with auto-generated flyers
     query = query.or("flyer_url.is.null,flyer_url.like.*auto-flyers*");
   } else {

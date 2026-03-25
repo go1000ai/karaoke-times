@@ -1,9 +1,24 @@
 import type { Metadata, Viewport } from "next";
+import { Plus_Jakarta_Sans, Mr_Dafoe } from "next/font/google";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/components/AuthProvider";
 import GlobalNav from "@/components/GlobalNav";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import "./globals.css";
+
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800"],
+  variable: "--font-jakarta",
+  display: "swap",
+});
+
+const mrDafoe = Mr_Dafoe({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-dafoe",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Karaoke Times NYC",
@@ -35,28 +50,17 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className={`${plusJakarta.variable} ${mrDafoe.variable}`}>
       <head>
         <link
-          rel="preconnect"
-          href="https://fonts.googleapis.com"
-        />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
+          rel="preload"
+          href="/fonts/material-icons-round.woff2"
+          as="font"
+          type="font/woff2"
           crossOrigin="anonymous"
         />
         <link
-          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Mr+Dafoe&display=swap"
-          rel="stylesheet"
-        />
-        <link
-          rel="preload"
-          href="https://fonts.googleapis.com/icon?family=Material+Icons+Round&display=block"
-          as="style"
-        />
-        <link
-          href="https://fonts.googleapis.com/icon?family=Material+Icons+Round&display=block"
+          href="/fonts/material-icons.css"
           rel="stylesheet"
         />
       </head>

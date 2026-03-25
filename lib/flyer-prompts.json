@@ -1,7 +1,7 @@
 {
   "description": "Prompt templates for AI-generated karaoke venue flyer backgrounds. Each style produces a unique visual atmosphere. The generator picks a style based on venue/event characteristics or cycles through them for variety.",
 
-  "base_instructions": "Photorealistic, cinematic composition, ultra high quality, dramatic lighting, rich colors, atmospheric haze and bokeh. ABSOLUTELY NO TEXT OF ANY KIND. No words, no letters, no numbers, no dates, no times, no addresses, no names, no signs with writing, no banners, no captions, no watermarks, no logos, no UI elements. Pure visual atmosphere only. Shot on professional camera with wide angle lens.",
+  "base_instructions": "Photorealistic, cinematic composition, ultra high quality, dramatic lighting, rich colors, atmospheric haze and bokeh. NO DATES, NO TIMES, NO ADDRESSES, NO PHONE NUMBERS, NO WEBSITES. Do not include any specific dates (e.g. February 19th), day of week, times, street addresses, phone numbers, or URLs. Venue name or event name as stylized neon signage is acceptable. No watermarks or logos. Shot on professional camera with wide angle lens.",
 
   "styles": {
     "neon_stage": {

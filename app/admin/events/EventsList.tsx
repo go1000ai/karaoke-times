@@ -100,6 +100,13 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
   const [skips, setSkips] = useState<EventSkip[]>(initialSkips);
   const [skipModal, setSkipModal] = useState<{ eventId: string; eventName: string; dayOfWeek: string } | null>(null);
   const [skipReason, setSkipReason] = useState("");
+  const [skipReasonType, setSkipReasonType] = useState("custom");
+  const [skipStartDate, setSkipStartDate] = useState<string | null>(null);
+  const [skipEndDate, setSkipEndDate] = useState<string | null>(null);
+  const [skipCalendarMonth, setSkipCalendarMonth] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() };
+  });
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   // Edit modal state
@@ -199,15 +206,40 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
     return skips.filter((s) => s.event_id === eventId);
   }
 
-  function handleSkip(eventId: string, skipDate: string, reason?: string) {
+  function handleSkipRange(eventId: string, startDate: string, endDate: string, dayOfWeek: string, reason?: string) {
+    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const targetIdx = days.indexOf(dayOfWeek);
+
+    // Collect all occurrences of dayOfWeek between startDate and endDate
+    const dates: string[] = [];
+    const current = new Date(startDate + "T12:00:00");
+    const end = new Date(endDate + "T12:00:00");
+
+    // Move to the first matching day of week
+    while (current.getDay() !== targetIdx && current <= end) {
+      current.setDate(current.getDate() + 1);
+    }
+    // Collect all matching dates
+    while (current <= end) {
+      dates.push(current.toISOString().split("T")[0]);
+      current.setDate(current.getDate() + 7);
+    }
+
+    if (dates.length === 0) return;
+
     startTransition(async () => {
-      const result = await skipEventWeek(eventId, skipDate, reason);
-      if (result?.success) {
-        setSkips((prev) => [...prev, { id: crypto.randomUUID(), event_id: eventId, skip_date: skipDate, reason: reason || null, created_by: null }]);
+      for (const skipDate of dates) {
+        const result = await skipEventWeek(eventId, skipDate, reason);
+        if (result?.success) {
+          setSkips((prev) => [...prev, { id: crypto.randomUUID(), event_id: eventId, skip_date: skipDate, reason: reason || null, created_by: null }]);
+        }
       }
     });
     setSkipModal(null);
     setSkipReason("");
+    setSkipReasonType("custom");
+    setSkipStartDate(null);
+    setSkipEndDate(null);
   }
 
   function handleRemoveSkip(skipId: string) {
@@ -907,47 +939,191 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
         </div>
       )}
 
-      {/* ═══ Skip This Week Modal ═══ */}
-      {skipModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setSkipModal(null); setSkipReason(""); }} />
-          <div className="relative bg-card-dark border border-border rounded-2xl p-5 w-full max-w-sm z-10 mx-4">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="material-icons-round text-amber-400">event_busy</span>
-              <h3 className="text-white font-bold">Skip This Week</h3>
-            </div>
-            <p className="text-text-secondary text-sm mb-3">
-              Mark <strong className="text-white">{skipModal.eventName}</strong> as off for:
-            </p>
-            <p className="text-primary font-bold text-lg mb-3">
-              {new Date(getNextOccurrence(skipModal.dayOfWeek) + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
-            </p>
-            <div className="mb-4">
-              <label className="text-xs text-text-muted uppercase tracking-wider font-bold mb-1.5 block">Reason (optional)</label>
-              <input
-                value={skipReason}
-                onChange={(e) => setSkipReason(e.target.value)}
-                placeholder="e.g. KJ unavailable, holiday..."
-                className="w-full bg-white/5 border border-border rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-amber-400/30"
-              />
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleSkip(skipModal.eventId, getNextOccurrence(skipModal.dayOfWeek), skipReason || undefined)}
-                className="flex-1 bg-amber-500 text-black font-bold text-sm py-2.5 rounded-xl hover:bg-amber-400 transition-colors"
-              >
-                Confirm Skip
-              </button>
-              <button
-                onClick={() => { setSkipModal(null); setSkipReason(""); }}
-                className="px-4 py-2.5 bg-white/5 text-text-secondary font-semibold text-sm rounded-xl hover:bg-white/10 transition-colors"
-              >
-                Cancel
-              </button>
+      {/* ═══ Skip Event Modal with Calendar ═══ */}
+      {skipModal && (() => {
+        const { year, month } = skipCalendarMonth;
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const monthName = new Date(year, month).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+        const today = new Date().toISOString().split("T")[0];
+        const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        const targetDayIdx = days.indexOf(skipModal.dayOfWeek);
+
+        // Count occurrences in selected range
+        const selectedDates: string[] = [];
+        if (skipStartDate && skipEndDate) {
+          const cur = new Date(skipStartDate + "T12:00:00");
+          const end = new Date(skipEndDate + "T12:00:00");
+          while (cur.getDay() !== targetDayIdx && cur <= end) cur.setDate(cur.getDate() + 1);
+          while (cur <= end) {
+            selectedDates.push(cur.toISOString().split("T")[0]);
+            cur.setDate(cur.getDate() + 7);
+          }
+        }
+
+        const skipReasonOptions = [
+          { value: "KJ unavailable", label: "KJ unavailable" },
+          { value: "Holiday", label: "Holiday" },
+          { value: "Private event", label: "Private event" },
+          { value: "Venue closed", label: "Venue closed" },
+          { value: "Weather/emergency", label: "Weather / emergency" },
+          { value: "Renovation/maintenance", label: "Renovation / maintenance" },
+          { value: "custom", label: "Custom reason..." },
+        ];
+
+        const finalReason = skipReasonType === "custom" ? skipReason : skipReasonType;
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setSkipModal(null); setSkipReason(""); setSkipReasonType("custom"); setSkipStartDate(null); setSkipEndDate(null); }} />
+            <div className="relative bg-card-dark border border-border rounded-2xl p-5 w-full max-w-md z-10 mx-4">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="material-icons-round text-amber-400">event_busy</span>
+                <h3 className="text-white font-bold">Skip Event</h3>
+              </div>
+              <p className="text-text-secondary text-sm mb-4">
+                Select dates to skip <strong className="text-white">{skipModal.eventName}</strong> ({skipModal.dayOfWeek}s)
+              </p>
+
+              {/* Calendar */}
+              <div className="bg-white/5 rounded-xl p-3 mb-4">
+                {/* Month navigation */}
+                <div className="flex items-center justify-between mb-3">
+                  <button
+                    onClick={() => setSkipCalendarMonth((prev) => prev.month === 0 ? { year: prev.year - 1, month: 11 } : { ...prev, month: prev.month - 1 })}
+                    className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors"
+                  >
+                    <span className="material-icons-round text-white text-sm">chevron_left</span>
+                  </button>
+                  <span className="text-white text-sm font-bold">{monthName}</span>
+                  <button
+                    onClick={() => setSkipCalendarMonth((prev) => prev.month === 11 ? { year: prev.year + 1, month: 0 } : { ...prev, month: prev.month + 1 })}
+                    className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors"
+                  >
+                    <span className="material-icons-round text-white text-sm">chevron_right</span>
+                  </button>
+                </div>
+                {/* Day headers */}
+                <div className="grid grid-cols-7 gap-1 mb-1">
+                  {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
+                    <div key={d} className="text-center text-[10px] text-text-muted font-bold py-1">{d}</div>
+                  ))}
+                </div>
+                {/* Day cells */}
+                <div className="grid grid-cols-7 gap-1">
+                  {Array.from({ length: firstDay }).map((_, i) => <div key={`empty-${i}`} />)}
+                  {Array.from({ length: daysInMonth }).map((_, i) => {
+                    const day = i + 1;
+                    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                    const isPast = dateStr < today;
+                    const isStart = skipStartDate === dateStr;
+                    const isEnd = skipEndDate === dateStr;
+                    const isInRange = skipStartDate && skipEndDate && dateStr >= skipStartDate && dateStr <= skipEndDate;
+                    const isMatchingDay = selectedDates.includes(dateStr);
+
+                    return (
+                      <button
+                        key={day}
+                        disabled={isPast}
+                        onClick={() => {
+                          if (!skipStartDate || (skipStartDate && skipEndDate)) {
+                            // Start new selection
+                            setSkipStartDate(dateStr);
+                            setSkipEndDate(null);
+                          } else {
+                            // Set end date
+                            if (dateStr < skipStartDate) {
+                              setSkipEndDate(skipStartDate);
+                              setSkipStartDate(dateStr);
+                            } else {
+                              setSkipEndDate(dateStr);
+                            }
+                          }
+                        }}
+                        className={`w-full aspect-square rounded-lg text-xs font-semibold transition-colors flex items-center justify-center ${
+                          isPast
+                            ? "text-text-muted/30 cursor-not-allowed"
+                            : isStart || isEnd
+                              ? "bg-amber-500 text-black"
+                              : isMatchingDay
+                                ? "bg-amber-500/40 text-amber-200 ring-1 ring-amber-500"
+                                : isInRange
+                                  ? "bg-amber-500/15 text-amber-300"
+                                  : "text-white hover:bg-white/10"
+                        }`}
+                      >
+                        {day}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Selection summary */}
+              {skipStartDate && (
+                <div className="mb-4 bg-amber-500/10 rounded-xl px-3 py-2">
+                  <p className="text-amber-300 text-xs font-semibold">
+                    {!skipEndDate ? (
+                      <>From: {new Date(skipStartDate + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} — click an end date</>
+                    ) : (
+                      <>
+                        {new Date(skipStartDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })} — {new Date(skipEndDate + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        <span className="text-amber-400 ml-2">({selectedDates.length} {skipModal.dayOfWeek}{selectedDates.length !== 1 ? "s" : ""} will be skipped)</span>
+                      </>
+                    )}
+                  </p>
+                </div>
+              )}
+
+              {/* Reason dropdown */}
+              <div className="mb-3">
+                <label className="text-xs text-text-muted uppercase tracking-wider font-bold mb-1.5 block">Reason</label>
+                <select
+                  value={skipReasonType}
+                  onChange={(e) => { setSkipReasonType(e.target.value); if (e.target.value !== "custom") setSkipReason(""); }}
+                  className="w-full bg-white/5 border border-border rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-400/30 cursor-pointer"
+                >
+                  {skipReasonOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Custom reason input */}
+              {skipReasonType === "custom" && (
+                <div className="mb-4">
+                  <input
+                    value={skipReason}
+                    onChange={(e) => setSkipReason(e.target.value)}
+                    placeholder="Enter your reason..."
+                    className="w-full bg-white/5 border border-border rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-amber-400/30"
+                  />
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    if (skipStartDate && skipEndDate) {
+                      handleSkipRange(skipModal.eventId, skipStartDate, skipEndDate, skipModal.dayOfWeek, finalReason || undefined);
+                    }
+                  }}
+                  disabled={!skipStartDate || !skipEndDate || selectedDates.length === 0}
+                  className="flex-1 bg-amber-500 text-black font-bold text-sm py-2.5 rounded-xl hover:bg-amber-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {selectedDates.length > 0 ? `Skip ${selectedDates.length} ${skipModal.dayOfWeek}${selectedDates.length !== 1 ? "s" : ""}` : "Select dates"}
+                </button>
+                <button
+                  onClick={() => { setSkipModal(null); setSkipReason(""); setSkipReasonType("custom"); setSkipStartDate(null); setSkipEndDate(null); }}
+                  className="px-4 py-2.5 bg-white/5 text-text-secondary font-semibold text-sm rounded-xl hover:bg-white/10 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

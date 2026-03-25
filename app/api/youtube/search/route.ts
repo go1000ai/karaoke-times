@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
+  // Auth check — only logged-in users can search YouTube
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const query = req.nextUrl.searchParams.get("q");
   if (!query) {
     return NextResponse.json({ error: "Missing query" }, { status: 400 });

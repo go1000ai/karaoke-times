@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 
@@ -239,9 +239,9 @@ function findVenueImage(venueName: string, eventDay?: string | null): string | n
 // Public endpoint: returns synced events merged with venue_events from DB
 export async function GET() {
   try {
-    const supabase = createClient(
+    const supabase = createSupabaseClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
 
     // Fetch synced events (CSV-sourced), active venue_events, and inactive venue_events in parallel
@@ -404,7 +404,17 @@ export async function GET() {
         }
       }
 
-      // 2. Admin curated static images (/venues/*.jpg) — day-aware
+      // 2. Gemini auto-generated flyer (stored in auto-flyers/)
+      if (venueKey && normalizedDay) {
+        const dayKey = `${venueKey}|${normalizedDay}`;
+        const autoFlyer = autoFlyerMap.get(dayKey);
+        if (autoFlyer) {
+          ev.image = autoFlyer;
+          continue;
+        }
+      }
+
+      // 3. Admin curated static images (/venues/*.jpg) — day-aware
       if (ev.venueName) {
         const staticImg = findVenueImage(ev.venueName as string, normalizedDay);
         if (staticImg) {
@@ -413,7 +423,7 @@ export async function GET() {
         }
       }
 
-      // 3. venue_media primary image (admin uploaded via dashboard)
+      // 4. venue_media primary image (admin uploaded via dashboard)
       if (venueKey) {
         const vid = venueIdMap.get(venueKey);
         if (vid) {
@@ -422,16 +432,6 @@ export async function GET() {
             ev.image = mediaImg;
             continue;
           }
-        }
-      }
-
-      // 4. Gemini auto-generated flyer (stored in auto-flyers/)
-      if (venueKey && normalizedDay) {
-        const dayKey = `${venueKey}|${normalizedDay}`;
-        const autoFlyer = autoFlyerMap.get(dayKey);
-        if (autoFlyer) {
-          ev.image = autoFlyer;
-          continue;
         }
       }
 

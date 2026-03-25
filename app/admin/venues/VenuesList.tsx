@@ -631,26 +631,34 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
                     ))}
                   </select>
                   <div className="flex items-center gap-2 ml-auto">
-                    <button
-                      onClick={() => startEdit(venue)}
-                      className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center hover:bg-blue-500/20 transition-colors"
-                      title="Edit venue"
-                    >
-                      <span className="material-icons-round text-blue-400 text-sm">edit</span>
-                    </button>
-                    <Link
-                      href={`/venue/${venue.id}`}
-                      className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center hover:bg-primary/20 transition-colors"
-                    >
-                      <span className="material-icons-round text-primary text-sm">visibility</span>
-                    </Link>
-                    <button
-                      onClick={() => handleDelete(venue.id, venue.name)}
-                      disabled={isPending && processingId === venue.id}
-                      className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center hover:bg-red-500/20 transition-colors disabled:opacity-50"
-                    >
-                      <span className="material-icons-round text-red-400 text-sm">delete</span>
-                    </button>
+                    <div className="relative group">
+                      <button
+                        onClick={() => startEdit(venue)}
+                        className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center hover:bg-blue-500/20 transition-colors"
+                      >
+                        <span className="material-icons-round text-blue-400 text-sm">edit</span>
+                      </button>
+                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-[11px] font-semibold text-white bg-black/90 rounded-md whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity">Edit venue</span>
+                    </div>
+                    <div className="relative group">
+                      <Link
+                        href={`/venue/${venue.id}`}
+                        className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center hover:bg-primary/20 transition-colors"
+                      >
+                        <span className="material-icons-round text-primary text-sm">visibility</span>
+                      </Link>
+                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-[11px] font-semibold text-white bg-black/90 rounded-md whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity">View venue</span>
+                    </div>
+                    <div className="relative group">
+                      <button
+                        onClick={() => handleDelete(venue.id, venue.name)}
+                        disabled={isPending && processingId === venue.id}
+                        className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                      >
+                        <span className="material-icons-round text-red-400 text-sm">delete</span>
+                      </button>
+                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-[11px] font-semibold text-white bg-black/90 rounded-md whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity">Delete venue</span>
+                    </div>
                   </div>
                 </div>
               </>

@@ -45,6 +45,7 @@ export const adminNavSections: NavSection[] = [
     links: [
       { href: "/admin/reviews", icon: "rate_review", label: "Reviews" },
       { href: "/admin/promos", icon: "local_offer", label: "Promos" },
+      { href: "/admin/sponsors", icon: "business", label: "Sponsors" },
     ],
   },
   {

@@ -40,7 +40,6 @@ interface SupabaseVenue {
   is_private_room: boolean;
   accessibility: string | null;
   website: string | null;
-  menu_url: string | null;
 }
 
 interface DbEvent {
@@ -241,7 +240,7 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
       if (isUUID(id)) {
         const { data } = await supabase
           .from("venues")
-          .select("id, name, address, city, state, neighborhood, is_private_room, accessibility, website, menu_url")
+          .select("id, name, address, city, state, neighborhood, is_private_room, accessibility, website")
           .eq("id", id)
           .single();
         if (data) { setDbVenue(data as SupabaseVenue); setLoading(false); return; }
@@ -267,7 +266,7 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
 
       const { data: matches } = await supabase
         .from("venues")
-        .select("id, name, address, city, state, neighborhood, is_private_room, accessibility, website, menu_url");
+        .select("id, name, address, city, state, neighborhood, is_private_room, accessibility, website");
 
       if (matches) {
         // Find best match: compare normalized names
@@ -618,6 +617,27 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
                     compact
                   />
                 )}
+                {/* Website pill */}
+                {(() => {
+                  const isRealUrl = (u?: string | null) => !!u && u !== "N/A" && u !== "n/a" && u.startsWith("http");
+                  const websiteUrl = isRealUrl(dbVenue?.website) ? dbVenue!.website : null;
+                  return websiteUrl ? (
+                    <a
+                      href={websiteUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 bg-blue-500/10 text-blue-400 text-[10px] px-2.5 py-1 rounded-full font-bold hover:bg-blue-500/20 transition-colors"
+                    >
+                      <span className="material-icons-round text-xs">language</span>
+                      Website
+                    </a>
+                  ) : null;
+                })()}
+                {/* Menu pill — coming soon (not clickable) */}
+                <span className="inline-flex items-center gap-1 bg-gray-500/10 text-gray-500 text-[10px] px-2.5 py-1 rounded-full font-bold cursor-default opacity-50">
+                  <span className="material-icons-round text-xs">menu_book</span>
+                  Menu Coming Soon
+                </span>
               </div>
             )}
           </div>
@@ -696,38 +716,28 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
           </div>
 
           {/* Website and Menu buttons — only shown when a real URL exists */}
-          {(() => {
-            const isRealUrl = (u?: string | null) => !!u && u !== "N/A" && u !== "n/a" && u.startsWith("http");
-            const websiteUrl = isRealUrl(dbVenue?.website) ? dbVenue!.website : isRealUrl((event as any)?.website) ? (event as any).website : null;
-            const menuUrl = isRealUrl(dbVenue?.menu_url) ? dbVenue!.menu_url : null;
-            if (!websiteUrl && !menuUrl) return null;
-            return (
-              <div className="flex gap-3 mt-3">
-                {websiteUrl && (
-                  <a
-                    href={websiteUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 glass-card rounded-2xl p-4 flex flex-col items-center gap-2 hover:border-primary/30 transition-all"
-                  >
-                    <span className="material-icons-round text-primary text-2xl">language</span>
-                    <span className="text-xs text-text-secondary font-semibold">Website</span>
-                  </a>
-                )}
-                {menuUrl && (
-                  <a
-                    href={menuUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 glass-card rounded-2xl p-4 flex flex-col items-center gap-2 hover:border-primary/30 transition-all"
-                  >
-                    <span className="material-icons-round text-primary text-2xl">menu_book</span>
-                    <span className="text-xs text-text-secondary font-semibold">Menu</span>
-                  </a>
-                )}
-              </div>
-            );
-          })()}
+          {/* Website + Menu buttons */}
+          <div className="flex gap-3 mt-3">
+            {(() => {
+              const isRealUrl = (u?: string | null) => !!u && u !== "N/A" && u !== "n/a" && u.startsWith("http");
+              const websiteUrl = isRealUrl(dbVenue?.website) ? dbVenue!.website : isRealUrl((event as any)?.website) ? (event as any).website : null;
+              return websiteUrl ? (
+                <a
+                  href={websiteUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 glass-card rounded-2xl p-4 flex flex-col items-center gap-2 hover:border-primary/30 transition-all"
+                >
+                  <span className="material-icons-round text-primary text-2xl">language</span>
+                  <span className="text-xs text-text-secondary font-semibold">Website</span>
+                </a>
+              ) : null;
+            })()}
+            <div className="flex-1 glass-card rounded-2xl p-4 flex flex-col items-center gap-2 opacity-40 cursor-default">
+              <span className="material-icons-round text-text-muted text-2xl">menu_book</span>
+              <span className="text-xs text-text-muted font-semibold">Menu Coming Soon</span>
+            </div>
+          </div>
         </section>
 
         {/* Live Queue Status */}

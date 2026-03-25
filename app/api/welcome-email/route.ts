@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { getWelcomeEmailHtml } from "@/lib/email-templates";
+import { createClient } from "@/lib/supabase/server";
+
+export const runtime = "edge";
 
 export async function POST(request: NextRequest) {
+  // Auth check — only logged-in users (or admins) can trigger welcome emails
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { email, displayName } = await request.json();
 
   if (!email) {

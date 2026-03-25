@@ -1,6 +1,13 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
+
+interface VenueEventEntry {
+  id: string;
+  day_of_week: string;
+  flyer_url: string | null;
+  venueName: string;
+}
 
 // Matches the actual Google Sheet column order (A–P)
 const DEFAULT_COLUMNS = [
@@ -48,6 +55,12 @@ export default function SyncPage() {
   const [cleanupDetails, setCleanupDetails] = useState<string[]>([]);
   const [generating, setGenerating] = useState(false);
   const [generateProgress, setGenerateProgress] = useState<string | null>(null);
+  const [venueEvents, setVenueEvents] = useState<VenueEventEntry[]>([]);
+  const [venueEventsLoading, setVenueEventsLoading] = useState(false);
+  const [venueSearch, setVenueSearch] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [regeneratingSelected, setRegeneratingSelected] = useState(false);
+  const [regenerateProgress, setRegenerateProgress] = useState<string | null>(null);
 
   async function handleCleanupDuplicates() {
     if (!confirm("This will remove duplicate events (same venue + day), keeping the best version. Continue?")) return;
@@ -120,6 +133,41 @@ export default function SyncPage() {
       setResult({ success: false, message: "Network error or timeout. The generation may still be running on the server." });
     } finally {
       setGenerating(false);
+    }
+  }
+
+  async function loadVenueEvents() {
+    setVenueEventsLoading(true);
+    try {
+      const res = await fetch("/api/admin/list-venue-events");
+      const data = await res.json();
+      if (data.events) setVenueEvents(data.events);
+    } catch {
+      // ignore
+    } finally {
+      setVenueEventsLoading(false);
+    }
+  }
+
+  async function handleRegenerateSelected() {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Regenerate AI flyers for ${selectedIds.size} selected event(s)?`)) return;
+    setRegeneratingSelected(true);
+    setRegenerateProgress("Generating...");
+    try {
+      const res = await fetch("/api/admin/auto-generate-flyers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ venueEventIds: Array.from(selectedIds) }),
+      });
+      const data = await res.json();
+      setRegenerateProgress(`Done. ${data.generated} regenerated${data.failed ? `, ${data.failed} failed` : ""}.`);
+      setSelectedIds(new Set());
+      loadVenueEvents(); // refresh the list
+    } catch {
+      setRegenerateProgress("Error — please try again.");
+    } finally {
+      setRegeneratingSelected(false);
     }
   }
 
@@ -517,6 +565,129 @@ export default function SyncPage() {
 
         {generateProgress && (
           <p className="text-xs text-purple-400 mt-3">{generateProgress}</p>
+        )}
+      </div>
+
+      {/* Regenerate Individual Flyers */}
+      <div className="glass-card rounded-2xl p-6 mt-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 rounded-xl bg-cyan-400/10 flex items-center justify-center">
+            <span className="material-icons-round text-cyan-400 text-2xl">image_search</span>
+          </div>
+          <div className="flex-1">
+            <h3 className="text-white font-bold">Regenerate Individual Flyers</h3>
+            <p className="text-xs text-text-muted">Select specific venues to regenerate their AI flyer</p>
+          </div>
+          <button
+            onClick={loadVenueEvents}
+            disabled={venueEventsLoading}
+            className="text-xs text-cyan-400 hover:text-cyan-300 font-semibold flex items-center gap-1 transition-colors"
+          >
+            <span className="material-icons-round text-sm">{venueEventsLoading ? "hourglass_empty" : "refresh"}</span>
+            {venueEvents.length === 0 ? "Load Events" : "Refresh"}
+          </button>
+        </div>
+
+        {venueEvents.length > 0 && (
+          <>
+            <input
+              type="text"
+              value={venueSearch}
+              onChange={(e) => setVenueSearch(e.target.value)}
+              placeholder="Search venues..."
+              className="w-full bg-card-dark border border-border rounded-xl py-2.5 px-4 text-sm text-white mb-3 focus:outline-none focus:ring-1 focus:ring-cyan-400/40 placeholder:text-text-muted"
+            />
+
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-text-muted">
+                {selectedIds.size > 0 ? `${selectedIds.size} selected` : "None selected"}
+              </span>
+              <button
+                onClick={() => {
+                  const filtered = venueEvents.filter((e) =>
+                    `${e.venueName} ${e.day_of_week}`.toLowerCase().includes(venueSearch.toLowerCase())
+                  );
+                  if (selectedIds.size === filtered.length) {
+                    setSelectedIds(new Set());
+                  } else {
+                    setSelectedIds(new Set(filtered.map((e) => e.id)));
+                  }
+                }}
+                className="text-xs text-text-muted hover:text-white transition-colors"
+              >
+                Select all / none
+              </button>
+            </div>
+
+            <div className="max-h-96 overflow-y-auto mb-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-1.5">
+              {venueEvents
+                .filter((e) =>
+                  `${e.venueName} ${e.day_of_week}`.toLowerCase().includes(venueSearch.toLowerCase())
+                )
+                .map((e) => {
+                  const hasAI = e.flyer_url?.includes("auto-flyers/");
+                  const hasKJ = e.flyer_url && !hasAI;
+                  const isSelected = selectedIds.has(e.id);
+                  return (
+                    <label
+                      key={e.id}
+                      className={`flex flex-col gap-1 p-2.5 rounded-lg cursor-pointer transition-colors border ${
+                        isSelected
+                          ? "bg-cyan-400/10 border-cyan-400/30"
+                          : "border-transparent hover:bg-white/5 hover:border-white/10"
+                      }`}
+                    >
+                      <div className="flex items-start gap-1.5">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {
+                            const next = new Set(selectedIds);
+                            if (next.has(e.id)) next.delete(e.id);
+                            else next.add(e.id);
+                            setSelectedIds(next);
+                          }}
+                          className="accent-cyan-400 mt-0.5 flex-shrink-0"
+                        />
+                        <span className="text-xs text-white font-medium leading-tight line-clamp-2">{e.venueName}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-1 pl-4">
+                        <span className="text-xs text-text-muted truncate">{e.day_of_week}</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0 ${
+                          hasKJ ? "bg-yellow-500/15 text-yellow-400" :
+                          hasAI ? "bg-purple-500/15 text-purple-400" :
+                          "bg-white/5 text-text-muted"
+                        }`}>
+                          {hasKJ ? "KJ" : hasAI ? "AI" : "—"}
+                        </span>
+                      </div>
+                    </label>
+                  );
+                })}
+            </div>
+
+            <button
+              onClick={handleRegenerateSelected}
+              disabled={regeneratingSelected || selectedIds.size === 0}
+              className="w-full bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-cyan-500/30 transition-all disabled:opacity-50"
+            >
+              {regeneratingSelected ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <span className="material-icons-round text-sm">auto_awesome</span>
+                  Regenerate Selected ({selectedIds.size})
+                </>
+              )}
+            </button>
+
+            {regenerateProgress && (
+              <p className="text-xs text-cyan-400 mt-2">{regenerateProgress}</p>
+            )}
+          </>
         )}
       </div>
 

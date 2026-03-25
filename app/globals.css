@@ -11,8 +11,8 @@
   --color-text-muted: #64748B;
   --color-border: rgba(255, 255, 255, 0.1);
 
-  --font-display: "Plus Jakarta Sans", sans-serif;
-  --font-script: "Mr Dafoe", cursive;
+  --font-display: var(--font-jakarta), "Plus Jakarta Sans", sans-serif;
+  --font-script: var(--font-dafoe), "Mr Dafoe", cursive;
 
   --animate-fadeIn: fadeIn 0.7s ease-out;
   --animate-tv-slideIn: tvSlideIn 1s cubic-bezier(0.16, 1, 0.3, 1) both;

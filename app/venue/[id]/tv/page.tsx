@@ -38,6 +38,14 @@ interface MediaItem {
   type: "image" | "video";
 }
 
+interface Sponsor {
+  id: string;
+  name: string;
+  logo_url: string | null;
+  category: string;
+  tagline: string | null;
+}
+
 interface SingerHighlight {
   id: string;
   title: string | null;
@@ -92,6 +100,7 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
   const [promos, setPromos] = useState<Promo[]>([]);
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [singerHighlights, setSingerHighlights] = useState<SingerHighlight[]>([]);
+  const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [slideIndex, setSlideIndex] = useState(0);
   const [tvSettings, setTvSettings] = useState<TVSettings>(DEFAULT_SETTINGS);
 
@@ -273,6 +282,19 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
         if (data) setSingerHighlights(data as unknown as SingerHighlight[]);
       });
   }, [id]);
+
+  /* ── Fetch active sponsors for ticker bar ───────────── */
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from("sponsors")
+      .select("id, name, logo_url, category, tagline")
+      .eq("is_active", true)
+      .order("display_order")
+      .then(({ data }) => {
+        if (data && data.length > 0) setSponsors(data as Sponsor[]);
+      });
+  }, []);
 
   /* ── Build slides array from available data + settings ── */
   const slides: Slide[] = useMemo(() => {
@@ -619,6 +641,71 @@ export default function TVDisplayPage({ params }: { params: Promise<{ id: string
             )}
           </div>
         )}
+      </div>
+
+      {/* ── Sponsors Ticker Bar ──────────────────────────── */}
+      {sponsors.length > 0 && (
+        <SponsorsTicker sponsors={sponsors} />
+      )}
+    </div>
+  );
+}
+
+/* ── Sponsors Ticker ───────────────────────────────────── */
+
+function SponsorsTicker({ sponsors }: { sponsors: Sponsor[] }) {
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    let raf: number;
+    let pos = 0;
+    const speed = 0.6;
+
+    function step() {
+      const half = track!.scrollWidth / 2;
+      pos += speed;
+      if (pos >= half) pos = 0;
+      track!.style.transform = `translateX(-${pos}px)`;
+      raf = requestAnimationFrame(step);
+    }
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [sponsors]);
+
+  const items = [...sponsors, ...sponsors, ...sponsors];
+
+  return (
+    <div className="flex-shrink-0 bg-black/60 border-t border-white/5 overflow-hidden h-14 flex items-center">
+      <div className="flex-shrink-0 px-4 border-r border-white/10 mr-4">
+        <p className="text-[10px] text-text-muted uppercase tracking-widest font-bold whitespace-nowrap">
+          Presented By
+        </p>
+      </div>
+      <div className="flex-1 overflow-hidden">
+        <div ref={trackRef} className="flex items-center gap-8 w-max will-change-transform">
+          {items.map((s, i) => (
+            <div key={`${s.id}-${i}`} className="flex items-center gap-2.5 flex-shrink-0">
+              {s.logo_url ? (
+                <img
+                  src={s.logo_url}
+                  alt={s.name}
+                  className="h-7 w-auto object-contain brightness-75"
+                />
+              ) : (
+                <span className="material-icons-round text-text-muted text-xl">business</span>
+              )}
+              <div>
+                <p className="text-white/60 text-xs font-bold leading-tight whitespace-nowrap">{s.name}</p>
+                {s.tagline && (
+                  <p className="text-text-muted text-[10px] leading-tight whitespace-nowrap">{s.tagline}</p>
+                )}
+              </div>
+              <span className="text-white/10 text-lg ml-2">|</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

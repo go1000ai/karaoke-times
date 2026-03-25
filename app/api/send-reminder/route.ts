@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
+import { createClient } from "@/lib/supabase/server";
+
+export const runtime = "edge";
 
 export async function POST(request: NextRequest) {
+  // Auth check — only logged-in users can send reminders
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { email, eventTitle, venueName, dayOfWeek, startTime, endTime, location } =
     await request.json();
 

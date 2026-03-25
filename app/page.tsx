@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, useCallback, useMemo, memo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import BottomNav from "@/components/BottomNav";
 import { useAuth } from "@/components/AuthProvider";
 import { TubesBackground } from "@/components/ui/neon-flow";
@@ -12,6 +12,7 @@ import { karaokeEvents as staticEvents, DAY_ORDER, DAY_NORMALIZE, searchKJs, get
 
 import { extractYouTubeVideoId, getYouTubeThumbnail } from "@/lib/youtube";
 import CircularGallery, { type GalleryItem } from "@/components/CircularGallery";
+import SponsorsCarousel from "@/components/SponsorsCarousel";
 
 const GALLERY_ITEMS: GalleryItem[] = [
   { title: "Fusion East", subtitle: "Lower East Side, Manhattan", image: "/venues/fusion-east-monday.jpg", label: "Monday Night" },
@@ -236,6 +237,102 @@ function isZipCode(value: string): boolean {
   return /^\d{5}$/.test(value.trim());
 }
 
+const SPONSOR_CATEGORY_ICONS: Record<string, string> = {
+  liquor: "local_bar",
+  equipment: "speaker",
+  entertainment: "music_note",
+  venue: "storefront",
+  general: "business",
+};
+
+const SPONSOR_CATEGORY_LABELS: Record<string, string> = {
+  liquor: "Featured Spirits",
+  equipment: "Featured Equipment",
+  entertainment: "Entertainment",
+  venue: "Featured Venue",
+  general: "Featured Partner",
+};
+
+const SponsorAdCard = memo(function SponsorAdCard({ sponsor }: {
+  sponsor: { id: string; name: string; logo_url: string | null; link_url: string | null; category: string; tagline: string | null };
+}) {
+  const icon = SPONSOR_CATEGORY_ICONS[sponsor.category] ?? "business";
+  const catLabel = SPONSOR_CATEGORY_LABELS[sponsor.category] ?? "Featured Partner";
+
+  const inner = (
+    <div className="glass-card rounded-2xl overflow-hidden border-primary/20 hover:border-primary/40 transition-all group cursor-pointer flex flex-col h-full">
+      {/* Banner area */}
+      <div className="h-52 relative overflow-hidden bg-gradient-to-br from-primary/5 via-card-dark to-accent/5 flex items-center justify-center flex-shrink-0">
+        {sponsor.logo_url ? (
+          <img
+            src={sponsor.logo_url}
+            alt={sponsor.name}
+            className="max-h-28 max-w-[70%] object-contain filter brightness-90 group-hover:brightness-110 transition-all"
+          />
+        ) : (
+          <span className="material-icons-round text-primary/30 text-8xl">{icon}</span>
+        )}
+        {/* Sponsored badge */}
+        <div className="absolute top-3 left-3 bg-primary/90 text-black text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
+          Sponsored
+        </div>
+        {/* Category badge */}
+        <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-sm text-text-muted text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+          <span className="material-icons-round text-[12px]">{icon}</span>
+          {catLabel}
+        </div>
+      </div>
+
+      {/* Info */}
+      <div className="p-5 flex flex-col flex-1">
+        <h4 className="font-bold text-white text-lg leading-tight mb-1">{sponsor.name}</h4>
+        {sponsor.tagline ? (
+          <p className="text-text-secondary text-xs mb-3">{sponsor.tagline}</p>
+        ) : (
+          <p className="text-text-secondary text-xs mb-3">{catLabel}</p>
+        )}
+        <div className="mt-auto">
+          <span className="inline-flex items-center gap-1.5 text-primary text-xs font-bold">
+            Learn more
+            <span className="material-icons-round text-sm">arrow_forward</span>
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (sponsor.link_url) {
+    return (
+      <a href={sponsor.link_url} target="_blank" rel="noopener noreferrer">
+        {inner}
+      </a>
+    );
+  }
+  return inner;
+});
+
+type ListingItem =
+  | { type: "event"; data: KaraokeEvent; eventIdx: number }
+  | { type: "sponsor"; data: { id: string; name: string; logo_url: string | null; link_url: string | null; category: string; tagline: string | null }; key: string };
+
+function mixWithSponsors(
+  events: KaraokeEvent[],
+  sponsors: { id: string; name: string; logo_url: string | null; link_url: string | null; category: string; tagline: string | null }[],
+  interval = 6
+): ListingItem[] {
+  if (sponsors.length === 0) return events.map((data, eventIdx) => ({ type: "event", data, eventIdx }));
+  const result: ListingItem[] = [];
+  let sponsorCursor = 0;
+  for (let i = 0; i < events.length; i++) {
+    result.push({ type: "event", data: events[i], eventIdx: i });
+    if ((i + 1) % interval === 0) {
+      result.push({ type: "sponsor", data: sponsors[sponsorCursor % sponsors.length], key: `sponsor-${i}` });
+      sponsorCursor++;
+    }
+  }
+  return result;
+}
+
 // Resolve day abbreviations to full day names for search
 const DAY_ALIASES: Record<string, string> = {
   mon: "monday", monday: "monday", mondays: "monday",
@@ -305,10 +402,23 @@ export default function HomePage() {
     router.push(venueDetailUrl(event));
   };
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const tabBarRef = useRef<HTMLDivElement>(null);
   const [activeDay, setActiveDay] = useState<string>("All");
+
+  // Sync activeDay with ?day= URL param
+  useEffect(() => {
+    const dayParam = searchParams.get("day");
+    if (dayParam) {
+      setActiveDay(dayParam);
+      setTimeout(() => {
+        tabBarRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 400);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<KaraokeEvent | null>(null);
   const [searchFilter, setSearchFilter] = useState<"all" | "kjs" | "venues">("all");
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [karaokeEvents, setKaraokeEvents] = useState<KaraokeEvent[]>([]);
@@ -325,6 +435,14 @@ export default function HomePage() {
     singer?: { display_name: string | null };
     venue?: { name: string | null };
   }[]>([]);
+  const [listingSponsors, setListingSponsors] = useState<{
+    id: string;
+    name: string;
+    logo_url: string | null;
+    link_url: string | null;
+    category: string;
+    tagline: string | null;
+  }[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const eventsByDay = useMemo(() => {
     const grouped: Record<string, KaraokeEvent[]> = {};
@@ -335,7 +453,6 @@ export default function HomePage() {
     }
     return grouped;
   }, [karaokeEvents]);
-  const tabBarRef = useRef<HTMLDivElement>(null);
 
   // Restore active day and scroll position when returning from venue detail
   useEffect(() => {
@@ -383,6 +500,14 @@ export default function HomePage() {
       .limit(6)
       .then(({ data }) => {
         if (data) setFeaturedSingers(data as any);
+      });
+    supabase
+      .from("sponsors")
+      .select("id, name, logo_url, link_url, category, tagline")
+      .eq("is_active", true)
+      .order("display_order")
+      .then(({ data }) => {
+        if (data && data.length > 0) setListingSponsors(data as any);
       });
   }, []);
 
@@ -717,7 +842,7 @@ export default function HomePage() {
                 title: e.venueName,
                 description: `${e.eventName} — ${e.dayOfWeek}${e.startTime ? ` at ${e.startTime}` : ""}`,
                 imageSrc: e.image ?? undefined,
-                href: `/venue/${e.id}`,
+                href: venueDetailUrl(e),
                 tag: e.neighborhood || e.city,
               }))}
             autoAdvance
@@ -826,6 +951,9 @@ export default function HomePage() {
         </section>
       )}
 
+      {/* ─── SPONSORS CAROUSEL ─── */}
+      <SponsorsCarousel />
+
       {/* ─── KARAOKE LISTINGS ─── */}
       <section className="py-16 md:py-20" id="listings">
         <div className="max-w-6xl mx-auto px-6 md:px-8">
@@ -913,17 +1041,21 @@ export default function HomePage() {
                     </span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {previewEvents.map((event, idx) => (
-                      <VenueCard
-                        key={`${event.id}-${event.dayOfWeek}-${idx}`}
-                        event={event}
-                        onClick={() => navigateToVenue(event)}
-                        showActions={!!user}
-                        isFavorited={favorites.has(event.id)}
-                        onToggleFavorite={() => toggleFavorite(event.id)}
-                        onShare={() => shareEvent(event)}
-                      />
-                    ))}
+                    {mixWithSponsors(previewEvents, listingSponsors, 3).map((item) =>
+                      item.type === "sponsor" ? (
+                        <SponsorAdCard key={item.key} sponsor={item.data} />
+                      ) : (
+                        <VenueCard
+                          key={`${item.data.id}-${item.data.dayOfWeek}-${item.eventIdx}`}
+                          event={item.data}
+                          onClick={() => navigateToVenue(item.data)}
+                          showActions={!!user}
+                          isFavorited={favorites.has(item.data.id)}
+                          onToggleFavorite={() => toggleFavorite(item.data.id)}
+                          onShare={() => shareEvent(item.data)}
+                        />
+                      )
+                    )}
                   </div>
                   {hasMore && (
                     <div className="text-center mt-6">
@@ -945,17 +1077,21 @@ export default function HomePage() {
           ) : (
             // Show filtered day
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredEvents.map((event, idx) => (
-                <VenueCard
-                        key={`${event.id}-${event.dayOfWeek}-${idx}`}
-                        event={event}
-                        onClick={() => navigateToVenue(event)}
-                        showActions={!!user}
-                        isFavorited={favorites.has(event.id)}
-                        onToggleFavorite={() => toggleFavorite(event.id)}
-                        onShare={() => shareEvent(event)}
-                      />
-              ))}
+              {mixWithSponsors(filteredEvents, listingSponsors, 3).map((item) =>
+                item.type === "sponsor" ? (
+                  <SponsorAdCard key={item.key} sponsor={item.data} />
+                ) : (
+                  <VenueCard
+                    key={`${item.data.id}-${item.data.dayOfWeek}-${item.eventIdx}`}
+                    event={item.data}
+                    onClick={() => navigateToVenue(item.data)}
+                    showActions={!!user}
+                    isFavorited={favorites.has(item.data.id)}
+                    onToggleFavorite={() => toggleFavorite(item.data.id)}
+                    onShare={() => shareEvent(item.data)}
+                  />
+                )
+              )}
             </div>
           )}
 
@@ -1090,183 +1226,6 @@ export default function HomePage() {
         <div className="absolute bottom-[20%] -right-[20%] w-[60%] h-[40%] bg-accent/5 blur-[120px] rounded-full" />
       </div>
 
-      {/* Venue Detail Popup */}
-      {selectedEvent && (
-        <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-            onClick={() => setSelectedEvent(null)}
-          />
-
-          {/* Modal */}
-          <div className="relative w-full max-w-lg mx-auto bg-bg-dark border border-border rounded-t-3xl md:rounded-3xl max-h-[90vh] overflow-y-auto shadow-2xl animate-[slideUp_0.25s_ease-out]">
-            {/* Hero image */}
-            <div className="relative h-56">
-              <img
-                src={selectedEvent.image || `/api/venue-image?venue=${encodeURIComponent(selectedEvent.venueName)}&event=${encodeURIComponent(selectedEvent.eventName || "")}&day=${encodeURIComponent(selectedEvent.dayOfWeek || "")}&dj=${encodeURIComponent(selectedEvent.dj || "")}`}
-                alt={selectedEvent.venueName}
-                className="w-full h-full object-cover rounded-t-3xl md:rounded-t-3xl"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-bg-dark via-bg-dark/30 to-transparent rounded-t-3xl" />
-
-              {/* Close button */}
-              <button
-                onClick={() => setSelectedEvent(null)}
-                className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center hover:bg-black/70 transition-colors"
-              >
-                <span className="material-icons-round text-white text-xl">close</span>
-              </button>
-
-              {/* Day badge */}
-              <div className="absolute top-4 left-4 bg-primary text-black text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-                {selectedEvent.dayOfWeek === "Private Room Karaoke" ? "Private Room" : selectedEvent.dayOfWeek}
-              </div>
-            </div>
-
-            {/* Content */}
-            <div className="px-5 pb-6 -mt-4 relative z-10">
-              {/* Venue name + event */}
-              <h2 className="text-xl font-extrabold text-white mb-1">{selectedEvent.venueName}</h2>
-              <p className="text-accent text-xs font-bold uppercase tracking-wider mb-3">{selectedEvent.eventName}</p>
-
-              {/* Info pills */}
-              <div className="flex flex-wrap gap-2 mb-4">
-                {selectedEvent.startTime && (
-                  <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs px-3 py-1.5 rounded-full font-bold">
-                    <span className="material-icons-round text-sm">schedule</span>
-                    {selectedEvent.startTime}{selectedEvent.endTime ? ` - ${selectedEvent.endTime}` : ""}
-                  </span>
-                )}
-                {selectedEvent.dj && selectedEvent.dj !== "Open" && (() => {
-                  const kjSlug = getKJSlugForName(selectedEvent.dj);
-                  return kjSlug ? (
-                    <Link
-                      href={`/kj/${kjSlug}`}
-                      className="inline-flex items-center gap-1 bg-accent/10 text-accent text-xs px-3 py-1.5 rounded-full font-bold hover:bg-accent/20 transition-colors"
-                    >
-                      <span className="material-icons-round text-sm">headphones</span>
-                      {selectedEvent.dj}
-                    </Link>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 bg-accent/10 text-accent text-xs px-3 py-1.5 rounded-full font-bold">
-                      <span className="material-icons-round text-sm">headphones</span>
-                      {selectedEvent.dj}
-                    </span>
-                  );
-                })()}
-                {selectedEvent.isPrivateRoom && (
-                  <span className="inline-flex items-center gap-1 bg-purple-500/10 text-purple-400 text-xs px-3 py-1.5 rounded-full font-bold">
-                    <span className="material-icons-round text-sm">door_sliding</span>
-                    Private Room
-                  </span>
-                )}
-              </div>
-
-              {/* Address */}
-              <div className="glass-card rounded-xl p-4 mb-4">
-                <div className="flex items-start gap-3">
-                  <span className="material-icons-round text-primary text-lg mt-0.5">location_on</span>
-                  <div>
-                    <p className="text-sm text-white font-medium">{selectedEvent.address}</p>
-                    <p className="text-xs text-text-secondary mt-0.5">
-                      {selectedEvent.city}, {selectedEvent.state}
-                      {selectedEvent.neighborhood ? ` — ${selectedEvent.neighborhood}` : ""}
-                    </p>
-                    {selectedEvent.crossStreet && (
-                      <p className="text-[10px] text-text-muted mt-1">Near {selectedEvent.crossStreet}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Notes */}
-              {selectedEvent.notes && (
-                <div className="glass-card rounded-xl p-4 mb-4">
-                  <div className="flex items-start gap-3">
-                    <span className="material-icons-round text-accent text-lg mt-0.5">info</span>
-                    <p className="text-sm text-text-secondary leading-relaxed">{selectedEvent.notes}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Action buttons row */}
-              <div className="grid grid-cols-3 gap-3 mb-4">
-                <button
-                  onClick={() => {
-                    const addr = encodeURIComponent(`${selectedEvent.address}, ${selectedEvent.neighborhood || selectedEvent.city}`);
-                    window.open(`https://www.google.com/maps/dir/?api=1&destination=${addr}`, "_blank");
-                  }}
-                  className="glass-card rounded-xl p-3 flex flex-col items-center gap-1.5 hover:border-primary/30 transition-all"
-                >
-                  <span className="material-icons-round text-primary text-xl">directions</span>
-                  <span className="text-[10px] text-text-secondary font-semibold">Directions</span>
-                </button>
-
-                {selectedEvent.phone ? (
-                  <a
-                    href={`tel:${selectedEvent.phone}`}
-                    className="glass-card rounded-xl p-3 flex flex-col items-center gap-1.5 hover:border-primary/30 transition-all"
-                  >
-                    <span className="material-icons-round text-primary text-xl">call</span>
-                    <span className="text-[10px] text-text-secondary font-semibold">Call</span>
-                  </a>
-                ) : (
-                  <div className="glass-card rounded-xl p-3 flex flex-col items-center gap-1.5 opacity-40">
-                    <span className="material-icons-round text-text-muted text-xl">call</span>
-                    <span className="text-[10px] text-text-muted font-semibold">No Phone</span>
-                  </div>
-                )}
-
-                <button
-                  onClick={() => {
-                    if (navigator.share) {
-                      navigator.share({ title: selectedEvent.venueName, text: `${selectedEvent.eventName} at ${selectedEvent.venueName}`, url: `${window.location.origin}/venue/${selectedEvent.id}${selectedEvent.dayOfWeek ? `?day=${encodeURIComponent(selectedEvent.dayOfWeek)}` : ""}` });
-                    }
-                  }}
-                  className="glass-card rounded-xl p-3 flex flex-col items-center gap-1.5 hover:border-primary/30 transition-all"
-                >
-                  <span className="material-icons-round text-primary text-xl">share</span>
-                  <span className="text-[10px] text-text-secondary font-semibold">Share</span>
-                </button>
-              </div>
-
-              {/* Direction modes */}
-              <div className="glass-card rounded-xl overflow-hidden mb-4">
-                <div className="grid grid-cols-3 divide-x divide-border">
-                  {[
-                    { icon: "directions_car", label: "Drive", mode: "driving" },
-                    { icon: "directions_transit", label: "Transit", mode: "transit" },
-                    { icon: "directions_walk", label: "Walk", mode: "walking" },
-                  ].map((t) => (
-                    <button
-                      key={t.mode}
-                      onClick={() => {
-                        const addr = encodeURIComponent(`${selectedEvent.address}, ${selectedEvent.neighborhood || selectedEvent.city}`);
-                        window.open(`https://www.google.com/maps/dir/?api=1&destination=${addr}&travelmode=${t.mode}`, "_blank");
-                      }}
-                      className="py-3 flex flex-col items-center gap-1 hover:bg-white/5 transition-colors"
-                    >
-                      <span className="material-icons-round text-primary text-lg">{t.icon}</span>
-                      <span className="text-[10px] text-text-muted">{t.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Full listing link */}
-              <Link
-                href={`/venue/${selectedEvent.id}?name=${encodeURIComponent(selectedEvent.venueName)}${selectedEvent.dayOfWeek ? `&day=${encodeURIComponent(selectedEvent.dayOfWeek)}` : ""}`}
-                onClick={() => setSelectedEvent(null)}
-                className="w-full bg-primary text-black font-bold py-3 rounded-full flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-primary/30 transition-all text-sm"
-              >
-                <span className="material-icons-round text-xl">open_in_new</span>
-                View Full Listing
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Search Results Popup */}
       {searchOpen && (

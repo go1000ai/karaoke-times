@@ -238,7 +238,7 @@ export default function FeaturedSingersPage() {
               Close
             </button>
             <iframe
-              src={`https://www.youtube.com/embed/${playingVideoId}?autoplay=1&rel=0`}
+              src={`https://www.youtube-nocookie.com/embed/${playingVideoId}?autoplay=1&rel=0`}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
               className="w-full h-full rounded-2xl"

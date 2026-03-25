@@ -74,7 +74,7 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
     // Listen for postMessage events from the YouTube iframe
     useEffect(() => {
       const handleMessage = (event: MessageEvent) => {
-        if (event.origin !== "https://www.youtube.com") return;
+        if (event.origin !== "https://www.youtube-nocookie.com" && event.origin !== "https://www.youtube.com") return;
         if (event.source !== iframeRef.current?.contentWindow) return;
 
         let data;
@@ -132,7 +132,7 @@ const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(
       origin,
       ...(muted ? { mute: "1" } : {}),
     });
-    const src = `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
+    const src = `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`;
 
     if (hidden) {
       return (
