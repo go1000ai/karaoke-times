@@ -394,6 +394,8 @@ export async function updateVenue(
     accessibility?: string | null;
     hours_open?: string | null;
     booking_url?: string | null;
+    instagram?: string | null;
+    menu_url?: string | null;
   }
 ) {
   await requireAdmin();
