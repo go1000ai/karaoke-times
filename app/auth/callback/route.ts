@@ -55,11 +55,12 @@ export async function GET(request: Request) {
           return NextResponse.redirect(`${origin}/onboarding`);
         }
 
-        // Check if this is a brand-new user (account created in the last 60 seconds)
+        // Check if this is a brand-new user (account created in the last 5 minutes)
         // The DB trigger may have already created a profile with default role "user"
+        // Use 5 minutes to account for slow OAuth flows or network delays
         const createdAt = new Date(user.created_at);
         const now = new Date();
-        const isNewUser = now.getTime() - createdAt.getTime() < 60000; // 60 seconds
+        const isNewUser = now.getTime() - createdAt.getTime() < 300000; // 5 minutes
 
         if (isNewUser && profile.role === "user") {
           // Send welcome email for DB-trigger-created users (non-blocking)
