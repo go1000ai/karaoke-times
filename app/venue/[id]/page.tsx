@@ -243,7 +243,7 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
       if (isUUID(id)) {
         const { data } = await supabase
           .from("venues")
-          .select("id, name, address, city, state, neighborhood, is_private_room, accessibility, website")
+          .select("id, name, address, city, state, neighborhood, is_private_room, accessibility, website, instagram, menu_url, menu_items")
           .eq("id", id)
           .single();
         if (data) { setDbVenue(data as SupabaseVenue); setLoading(false); return; }
@@ -269,7 +269,7 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
 
       const { data: matches } = await supabase
         .from("venues")
-        .select("id, name, address, city, state, neighborhood, is_private_room, accessibility, website");
+        .select("id, name, address, city, state, neighborhood, is_private_room, accessibility, website, instagram, menu_url, menu_items");
 
       if (matches) {
         // Find best match: compare normalized names
