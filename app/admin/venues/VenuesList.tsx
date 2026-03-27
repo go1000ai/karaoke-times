@@ -61,6 +61,8 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
   const [manualMenuItems, setManualMenuItems] = useState<{ name: string; description: string; price: string; category: string }[]>([]);
   const [manualMenuSaving, setManualMenuSaving] = useState(false);
   const [editingMenuIdx, setEditingMenuIdx] = useState<number | null>(null);
+  const [menuImageUploading, setMenuImageUploading] = useState<string | null>(null);
+  const menuImageInputRef = useRef<HTMLInputElement>(null);
   const [selectedVenues, setSelectedVenues] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [editImageFile, setEditImageFile] = useState<File | null>(null);
@@ -310,6 +312,38 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
       alert("Failed to extract menu. Check the URL and try again.");
     }
     setMenuExtracting(null);
+  }
+
+  async function handleMenuImageUpload(venueId: string, files: FileList) {
+    if (!files || files.length === 0) return;
+    setMenuImageUploading(venueId);
+    try {
+      const formData = new FormData();
+      formData.append("venueId", venueId);
+      for (let i = 0; i < Math.min(files.length, 5); i++) {
+        formData.append("images", files[i]);
+      }
+      const res = await fetch("/api/admin/extract-menu-images", {
+        method: "POST",
+        body: formData,
+        signal: AbortSignal.timeout(60000),
+      });
+      const data = await res.json();
+      if (data.error) {
+        alert("Error: " + data.error);
+      } else if (data.items && data.items.length > 0) {
+        if (data.saved) {
+          setVenues((prev) => prev.map((v) => v.id === venueId ? { ...v, menu_items: data.items } : v));
+        }
+        alert(`Extracted ${data.items.length} menu items from ${files.length} image${files.length > 1 ? "s" : ""}!`);
+      } else {
+        alert("No menu items found in the uploaded images. Try a clearer photo of the menu.");
+      }
+    } catch {
+      alert("Failed to process menu images. Try again.");
+    }
+    setMenuImageUploading(null);
+    if (menuImageInputRef.current) menuImageInputRef.current.value = "";
   }
 
   async function handleClearMenu(venueId: string) {
@@ -743,6 +777,27 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
                       {menuExtracting === venue.id ? "Extracting..." : "Extract from URL"}
                     </button>
                   </div>
+                  {/* Upload menu images */}
+                  <div className="flex gap-2 mb-3">
+                    <input
+                      ref={menuImageInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      multiple
+                      onChange={(e) => { if (e.target.files) handleMenuImageUpload(venue.id, e.target.files); }}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => menuImageInputRef.current?.click()}
+                      disabled={menuImageUploading === venue.id}
+                      className="flex-1 py-2 rounded-lg border border-dashed border-amber-400/30 bg-amber-500/5 text-amber-400 text-xs font-bold hover:bg-amber-500/10 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                    >
+                      <span className="material-icons-round text-sm">{menuImageUploading === venue.id ? "hourglass_top" : "upload"}</span>
+                      {menuImageUploading === venue.id ? "Reading menu images..." : "Upload Menu Images (AI will extract items)"}
+                    </button>
+                  </div>
+
                   {menuPreview?.venueId === venue.id && <p className="text-[10px] text-amber-400 font-bold mb-2">Extracted {menuPreview.items.length} items (saved)</p>}
 
                   {/* Menu items bento grid */}

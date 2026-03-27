@@ -232,6 +232,8 @@ async function extractMenuFromImages(html: string, pageUrl: string): Promise<Men
       const lower = u.toLowerCase();
       if (lower.includes("logo") || lower.includes("favicon") || lower.includes("icon")) return false;
       if (lower.includes("sprite") || lower.includes("placeholder") || lower.includes("gfont")) return false;
+      if (lower.includes("vendor") || lower.includes("veteran") || lower.includes("badge")) return false;
+      if (lower.includes("as%20seen") || lower.includes("certified") || lower.includes("award")) return false;
       if (lower.endsWith(".svg") || lower.endsWith(".gif")) return false;
       // Skip very small thumbnails (under 200px)
       const sizeMatch = lower.match(/rs=w:(\d+)/);
@@ -241,14 +243,31 @@ async function extractMenuFromImages(html: string, pageUrl: string): Promise<Men
 
   if (resolvedImages.length === 0) return [];
 
-  // Download images in parallel (fast — 3 second timeout each, max 6 candidates)
-  const candidates = resolvedImages.slice(0, 6);
-  console.log(`Downloading ${candidates.length} image candidates...`);
+  // Deduplicate by base URL (remove resize variants of the same image)
+  const seenBase = new Set<string>();
+  const dedupedImages = resolvedImages.filter((u) => {
+    const base = u.replace(/\/:[^\s"'<>]*$/, "").replace(/\?.*$/, "");
+    if (seenBase.has(base)) return false;
+    seenBase.add(base);
+    return true;
+  });
+
+  // Sort: prioritize images with menu-related keywords in URL
+  const menuKeywords = ["menu", "food", "special", "screenshot", "drink", "price", "dish"];
+  dedupedImages.sort((a, b) => {
+    const aScore = menuKeywords.some((k) => a.toLowerCase().includes(k)) ? 0 : 1;
+    const bScore = menuKeywords.some((k) => b.toLowerCase().includes(k)) ? 0 : 1;
+    return aScore - bScore;
+  });
+
+  // Download images in parallel (fast — 4 second timeout each)
+  const candidates = dedupedImages.slice(0, 10);
+  console.log(`Downloading ${candidates.length} image candidates (deduped from ${resolvedImages.length})...`);
   const downloads = await Promise.allSettled(
     candidates.map(async (imgUrl) => {
       const imgRes = await fetch(imgUrl, {
         headers: { "User-Agent": "Mozilla/5.0" },
-        signal: AbortSignal.timeout(3000),
+        signal: AbortSignal.timeout(4000),
       });
       if (!imgRes.ok) return null;
       const contentType = imgRes.headers.get("content-type") || "";
@@ -263,14 +282,13 @@ async function extractMenuFromImages(html: string, pageUrl: string): Promise<Men
     })
   );
 
-  // Keep the 3 largest images (most likely to be menu photos, not thumbnails)
+  // Keep up to 5 images — send them all so Claude can find the menu ones
   const imageData = downloads
     .map((r) => r.status === "fulfilled" ? r.value : null)
     .filter((d): d is { base64: string; mediaType: string; size: number } => !!d)
-    .sort((a, b) => b.size - a.size)
-    .slice(0, 3);
+    .slice(0, 5);
 
-  console.log(`Got ${imageData.length} usable images`);
+  console.log(`Got ${imageData.length} usable images, sizes: ${imageData.map((d) => d.size).join(", ")}`);
 
   if (imageData.length === 0) return [];
 
