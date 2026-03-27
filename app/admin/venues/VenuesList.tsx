@@ -57,6 +57,12 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
   const [menuExtractUrl, setMenuExtractUrl] = useState("");
   const [menuExtracting, setMenuExtracting] = useState<string | null>(null);
   const [menuPreview, setMenuPreview] = useState<{ venueId: string; items: { name: string; description?: string; price?: string; category?: string }[] } | null>(null);
+  const [manualMenuVenueId, setManualMenuVenueId] = useState<string | null>(null);
+  const [manualMenuItems, setManualMenuItems] = useState<{ name: string; description: string; price: string; category: string }[]>([]);
+  const [manualMenuSaving, setManualMenuSaving] = useState(false);
+  const [editingMenuIdx, setEditingMenuIdx] = useState<number | null>(null);
+  const [selectedVenues, setSelectedVenues] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [editImageFile, setEditImageFile] = useState<File | null>(null);
   const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
   const [removeImage, setRemoveImage] = useState(false);
@@ -311,6 +317,83 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
     setVenues((prev) => prev.map((v) => v.id === venueId ? { ...v, menu_items: null } : v));
   }
 
+  function toggleSelectVenue(venueId: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    setSelectedVenues((prev) => {
+      const next = new Set(prev);
+      if (next.has(venueId)) next.delete(venueId);
+      else next.add(venueId);
+      return next;
+    });
+  }
+
+  function selectAllVenues() {
+    if (selectedVenues.size === filteredVenues.length) {
+      setSelectedVenues(new Set());
+    } else {
+      setSelectedVenues(new Set(filteredVenues.map((v) => v.id)));
+    }
+  }
+
+  async function handleBulkDelete() {
+    const count = selectedVenues.size;
+    if (!confirm(`Delete ${count} venue${count > 1 ? "s" : ""} and all their events? This cannot be undone.`)) return;
+    setBulkDeleting(true);
+    for (const venueId of selectedVenues) {
+      await deleteVenue(venueId);
+    }
+    setVenues((prev) => prev.filter((v) => !selectedVenues.has(v.id)));
+    setSelectedVenues(new Set());
+    setBulkDeleting(false);
+  }
+
+  function openManualMenuEditor(venueId: string) {
+    const venue = venues.find((v) => v.id === venueId);
+    const existing = venue?.menu_items?.map((item) => ({
+      name: item.name,
+      description: item.description || "",
+      price: item.price || "",
+      category: item.category || "",
+    })) || [];
+    setManualMenuItems(existing.length > 0 ? existing : [{ name: "", description: "", price: "", category: "" }]);
+    setManualMenuVenueId(venueId);
+  }
+
+  function addManualMenuItem() {
+    setManualMenuItems((prev) => [...prev, { name: "", description: "", price: "", category: "" }]);
+  }
+
+  function removeManualMenuItem(index: number) {
+    setManualMenuItems((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function updateManualMenuItem(index: number, field: string, value: string) {
+    setManualMenuItems((prev) => prev.map((item, i) => i === index ? { ...item, [field]: value } : item));
+  }
+
+  async function saveManualMenu() {
+    if (!manualMenuVenueId) return;
+    const items = manualMenuItems
+      .filter((item) => item.name.trim())
+      .map((item) => ({
+        name: item.name.trim(),
+        description: item.description.trim() || undefined,
+        price: item.price.trim() || undefined,
+        category: item.category.trim() || undefined,
+      }));
+    setManualMenuSaving(true);
+    try {
+      const sb = createClient();
+      await sb.from("venues").update({ menu_items: items.length > 0 ? items : null }).eq("id", manualMenuVenueId);
+      setVenues((prev) => prev.map((v) => v.id === manualMenuVenueId ? { ...v, menu_items: items.length > 0 ? items : null } : v));
+      setManualMenuVenueId(null);
+      setManualMenuItems([]);
+    } catch {
+      alert("Failed to save menu items.");
+    }
+    setManualMenuSaving(false);
+  }
+
   const inputClass = "bg-card-dark border border-border rounded-lg py-1.5 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 placeholder:text-text-muted";
 
   return (
@@ -356,226 +439,155 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
         </select>
       </div>
 
-      {/* Venues List */}
-      <div className="space-y-3">
+      {/* Bulk Actions Bar */}
+      {selectedVenues.size > 0 && (
+        <div className="flex items-center gap-3 mb-4 glass-card rounded-xl px-4 py-3">
+          <button onClick={selectAllVenues} className="text-xs text-text-secondary hover:text-white transition-colors">
+            {selectedVenues.size === filteredVenues.length ? "Deselect All" : "Select All"}
+          </button>
+          <span className="text-xs text-white font-bold">{selectedVenues.size} selected</span>
+          <button
+            onClick={handleBulkDelete}
+            disabled={bulkDeleting}
+            className="ml-auto px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-xs font-bold hover:bg-red-500/20 transition-colors disabled:opacity-50 flex items-center gap-1"
+          >
+            <span className="material-icons-round text-sm">{bulkDeleting ? "hourglass_top" : "delete_sweep"}</span>
+            {bulkDeleting ? "Deleting..." : "Delete Selected"}
+          </button>
+        </div>
+      )}
+
+      {/* Venues — Bento Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         {filteredVenues.map((venue) => (
-          <div key={venue.id} className="glass-card rounded-2xl p-4 md:p-5">
-            {editingId === venue.id ? (
-              /* ─── Edit Mode ─── */
+          editingId === venue.id ? (
+            /* ─── Expanded Detail / Edit View ─── */
+            <div key={venue.id} className="col-span-2 md:col-span-3 lg:col-span-4 glass-card rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  {venue._primary_image ? (
+                    <img src={venue._primary_image} alt={venue.name} className="w-12 h-12 rounded-xl object-cover border border-border" />
+                  ) : (
+                    <div className="w-12 h-12 rounded-xl bg-white/5 border border-border flex items-center justify-center">
+                      <span className="material-icons-round text-text-muted text-xl">storefront</span>
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="text-white font-bold text-lg">{venue.name}</h3>
+                    <p className="text-xs text-text-secondary">{venue.neighborhood ? `${venue.neighborhood}, ` : ""}{venue.city}, {venue.state}</p>
+                  </div>
+                </div>
+                <button onClick={cancelEdit} className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
+                  <span className="material-icons-round text-white text-sm">close</span>
+                </button>
+              </div>
+
+              {/* Edit fields */}
               <div className="space-y-3">
-                {/* Venue Image */}
+                {/* Image */}
                 <div>
                   <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Venue Image</label>
                   <div className="flex items-center gap-3">
                     {editImagePreview ? (
-                      <img
-                        src={editImagePreview}
-                        alt="Venue"
-                        className="w-20 h-20 rounded-xl object-cover border border-border"
-                      />
+                      <img src={editImagePreview} alt="Venue" className="w-20 h-20 rounded-xl object-cover border border-border" />
                     ) : (
                       <div className="w-20 h-20 rounded-xl bg-white/5 border border-border flex items-center justify-center">
                         <span className="material-icons-round text-text-muted text-2xl">image</span>
                       </div>
                     )}
                     <div className="flex flex-col gap-1.5">
-                      <input
-                        ref={imageInputRef}
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        onChange={handleImageSelect}
-                        className="hidden"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => imageInputRef.current?.click()}
-                        className="px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-400 text-xs font-bold hover:bg-blue-500/20 transition-colors flex items-center gap-1"
-                      >
+                      <input ref={imageInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleImageSelect} className="hidden" />
+                      <button type="button" onClick={() => imageInputRef.current?.click()} className="px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-400 text-xs font-bold hover:bg-blue-500/20 transition-colors flex items-center gap-1">
                         <span className="material-icons-round text-sm">upload</span>
                         {editImagePreview ? "Change" : "Upload"}
                       </button>
                       {editImagePreview && (
-                        <button
-                          type="button"
-                          onClick={handleRemoveImage}
-                          className="px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-xs font-bold hover:bg-red-500/20 transition-colors flex items-center gap-1"
-                        >
+                        <button type="button" onClick={handleRemoveImage} className="px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-xs font-bold hover:bg-red-500/20 transition-colors flex items-center gap-1">
                           <span className="material-icons-round text-sm">delete</span>
                           Remove
                         </button>
                       )}
                     </div>
                   </div>
-                  {imageError && (
-                    <p className="text-xs text-red-400 mt-1">{imageError}</p>
-                  )}
+                  {imageError && <p className="text-xs text-red-400 mt-1">{imageError}</p>}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Name</label>
-                    <input
-                      value={editForm.name || ""}
-                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                      className={`${inputClass} w-full`}
-                    />
+                    <input value={editForm.name || ""} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className={`${inputClass} w-full`} />
                   </div>
                   <div>
                     <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Address</label>
-                    <input
-                      value={editForm.address || ""}
-                      onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-                      className={`${inputClass} w-full`}
-                    />
+                    <input value={editForm.address || ""} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} className={`${inputClass} w-full`} />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div>
                     <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">City</label>
-                    <input
-                      value={editForm.city || ""}
-                      onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
-                      className={`${inputClass} w-full`}
-                    />
+                    <input value={editForm.city || ""} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} className={`${inputClass} w-full`} />
                   </div>
                   <div>
                     <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">State</label>
-                    <input
-                      value={editForm.state || ""}
-                      onChange={(e) => setEditForm({ ...editForm, state: e.target.value })}
-                      className={`${inputClass} w-full`}
-                    />
+                    <input value={editForm.state || ""} onChange={(e) => setEditForm({ ...editForm, state: e.target.value })} className={`${inputClass} w-full`} />
                   </div>
                   <div>
                     <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Zip Code</label>
-                    <input
-                      value={editForm.zip_code || ""}
-                      onChange={(e) => setEditForm({ ...editForm, zip_code: e.target.value })}
-                      placeholder="e.g. 10001"
-                      maxLength={5}
-                      className={`${inputClass} w-full`}
-                    />
+                    <input value={editForm.zip_code || ""} onChange={(e) => setEditForm({ ...editForm, zip_code: e.target.value })} placeholder="e.g. 10001" maxLength={5} className={`${inputClass} w-full`} />
                   </div>
                   <div>
                     <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Neighborhood</label>
-                    <input
-                      value={editForm.neighborhood || ""}
-                      onChange={(e) => setEditForm({ ...editForm, neighborhood: e.target.value })}
-                      className={`${inputClass} w-full`}
-                    />
+                    <input value={editForm.neighborhood || ""} onChange={(e) => setEditForm({ ...editForm, neighborhood: e.target.value })} className={`${inputClass} w-full`} />
                   </div>
                 </div>
-
-                {/* Contact & Links */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Phone</label>
-                    <input
-                      value={editForm.phone || ""}
-                      onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                      placeholder="(212) 555-1234"
-                      className={`${inputClass} w-full`}
-                    />
+                    <input value={editForm.phone || ""} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} placeholder="(212) 555-1234" className={`${inputClass} w-full`} />
                   </div>
                   <div>
                     <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Cross Street</label>
-                    <input
-                      value={editForm.cross_street || ""}
-                      onChange={(e) => setEditForm({ ...editForm, cross_street: e.target.value })}
-                      placeholder="Between 1st and 2nd Ave"
-                      className={`${inputClass} w-full`}
-                    />
+                    <input value={editForm.cross_street || ""} onChange={(e) => setEditForm({ ...editForm, cross_street: e.target.value })} placeholder="Between 1st and 2nd Ave" className={`${inputClass} w-full`} />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Website</label>
-                    <input
-                      value={editForm.website || ""}
-                      onChange={(e) => setEditForm({ ...editForm, website: e.target.value })}
-                      placeholder="https://example.com"
-                      className={`${inputClass} w-full`}
-                    />
+                    <input value={editForm.website || ""} onChange={(e) => setEditForm({ ...editForm, website: e.target.value })} placeholder="https://example.com" className={`${inputClass} w-full`} />
                   </div>
                   <div>
                     <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Booking URL</label>
-                    <input
-                      value={editForm.booking_url || ""}
-                      onChange={(e) => setEditForm({ ...editForm, booking_url: e.target.value })}
-                      placeholder="https://example.com/book"
-                      className={`${inputClass} w-full`}
-                    />
+                    <input value={editForm.booking_url || ""} onChange={(e) => setEditForm({ ...editForm, booking_url: e.target.value })} placeholder="https://example.com/book" className={`${inputClass} w-full`} />
                   </div>
                 </div>
-
-                {/* Instagram & Menu */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Instagram</label>
-                    <input
-                      value={editForm.instagram || ""}
-                      onChange={(e) => setEditForm({ ...editForm, instagram: e.target.value })}
-                      placeholder="@venuename or URL"
-                      className={`${inputClass} w-full`}
-                    />
+                    <input value={editForm.instagram || ""} onChange={(e) => setEditForm({ ...editForm, instagram: e.target.value })} placeholder="@venuename or URL" className={`${inputClass} w-full`} />
                   </div>
                   <div>
                     <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Menu URL</label>
-                    <input
-                      value={editForm.menu_url || ""}
-                      onChange={(e) => setEditForm({ ...editForm, menu_url: e.target.value })}
-                      placeholder="https://example.com/menu"
-                      className={`${inputClass} w-full`}
-                    />
+                    <input value={editForm.menu_url || ""} onChange={(e) => setEditForm({ ...editForm, menu_url: e.target.value })} placeholder="https://example.com/menu" className={`${inputClass} w-full`} />
                   </div>
                 </div>
-
-                {/* Hours of Operation */}
                 <div>
                   <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Hours of Operation</label>
-                  <textarea
-                    value={editForm.hours_open || ""}
-                    onChange={(e) => setEditForm({ ...editForm, hours_open: e.target.value })}
-                    placeholder={"Mon-Thu: 5PM-2AM\nFri-Sat: 5PM-4AM\nSun: 3PM-12AM"}
-                    rows={3}
-                    className={`${inputClass} w-full resize-none`}
-                  />
+                  <textarea value={editForm.hours_open || ""} onChange={(e) => setEditForm({ ...editForm, hours_open: e.target.value })} placeholder={"Mon-Thu: 5PM-2AM\nFri-Sat: 5PM-4AM\nSun: 3PM-12AM"} rows={3} className={`${inputClass} w-full resize-none`} />
                 </div>
-
-                {/* Description */}
                 <div>
                   <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Description</label>
-                  <textarea
-                    value={editForm.description || ""}
-                    onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                    placeholder="A brief description of the venue..."
-                    rows={3}
-                    className={`${inputClass} w-full resize-none`}
-                  />
+                  <textarea value={editForm.description || ""} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} placeholder="A brief description of the venue..." rows={3} className={`${inputClass} w-full resize-none`} />
                 </div>
-
-                {/* Toggles & Dropdowns */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="flex items-center gap-3">
                     <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold">Private Room</label>
-                    <button
-                      type="button"
-                      onClick={() => setEditForm({ ...editForm, is_private_room: !editForm.is_private_room })}
-                      className={`relative w-10 h-5 rounded-full transition-colors ${editForm.is_private_room ? "bg-purple-500" : "bg-white/10"}`}
-                    >
-                      <span
-                        className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform"
-                        style={editForm.is_private_room ? { transform: "translateX(20px)" } : undefined}
-                      />
+                    <button type="button" onClick={() => setEditForm({ ...editForm, is_private_room: !editForm.is_private_room })} className={`relative w-10 h-5 rounded-full transition-colors ${editForm.is_private_room ? "bg-purple-500" : "bg-white/10"}`}>
+                      <span className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform" style={editForm.is_private_room ? { transform: "translateX(20px)" } : undefined} />
                     </button>
                   </div>
                   <div>
                     <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Accessibility</label>
-                    <select
-                      value={editForm.accessibility || ""}
-                      onChange={(e) => setEditForm({ ...editForm, accessibility: e.target.value })}
-                      className={`${inputClass} w-full`}
-                    >
+                    <select value={editForm.accessibility || ""} onChange={(e) => setEditForm({ ...editForm, accessibility: e.target.value })} className={`${inputClass} w-full`}>
                       <option value="">Unknown</option>
                       <option value="full">Fully Accessible</option>
                       <option value="partial">Partial Access</option>
@@ -584,245 +596,211 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 pt-1">
-                  <button
-                    onClick={() => handleSaveEdit(venue.id)}
-                    disabled={isPending && processingId === venue.id}
-                    className="px-4 py-1.5 rounded-lg bg-primary text-black text-xs font-bold hover:bg-primary/80 transition-colors disabled:opacity-50"
-                  >
-                    {isPending && processingId === venue.id ? "Saving..." : "Save"}
-                  </button>
-                  <button
-                    onClick={cancelEdit}
-                    className="px-4 py-1.5 rounded-lg bg-white/10 text-white text-xs font-bold hover:bg-white/20 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              /* ─── View Mode ─── */
-              <>
-                {/* Venue name + badges */}
-                <div className="flex items-center gap-3">
-                  {venue._primary_image ? (
-                    <img
-                      src={venue._primary_image}
-                      alt={venue.name}
-                      className="w-10 h-10 rounded-lg object-cover border border-border flex-shrink-0"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-lg bg-white/5 border border-border flex items-center justify-center flex-shrink-0">
-                      <span className="material-icons-round text-text-muted text-lg">storefront</span>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-white font-bold">{venue.name}</h3>
-                  {venue.is_private_room && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-400/10 text-purple-400">Private Room</span>
-                  )}
-                  {venue.queue_paused && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400">Queue Paused</span>
-                  )}
-                  {venue.accessibility === "full" && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 flex items-center gap-0.5">
-                      <span className="material-icons-round text-[10px]">accessible</span>
-                      Full
-                    </span>
-                  )}
-                  {venue.accessibility === "partial" && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 flex items-center gap-0.5">
-                      <span className="material-icons-round text-[10px]">accessible</span>
-                      Partial
-                    </span>
-                  )}
-                  {venue.accessibility === "none" && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 flex items-center gap-0.5">
-                      <span className="material-icons-round text-[10px]">not_accessible</span>
-                      None
-                    </span>
-                  )}
-                  </div>
-                </div>
-                <p className="text-xs text-text-secondary mt-1">
-                  {venue.address} — {venue.neighborhood ? `${venue.neighborhood}, ` : ""}{venue.city}, {venue.state}{venue.zip_code ? ` ${venue.zip_code}` : ""}
-                </p>
-                {(venue.phone || venue.hours_open || venue.instagram || venue.menu_url) && (
-                  <div className="flex items-center gap-3 mt-1 flex-wrap">
-                    {venue.phone && (
-                      <span className="text-xs text-text-muted flex items-center gap-0.5">
-                        <span className="material-icons-round text-xs">call</span>
-                        {venue.phone}
-                      </span>
-                    )}
-                    {venue.hours_open && (
-                      <span className="text-xs text-text-muted flex items-center gap-0.5">
-                        <span className="material-icons-round text-xs">schedule</span>
-                        {venue.hours_open.split("\n")[0]}
-                      </span>
-                    )}
-                    {venue.instagram && (
-                      <a
-                        href={venue.instagram.startsWith("http") ? venue.instagram : `https://instagram.com/${venue.instagram.replace("@", "")}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-pink-400 flex items-center gap-0.5 hover:text-pink-300 transition-colors"
-                      >
-                        <span className="material-icons-round text-xs">photo_camera</span>
-                        {venue.instagram.startsWith("http") ? "Instagram" : venue.instagram}
-                      </a>
-                    )}
-                    {venue.menu_url && (
-                      <a
-                        href={venue.menu_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-amber-400 flex items-center gap-0.5 hover:text-amber-300 transition-colors"
-                      >
-                        <span className="material-icons-round text-xs">restaurant_menu</span>
-                        Menu
-                      </a>
-                    )}
-                  </div>
-                )}
-
-                {/* Stats row */}
-                <div className="flex items-center gap-2 mt-2 flex-wrap">
-                  <span className="text-xs text-text-muted bg-white/5 px-2 py-0.5 rounded-full">
-                    {venue._event_count} events
-                  </span>
-                  {venue._review_count > 0 && (
-                    <span className="text-xs text-text-muted bg-white/5 px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <span className="material-icons-round text-yellow-400 text-xs">star</span>
-                      {venue._avg_rating} ({venue._review_count})
-                    </span>
-                  )}
-                  {venue._promo_count > 0 && (
-                    <span className="text-xs text-text-muted bg-white/5 px-2 py-0.5 rounded-full">
-                      {venue._promo_count} promos
-                    </span>
-                  )}
-                  {venue._media_count > 0 && (
-                    <span className="text-xs text-text-muted bg-white/5 px-2 py-0.5 rounded-full">
-                      {venue._media_count} media
-                    </span>
-                  )}
-                </div>
-
-                {/* Menu Extractor */}
-                <div className="mt-3 pt-3 border-t border-border/20">
-                  {venue.menu_items && venue.menu_items.length > 0 ? (
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs text-amber-400 font-bold flex items-center gap-1">
-                          <span className="material-icons-round text-xs">restaurant_menu</span>
-                          Menu ({venue.menu_items.length} items)
-                        </span>
-                        <button
-                          onClick={() => handleClearMenu(venue.id)}
-                          className="text-[10px] text-red-400 hover:text-red-300 transition-colors"
-                        >
-                          Remove menu
-                        </button>
-                      </div>
-                      <div className="max-h-32 overflow-y-auto space-y-0.5 bg-white/5 rounded-lg p-2">
-                        {venue.menu_items.map((item, idx) => (
-                          <div key={idx} className="flex justify-between text-xs">
-                            <span className="text-text-secondary truncate mr-2">{item.category ? <span className="text-text-muted">{item.category} · </span> : null}{item.name}</span>
-                            {item.price && <span className="text-primary font-bold shrink-0">{item.price}</span>}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex gap-2">
-                      <input
-                        value={menuExtracting === venue.id ? menuExtractUrl : (menuPreview?.venueId === venue.id ? menuExtractUrl : "")}
-                        onChange={(e) => setMenuExtractUrl(e.target.value)}
-                        onFocus={() => setMenuExtractUrl(venue.menu_url || "")}
-                        placeholder="Paste restaurant menu URL..."
-                        className="flex-1 bg-white/5 border border-border rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-amber-400/30"
-                      />
-                      <button
-                        onClick={() => handleExtractMenu(venue.id)}
-                        disabled={menuExtracting === venue.id}
-                        className="px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 text-xs font-bold hover:bg-amber-500/20 transition-colors disabled:opacity-50 flex items-center gap-1"
-                      >
-                        <span className="material-icons-round text-sm">{menuExtracting === venue.id ? "hourglass_top" : "restaurant_menu"}</span>
-                        {menuExtracting === venue.id ? "Extracting..." : "Extract Menu"}
-                      </button>
-                    </div>
-                  )}
-                  {menuPreview?.venueId === venue.id && (
-                    <div className="mt-2 bg-white/5 rounded-lg p-2 max-h-40 overflow-y-auto">
-                      <p className="text-[10px] text-amber-400 font-bold mb-1">Preview — {menuPreview.items.length} items found (saved automatically)</p>
-                      {menuPreview.items.map((item, idx) => (
-                        <div key={idx} className="flex justify-between text-xs">
-                          <span className="text-text-secondary truncate mr-2">{item.name}</span>
-                          {item.price && <span className="text-primary font-bold shrink-0">{item.price}</span>}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Owner + Actions */}
-                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/20 flex-wrap">
-                  <span className="text-xs text-text-muted">Owner:</span>
-                  <select
-                    value={venue.owner_id || ""}
-                    onChange={(e) => handleOwnerChange(venue.id, e.target.value)}
-                    disabled={isPending && processingId === venue.id}
-                    className="text-xs bg-card-dark border border-border rounded-lg px-2 py-1 text-white disabled:opacity-50"
-                  >
+                {/* Owner */}
+                <div>
+                  <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Owner</label>
+                  <select value={venue.owner_id || ""} onChange={(e) => handleOwnerChange(venue.id, e.target.value)} disabled={isPending && processingId === venue.id} className={`${inputClass} w-full`}>
                     <option value="">Unassigned</option>
                     {owners.map((o) => (
                       <option key={o.id} value={o.id}>{o.display_name || o.id.slice(0, 8)}</option>
                     ))}
                   </select>
-                  <div className="flex items-center gap-2 ml-auto">
-                    <div className="relative group">
-                      <button
-                        onClick={() => startEdit(venue)}
-                        className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center hover:bg-blue-500/20 transition-colors"
-                      >
-                        <span className="material-icons-round text-blue-400 text-sm">edit</span>
-                      </button>
-                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-[11px] font-semibold text-white bg-black/90 rounded-md whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity">Edit venue</span>
-                    </div>
-                    <div className="relative group">
-                      <Link
-                        href={`/venue/${venue.id}`}
-                        className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center hover:bg-primary/20 transition-colors"
-                      >
-                        <span className="material-icons-round text-primary text-sm">visibility</span>
-                      </Link>
-                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-[11px] font-semibold text-white bg-black/90 rounded-md whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity">View venue</span>
-                    </div>
-                    <div className="relative group">
-                      <button
-                        onClick={() => handleDelete(venue.id, venue.name)}
-                        disabled={isPending && processingId === venue.id}
-                        className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center hover:bg-red-500/20 transition-colors disabled:opacity-50"
-                      >
-                        <span className="material-icons-round text-red-400 text-sm">delete</span>
-                      </button>
-                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-[11px] font-semibold text-white bg-black/90 rounded-md whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity">Delete venue</span>
+                </div>
+
+                {/* Menu Section */}
+                <div className="pt-3 border-t border-border/20">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs text-amber-400 font-bold flex items-center gap-1">
+                      <span className="material-icons-round text-xs">restaurant_menu</span>
+                      Menu {venue.menu_items && venue.menu_items.length > 0 ? `(${venue.menu_items.length} items)` : ""}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {venue.menu_items && venue.menu_items.length > 0 && (
+                        <button onClick={() => handleClearMenu(venue.id)} className="text-[10px] text-red-400 hover:text-red-300 transition-colors">Clear All</button>
+                      )}
+                      {manualMenuVenueId === venue.id && (
+                        <button onClick={() => { setEditingMenuIdx(null); saveManualMenu(); }} disabled={manualMenuSaving} className="text-[10px] text-primary font-bold hover:text-primary/80 transition-colors flex items-center gap-0.5">
+                          <span className="material-icons-round text-xs">{manualMenuSaving ? "hourglass_top" : "save"}</span>
+                          {manualMenuSaving ? "Saving..." : "Save Menu"}
+                        </button>
+                      )}
                     </div>
                   </div>
-                </div>
-              </>
-            )}
-          </div>
-        ))}
 
-        {filteredVenues.length === 0 && (
-          <div className="text-center py-12 glass-card rounded-2xl">
-            <span className="material-icons-round text-4xl text-text-muted mb-2">search_off</span>
-            <p className="text-text-secondary text-sm">No venues match your search</p>
-          </div>
-        )}
+                  {/* URL extractor */}
+                  <div className="flex gap-2 mb-3">
+                    <input value={menuExtracting === venue.id ? menuExtractUrl : (menuPreview?.venueId === venue.id ? menuExtractUrl : "")} onChange={(e) => setMenuExtractUrl(e.target.value)} onFocus={() => setMenuExtractUrl(venue.menu_url || "")} placeholder="Paste menu URL to auto-extract..." className="flex-1 bg-white/5 border border-border/30 rounded-lg px-3 py-1.5 text-[11px] text-white placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-amber-400/30" />
+                    <button onClick={() => handleExtractMenu(venue.id)} disabled={menuExtracting === venue.id} className="px-2.5 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 text-[10px] font-bold hover:bg-amber-500/20 transition-colors disabled:opacity-50 flex items-center gap-1 shrink-0">
+                      <span className="material-icons-round text-xs">{menuExtracting === venue.id ? "hourglass_top" : "auto_awesome"}</span>
+                      {menuExtracting === venue.id ? "..." : "Extract"}
+                    </button>
+                  </div>
+                  {menuPreview?.venueId === venue.id && <p className="text-[10px] text-amber-400 font-bold mb-2">Extracted {menuPreview.items.length} items (saved)</p>}
+
+                  {/* Menu items bento grid */}
+                  {manualMenuVenueId === venue.id ? (
+                    <div className="grid grid-cols-4 gap-2">
+                      {manualMenuItems.map((item, idx) => (
+                        editingMenuIdx === idx ? (
+                          <div key={idx} className="col-span-2 bg-amber-500/5 border-2 border-amber-400/30 rounded-xl p-3 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[9px] text-amber-400 font-bold uppercase tracking-wider">Editing</span>
+                              <div className="flex items-center gap-1.5">
+                                <button onClick={() => removeManualMenuItem(idx)} className="text-red-400/60 hover:text-red-400 transition-colors"><span className="material-icons-round text-xs">delete</span></button>
+                                <button onClick={() => setEditingMenuIdx(null)} className="text-amber-400 hover:text-amber-300 transition-colors"><span className="material-icons-round text-xs">check_circle</span></button>
+                              </div>
+                            </div>
+                            <input value={item.name} onChange={(e) => updateManualMenuItem(idx, "name", e.target.value)} placeholder="Item name *" autoFocus className="w-full bg-white/5 border border-border/30 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-amber-400/30" />
+                            <div className="grid grid-cols-2 gap-1.5">
+                              <input value={item.price} onChange={(e) => updateManualMenuItem(idx, "price", e.target.value)} placeholder="$0.00" className="bg-white/5 border border-border/30 rounded-lg px-2.5 py-1 text-[11px] text-white placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-amber-400/30" />
+                              <input value={item.category} onChange={(e) => updateManualMenuItem(idx, "category", e.target.value)} placeholder="Category" className="bg-white/5 border border-border/30 rounded-lg px-2.5 py-1 text-[11px] text-white placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-amber-400/30" />
+                            </div>
+                            <input value={item.description} onChange={(e) => updateManualMenuItem(idx, "description", e.target.value)} placeholder="Description (optional)" className="w-full bg-white/5 border border-border/30 rounded-lg px-2.5 py-1 text-[10px] text-white placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-amber-400/30" />
+                          </div>
+                        ) : (
+                          <div key={idx} onClick={() => setEditingMenuIdx(idx)} className="group bg-white/5 border border-border/20 rounded-xl p-2.5 cursor-pointer hover:border-amber-400/30 hover:bg-amber-500/5 transition-all min-h-[72px] flex flex-col justify-between">
+                            <p className="text-[11px] text-white font-semibold truncate group-hover:text-amber-400 transition-colors">{item.name || <span className="text-text-muted italic text-[10px]">Untitled</span>}</p>
+                            {item.description && <p className="text-[9px] text-text-muted mt-0.5 line-clamp-1">{item.description}</p>}
+                            <div className="flex items-center justify-between mt-1.5">
+                              {item.category ? <span className="text-[8px] text-text-muted bg-white/5 px-1 py-0.5 rounded truncate max-w-[60px]">{item.category}</span> : <span />}
+                              <span className="text-[10px] text-primary font-bold">{item.price || ""}</span>
+                            </div>
+                          </div>
+                        )
+                      ))}
+                      <div onClick={() => { addManualMenuItem(); setEditingMenuIdx(manualMenuItems.length); }} className="border border-dashed border-border/30 rounded-xl p-2.5 cursor-pointer hover:border-amber-400/30 hover:bg-amber-500/5 transition-all min-h-[72px] flex flex-col items-center justify-center gap-0.5">
+                        <span className="material-icons-round text-lg text-text-muted">add</span>
+                        <span className="text-[9px] text-text-muted font-semibold">Add Item</span>
+                      </div>
+                    </div>
+                  ) : venue.menu_items && venue.menu_items.length > 0 ? (
+                    <div className="grid grid-cols-4 gap-2">
+                      {venue.menu_items.map((item, idx) => (
+                        <div key={idx} onClick={() => openManualMenuEditor(venue.id)} className="group bg-white/5 border border-border/20 rounded-xl p-2.5 cursor-pointer hover:border-amber-400/30 hover:bg-amber-500/5 transition-all min-h-[72px] flex flex-col justify-between">
+                          <p className="text-[11px] text-white font-semibold truncate group-hover:text-amber-400 transition-colors">{item.name}</p>
+                          {item.description && <p className="text-[9px] text-text-muted mt-0.5 line-clamp-1">{item.description}</p>}
+                          <div className="flex items-center justify-between mt-1.5">
+                            {item.category ? <span className="text-[8px] text-text-muted bg-white/5 px-1 py-0.5 rounded truncate max-w-[60px]">{item.category}</span> : <span />}
+                            {item.price && <span className="text-[10px] text-primary font-bold">{item.price}</span>}
+                          </div>
+                        </div>
+                      ))}
+                      <div onClick={() => openManualMenuEditor(venue.id)} className="border border-dashed border-border/30 rounded-xl p-2.5 cursor-pointer hover:border-amber-400/30 hover:bg-amber-500/5 transition-all min-h-[72px] flex flex-col items-center justify-center gap-0.5">
+                        <span className="material-icons-round text-lg text-text-muted">add</span>
+                        <span className="text-[9px] text-text-muted font-semibold">Add Item</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-4 gap-2">
+                      <div onClick={() => openManualMenuEditor(venue.id)} className="border border-dashed border-border/30 rounded-xl p-2.5 cursor-pointer hover:border-amber-400/30 hover:bg-amber-500/5 transition-all min-h-[72px] flex flex-col items-center justify-center gap-0.5">
+                        <span className="material-icons-round text-lg text-text-muted">add</span>
+                        <span className="text-[9px] text-text-muted font-semibold">Add Item</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Save / Cancel */}
+                <div className="flex items-center gap-2 pt-3 border-t border-border/20">
+                  <button onClick={() => handleSaveEdit(venue.id)} disabled={isPending && processingId === venue.id} className="px-5 py-2 rounded-lg bg-primary text-black text-sm font-bold hover:bg-primary/80 transition-colors disabled:opacity-50">
+                    {isPending && processingId === venue.id ? "Saving..." : "Save Changes"}
+                  </button>
+                  <button onClick={cancelEdit} className="px-5 py-2 rounded-lg bg-white/10 text-white text-sm font-bold hover:bg-white/20 transition-colors">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* ─── Bento Summary Card ─── */
+            <div
+              key={venue.id}
+              className="glass-card rounded-2xl hover:border-primary/30 hover:bg-white/[0.02] transition-all group flex flex-col"
+            >
+              {/* Top bar — checkbox + action icons */}
+              <div className="flex items-center justify-between px-3 pt-3 pb-2">
+                <div className={`transition-opacity ${selectedVenues.size > 0 ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+                  <button
+                    onClick={(e) => toggleSelectVenue(venue.id, e)}
+                    className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${selectedVenues.has(venue.id) ? "bg-primary border-primary" : "border-border/50 hover:border-primary/50"}`}
+                  >
+                    {selectedVenues.has(venue.id) && <span className="material-icons-round text-black text-xs">check</span>}
+                  </button>
+                </div>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="relative group/tip">
+                    <button onClick={(e) => { e.stopPropagation(); startEdit(venue); }} className="w-6 h-6 rounded-md bg-blue-500/10 flex items-center justify-center hover:bg-blue-500/20 transition-colors">
+                      <span className="material-icons-round text-blue-400 text-xs">edit</span>
+                    </button>
+                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-0.5 text-[9px] font-semibold text-white bg-black/90 rounded whitespace-nowrap opacity-0 pointer-events-none group-hover/tip:opacity-100 transition-opacity">Edit</span>
+                  </div>
+                  <div className="relative group/tip">
+                    <Link href={`/venue/${venue.id}`} onClick={(e) => e.stopPropagation()} className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center hover:bg-primary/20 transition-colors">
+                      <span className="material-icons-round text-primary text-xs">visibility</span>
+                    </Link>
+                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-0.5 text-[9px] font-semibold text-white bg-black/90 rounded whitespace-nowrap opacity-0 pointer-events-none group-hover/tip:opacity-100 transition-opacity">View</span>
+                  </div>
+                  <div className="relative group/tip">
+                    <button onClick={(e) => { e.stopPropagation(); handleDelete(venue.id, venue.name); }} disabled={isPending && processingId === venue.id} className="w-6 h-6 rounded-md bg-red-500/10 flex items-center justify-center hover:bg-red-500/20 transition-colors disabled:opacity-50">
+                      <span className="material-icons-round text-red-400 text-xs">delete</span>
+                    </button>
+                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-0.5 text-[9px] font-semibold text-white bg-black/90 rounded whitespace-nowrap opacity-0 pointer-events-none group-hover/tip:opacity-100 transition-opacity">Delete</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Clickable body — opens detail */}
+              <div onClick={() => startEdit(venue)} className="cursor-pointer flex flex-col flex-1 px-4 pb-4">
+                {/* Image + Name */}
+                <div className="flex items-center gap-2.5 mb-3">
+                  {venue._primary_image ? (
+                    <img src={venue._primary_image} alt={venue.name} className="w-11 h-11 rounded-lg object-cover border border-border flex-shrink-0" />
+                  ) : (
+                    <div className="w-11 h-11 rounded-lg bg-white/5 border border-border flex items-center justify-center flex-shrink-0">
+                      <span className="material-icons-round text-text-muted text-lg">storefront</span>
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <h3 className="text-white font-bold text-sm truncate group-hover:text-primary transition-colors">{venue.name}</h3>
+                    <p className="text-[10px] text-text-muted truncate">{venue.neighborhood || venue.city}</p>
+                  </div>
+                </div>
+
+                {/* Badges */}
+                <div className="flex flex-wrap gap-1 mb-3">
+                  {venue.is_private_room && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-purple-400/10 text-purple-400">Private</span>}
+                  {venue.menu_items && venue.menu_items.length > 0 && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-amber-400/10 text-amber-400">{venue.menu_items.length} menu</span>}
+                  {venue._review_count > 0 && (
+                    <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-yellow-400/10 text-yellow-400 flex items-center gap-0.5">
+                      <span className="material-icons-round text-[8px]">star</span>{venue._avg_rating}
+                    </span>
+                  )}
+                  {venue.queue_paused && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-yellow-500/10 text-yellow-500">Paused</span>}
+                </div>
+
+                {/* Quick stats */}
+                <div className="mt-auto pt-2 border-t border-border/10 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-[10px] text-text-muted">
+                    <span>{venue._event_count} events</span>
+                    {venue._media_count > 0 && <span>{venue._media_count} media</span>}
+                  </div>
+                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${venue.owner_id ? "bg-green-500/10 text-green-400" : "bg-white/5 text-text-muted"}`}>
+                    {venue.owner_id ? "Owned" : "No owner"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )
+        ))}
       </div>
+
+      {filteredVenues.length === 0 && (
+        <div className="text-center py-12 glass-card rounded-2xl mt-4">
+          <span className="material-icons-round text-4xl text-text-muted mb-2">search_off</span>
+          <p className="text-text-secondary text-sm">No venues match your search</p>
+        </div>
+      )}
+
     </div>
   );
 }

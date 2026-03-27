@@ -110,6 +110,7 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
   const urlDj = searchParams.get("dj");
   const urlNotes = searchParams.get("notes");
   const urlPhone = searchParams.get("phone");
+  const urlFlyerImg = searchParams.get("flyerImg");
   // Detect the target day from URL param or slug (e.g. "fusion-east-monday" → "Monday")
   // Normalize so "Every 3rd Monday" → "Monday" for DB matching
   const targetDay = (() => {
@@ -128,7 +129,7 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
   const [reviews, setReviews] = useState<Review[]>([]);
   const [dbVenue, setDbVenue] = useState<SupabaseVenue | null>(null);
   const [dbEvents, setDbEvents] = useState<DbEvent[]>([]);
-  const [eventFlyerUrl, setEventFlyerUrl] = useState<string | null>(null);
+  const [eventFlyerUrl, setEventFlyerUrl] = useState<string | null>(urlFlyerImg);
   const [venueMediaImage, setVenueMediaImage] = useState<string | null>(null);
   const [venuePhone, setVenuePhone] = useState<string | null>(null);
   const [loading, setLoading] = useState(!mockVenue);
@@ -233,9 +234,9 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
 
   const phone = venuePhone || event?.phone || urlPhone || "";
 
-  // Fetch venue from Supabase when not found in mock data
+  // Fetch venue from Supabase — always runs so we get the UUID for flyer lookups,
+  // even when mock data provides the venue shell.
   useEffect(() => {
-    if (mockVenue) return;
     const supabase = createClient();
 
     async function fetchVenue() {
@@ -249,11 +250,12 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
         if (data) { setDbVenue(data as SupabaseVenue); setLoading(false); return; }
       }
 
-      // Fallback: search by name — prefer ?name= param, then extract from slug
+      // Fallback: search by name — prefer ?name= param, then mock venue name, then extract from slug
       let namePart: string;
       if (nameParam) {
-        // URL carries the venue name explicitly (e.g. ?name=Pitch)
         namePart = nameParam;
+      } else if (mockVenue) {
+        namePart = mockVenue.name;
       } else {
         // Extract from slug: "patriot-lounge-tuesday" → "patriot lounge"
         const slug = id.replace(/-/g, " ");
@@ -277,7 +279,7 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
         // Exact match first (always)
         let match = matches.find((v) => v.name.toLowerCase().replace(/[^a-z0-9]/g, "") === norm);
         // Partial match only when name came from slug (no nameParam) and exact fails
-        if (!match && !nameParam) {
+        if (!match && !nameParam && !mockVenue) {
           match = matches.find((v) => {
             const vNorm = v.name.toLowerCase().replace(/[^a-z0-9]/g, "");
             return vNorm.includes(norm) || norm.includes(vNorm);
@@ -293,6 +295,8 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
   }, [id, mockVenue]);
 
   // Fetch venue events from DB (for event details, flyer, Remind Me)
+  // Uses dbVenue UUID when available, but also runs a name-based lookup immediately
+  // so flyers load without waiting for the dbVenue async chain.
   useEffect(() => {
     const venueUUID = dbVenue?.id || (isUUID(id) ? id : null);
     if (!venueUUID) return;
@@ -305,16 +309,44 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
       .then(({ data }) => {
         if (data?.length) {
           setDbEvents(data as DbEvent[]);
-          // Pick the flyer matching the target day only.
-          // Don't fall back to other days — that would show the wrong image.
           const dayMatch = data.find((e: any) => e.flyer_url && normalizeDay(e.day_of_week) === targetDay);
-          // Only use a non-day flyer if there's no targetDay at all (e.g. UUID route with no day param)
           const fallback = !targetDay ? data.find((e: any) => e.flyer_url) : null;
           const best = dayMatch || fallback;
           if (best?.flyer_url) setEventFlyerUrl(best.flyer_url);
         }
       });
   }, [id, dbVenue, targetDay]);
+
+  // Immediate flyer lookup by venue name — runs on mount without waiting for dbVenue UUID.
+  // This ensures uploaded flyers show up right away for mock-data slug URLs.
+  useEffect(() => {
+    if (eventFlyerUrl) return; // already have a flyer (e.g. from URL param)
+    const venueName = mockVenue?.name || nameParam;
+    if (!venueName) return;
+    const supabase = createClient();
+    supabase
+      .from("venues")
+      .select("id")
+      .ilike("name", venueName)
+      .limit(1)
+      .single()
+      .then(({ data: venueRow }) => {
+        if (!venueRow) return;
+        supabase
+          .from("venue_events")
+          .select("flyer_url, day_of_week")
+          .eq("venue_id", venueRow.id)
+          .not("flyer_url", "is", null)
+          .then(({ data: events }) => {
+            if (!events?.length) return;
+            const dayMatch = events.find((e: any) => normalizeDay(e.day_of_week) === targetDay);
+            const fallback = !targetDay ? events[0] : null;
+            const best = dayMatch || fallback;
+            if (best?.flyer_url) setEventFlyerUrl(best.flyer_url);
+          });
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Fetch primary venue image from venue_media and phone from venues table
   useEffect(() => {
@@ -647,12 +679,15 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
                     <span className="material-icons-round text-xs">restaurant_menu</span>
                     Menu
                   </a>
-                ) : (
-                  <span className="inline-flex items-center gap-1 bg-gray-500/10 text-gray-500 text-[10px] px-2.5 py-1 rounded-full font-bold cursor-default opacity-50">
-                    <span className="material-icons-round text-xs">menu_book</span>
-                    Menu Coming Soon
-                  </span>
-                )}
+                ) : dbVenue?.menu_items && dbVenue.menu_items.length > 0 ? (
+                  <a
+                    href="#venue-menu"
+                    className="inline-flex items-center gap-1 bg-amber-500/10 text-amber-400 text-[10px] px-2.5 py-1 rounded-full font-bold hover:bg-amber-500/20 transition-colors"
+                  >
+                    <span className="material-icons-round text-xs">restaurant_menu</span>
+                    Menu
+                  </a>
+                ) : null}
                 {/* Instagram pill */}
                 {dbVenue?.instagram && (
                   <a
@@ -770,18 +805,21 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
                 <span className="material-icons-round text-amber-400 text-2xl">restaurant_menu</span>
                 <span className="text-xs text-amber-400 font-semibold">Menu</span>
               </a>
-            ) : (
-              <div className="flex-1 glass-card rounded-2xl p-4 flex flex-col items-center gap-2 opacity-40 cursor-default">
-                <span className="material-icons-round text-text-muted text-2xl">menu_book</span>
-                <span className="text-xs text-text-muted font-semibold">Menu Coming Soon</span>
-              </div>
-            )}
+            ) : dbVenue?.menu_items && dbVenue.menu_items.length > 0 ? (
+              <a
+                href="#venue-menu"
+                className="flex-1 glass-card rounded-2xl p-4 flex flex-col items-center gap-2 hover:border-amber-500/30 transition-all"
+              >
+                <span className="material-icons-round text-amber-400 text-2xl">restaurant_menu</span>
+                <span className="text-xs text-amber-400 font-semibold">Menu</span>
+              </a>
+            ) : null}
           </div>
         </section>
 
         {/* Menu Section */}
         {dbVenue?.menu_items && dbVenue.menu_items.length > 0 && (
-          <section className="px-5 mt-5">
+          <section id="venue-menu" className="px-5 mt-5">
             <div className="glass-card rounded-2xl p-5">
               <div className="flex items-center gap-2 mb-4">
                 <span className="material-icons-round text-amber-400">restaurant_menu</span>
