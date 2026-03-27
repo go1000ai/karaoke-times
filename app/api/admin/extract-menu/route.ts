@@ -241,34 +241,36 @@ async function extractMenuFromImages(html: string, pageUrl: string): Promise<Men
 
   if (resolvedImages.length === 0) return [];
 
-  // Download images and convert to base64 (limit to first 5 largest)
-  const imageData: { base64: string; mediaType: string }[] = [];
-  for (const imgUrl of resolvedImages.slice(0, 10)) {
-    try {
+  // Download images in parallel (fast — 3 second timeout each, max 6 candidates)
+  const candidates = resolvedImages.slice(0, 6);
+  console.log(`Downloading ${candidates.length} image candidates...`);
+  const downloads = await Promise.allSettled(
+    candidates.map(async (imgUrl) => {
       const imgRes = await fetch(imgUrl, {
         headers: { "User-Agent": "Mozilla/5.0" },
-        signal: AbortSignal.timeout(15000),
+        signal: AbortSignal.timeout(3000),
       });
-      if (!imgRes.ok) continue;
-
+      if (!imgRes.ok) return null;
       const contentType = imgRes.headers.get("content-type") || "";
-      if (!contentType.startsWith("image/")) continue;
-
+      if (!contentType.startsWith("image/")) return null;
       const buffer = await imgRes.arrayBuffer();
-      const size = buffer.byteLength;
-      // Skip tiny images (likely icons) and huge images
-      if (size < 10000 || size > 10000000) continue;
+      if (buffer.byteLength < 10000 || buffer.byteLength > 10000000) return null;
+      return {
+        base64: Buffer.from(buffer).toString("base64"),
+        mediaType: contentType.split(";")[0].trim(),
+        size: buffer.byteLength,
+      };
+    })
+  );
 
-      const base64 = Buffer.from(buffer).toString("base64");
-      const mediaType = contentType.split(";")[0].trim() as string;
-      imageData.push({ base64, mediaType });
+  // Keep the 3 largest images (most likely to be menu photos, not thumbnails)
+  const imageData = downloads
+    .map((r) => r.status === "fulfilled" ? r.value : null)
+    .filter((d): d is { base64: string; mediaType: string; size: number } => !!d)
+    .sort((a, b) => b.size - a.size)
+    .slice(0, 3);
 
-      // Limit to 5 images to control costs
-      if (imageData.length >= 5) break;
-    } catch {
-      continue;
-    }
-  }
+  console.log(`Got ${imageData.length} usable images`);
 
   if (imageData.length === 0) return [];
 
@@ -285,7 +287,7 @@ async function extractMenuFromImages(html: string, pageUrl: string): Promise<Men
 
   const msg = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
-    max_tokens: 4000,
+    max_tokens: 2000,
     messages: [
       {
         role: "user",

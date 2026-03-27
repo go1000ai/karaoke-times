@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "app/api/admin/extract-menu/route.ts": {
+      "maxDuration": 60
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/send-reminders",
