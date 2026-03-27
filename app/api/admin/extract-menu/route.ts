@@ -55,15 +55,18 @@ export async function POST(req: NextRequest) {
 
     // --- Step 2: If text extraction found few items, try image-based extraction with Claude Vision ---
     if (menuItems.length < 3) {
+      console.log(`Text extraction found ${menuItems.length} items, trying Vision...`);
       try {
         const imageItems = await extractMenuFromImages(html, url);
+        console.log(`Vision extraction found ${imageItems.length} items`);
         if (imageItems.length > menuItems.length) {
           return saveAndReturn(supabase, venueId, url, imageItems);
         }
       } catch (visionErr) {
-        console.error("Vision extraction failed:", visionErr);
-        // Fall through to return text-extracted items
+        console.error("Vision extraction failed:", visionErr instanceof Error ? visionErr.message : visionErr);
       }
+    } else {
+      console.log(`Text extraction found ${menuItems.length} items, skipping Vision`);
     }
 
     return saveAndReturn(supabase, venueId, url, menuItems);
