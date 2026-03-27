@@ -687,7 +687,12 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
                     <span className="material-icons-round text-xs">restaurant_menu</span>
                     Menu
                   </a>
-                ) : null}
+                ) : (
+                  <span className="inline-flex items-center gap-1 bg-white/5 text-text-muted text-[10px] px-2.5 py-1 rounded-full font-bold opacity-60">
+                    <span className="material-icons-round text-xs">menu_book</span>
+                    Menu Not Available
+                  </span>
+                )}
                 {/* Instagram pill */}
                 {dbVenue?.instagram && (
                   <a
@@ -813,7 +818,12 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
                 <span className="material-icons-round text-amber-400 text-2xl">restaurant_menu</span>
                 <span className="text-xs text-amber-400 font-semibold">Menu</span>
               </a>
-            ) : null}
+            ) : (
+              <div className="flex-1 glass-card rounded-2xl p-4 flex flex-col items-center gap-2 opacity-40 cursor-default">
+                <span className="material-icons-round text-text-muted text-2xl">menu_book</span>
+                <span className="text-xs text-text-muted font-semibold">Menu Not Available</span>
+              </div>
+            )}
           </div>
         </section>
 
