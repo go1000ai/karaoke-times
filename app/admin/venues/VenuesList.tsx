@@ -280,22 +280,24 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
     });
   }
 
-  async function handleExtractMenu(venueId: string) {
-    if (!menuExtractUrl.trim()) return;
+  async function handleExtractMenu(venueId: string, urlOverride?: string) {
+    const url = urlOverride?.trim() || menuExtractUrl.trim();
+    if (!url) return;
     setMenuExtracting(venueId);
     setMenuPreview(null);
     try {
       const res = await fetch("/api/admin/extract-menu", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: menuExtractUrl.trim(), venueId }),
+        body: JSON.stringify({ url, venueId }),
+        signal: AbortSignal.timeout(60000),
       });
       const data = await res.json();
       if (data.error) {
         alert("Error: " + data.error);
       } else if (data.items && data.items.length > 0) {
         if (data.saved) {
-          setVenues((prev) => prev.map((v) => v.id === venueId ? { ...v, menu_items: data.items, menu_url: menuExtractUrl.trim() } : v));
+          setVenues((prev) => prev.map((v) => v.id === venueId ? { ...v, menu_items: data.items, menu_url: url } : v));
           setMenuExtractUrl("");
           setMenuPreview(null);
         } else {
@@ -560,25 +562,126 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
                     <input value={editForm.booking_url || ""} onChange={(e) => setEditForm({ ...editForm, booking_url: e.target.value })} placeholder="https://example.com/book" className={`${inputClass} w-full`} />
                   </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Instagram</label>
-                    <input value={editForm.instagram || ""} onChange={(e) => setEditForm({ ...editForm, instagram: e.target.value })} placeholder="@venuename or URL" className={`${inputClass} w-full`} />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Menu URL</label>
-                    <input value={editForm.menu_url || ""} onChange={(e) => setEditForm({ ...editForm, menu_url: e.target.value })} placeholder="https://example.com/menu" className={`${inputClass} w-full`} />
-                  </div>
-                </div>
                 <div>
-                  <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Hours of Operation</label>
-                  <textarea value={editForm.hours_open || ""} onChange={(e) => setEditForm({ ...editForm, hours_open: e.target.value })} placeholder={"Mon-Thu: 5PM-2AM\nFri-Sat: 5PM-4AM\nSun: 3PM-12AM"} rows={3} className={`${inputClass} w-full resize-none`} />
+                  <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Instagram</label>
+                  <input value={editForm.instagram || ""} onChange={(e) => setEditForm({ ...editForm, instagram: e.target.value })} placeholder="@venuename or URL" className={`${inputClass} w-full`} />
+                </div>
+                {/* Hours + Description side by side */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-2 block">Hours of Operation</label>
+                  {(() => {
+                    const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+                    const TIMES = ["Closed", "12:00 AM", "12:30 AM", "1:00 AM", "1:30 AM", "2:00 AM", "2:30 AM", "3:00 AM", "3:30 AM", "4:00 AM", "4:30 AM", "5:00 AM", "5:30 AM", "6:00 AM", "6:30 AM", "7:00 AM", "7:30 AM", "8:00 AM", "8:30 AM", "9:00 AM", "9:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM", "12:00 PM", "12:30 PM", "1:00 PM", "1:30 PM", "2:00 PM", "2:30 PM", "3:00 PM", "3:30 PM", "4:00 PM", "4:30 PM", "5:00 PM", "5:30 PM", "6:00 PM", "6:30 PM", "7:00 PM", "7:30 PM", "8:00 PM", "8:30 PM", "9:00 PM", "9:30 PM", "10:00 PM", "10:30 PM", "11:00 PM", "11:30 PM"];
+
+                    // Parse existing hours_open text into per-day open/close
+                    const parseHours = (): Record<string, { open: string; close: string }> => {
+                      const result: Record<string, { open: string; close: string }> = {};
+                      DAYS.forEach((d) => { result[d] = { open: "", close: "" }; });
+                      if (!editForm.hours_open) return result;
+                      const lines = editForm.hours_open.split("\n");
+                      for (const line of lines) {
+                        const match = line.match(/^([\w,\s-]+):\s*(.+)$/);
+                        if (!match) continue;
+                        const dayPart = match[1].trim();
+                        const timePart = match[2].trim();
+                        // Find which days this applies to
+                        const matchedDays: string[] = [];
+                        for (const d of DAYS) {
+                          if (dayPart.includes(d)) matchedDays.push(d);
+                        }
+                        // Handle ranges like "Mon-Thu"
+                        const rangeMatch = dayPart.match(/(\w{3})\s*-\s*(\w{3})/);
+                        if (rangeMatch) {
+                          const startIdx = DAYS.indexOf(rangeMatch[1] as typeof DAYS[number]);
+                          const endIdx = DAYS.indexOf(rangeMatch[2] as typeof DAYS[number]);
+                          if (startIdx >= 0 && endIdx >= 0) {
+                            for (let i = startIdx; i <= endIdx; i++) matchedDays.push(DAYS[i]);
+                          }
+                        }
+                        if (timePart.toLowerCase() === "closed") {
+                          matchedDays.forEach((d) => { result[d] = { open: "Closed", close: "Closed" }; });
+                        } else {
+                          const times = timePart.split(/\s*-\s*/);
+                          if (times.length === 2) {
+                            matchedDays.forEach((d) => { result[d] = { open: times[0].trim(), close: times[1].trim() }; });
+                          }
+                        }
+                      }
+                      return result;
+                    };
+
+                    const hoursData = parseHours();
+
+                    const updateDay = (day: string, field: "open" | "close", value: string) => {
+                      const data = parseHours();
+                      if (value === "Closed") {
+                        data[day] = { open: "Closed", close: "Closed" };
+                      } else {
+                        data[day] = { ...data[day], [field]: value };
+                      }
+                      // Serialize back to text
+                      const lines = DAYS.map((d) => {
+                        const h = data[d];
+                        if (!h.open && !h.close) return null;
+                        if (h.open === "Closed") return `${d}: Closed`;
+                        return `${d}: ${h.open || "?"} - ${h.close || "?"}`;
+                      }).filter(Boolean);
+                      setEditForm({ ...editForm, hours_open: lines.join("\n") });
+                    };
+
+                    const copyToAll = (day: string) => {
+                      const data = parseHours();
+                      const src = data[day];
+                      DAYS.forEach((d) => { data[d] = { ...src }; });
+                      const lines = DAYS.map((d) => {
+                        const h = data[d];
+                        if (!h.open && !h.close) return null;
+                        if (h.open === "Closed") return `${d}: Closed`;
+                        return `${d}: ${h.open || "?"} - ${h.close || "?"}`;
+                      }).filter(Boolean);
+                      setEditForm({ ...editForm, hours_open: lines.join("\n") });
+                    };
+
+                    const selClass = "bg-card-dark border border-border rounded-lg py-1.5 px-2 text-xs text-white focus:outline-none focus:ring-1 focus:ring-red-500/30 cursor-pointer";
+
+                    return (
+                      <div className="space-y-2">
+                        {DAYS.map((day) => {
+                          const h = hoursData[day];
+                          const isClosed = h.open === "Closed";
+                          return (
+                            <div key={day} className="flex items-center gap-2">
+                              <span className="text-xs text-text-secondary font-bold w-8 shrink-0">{day}</span>
+                              <select value={h.open || ""} onChange={(e) => updateDay(day, "open", e.target.value)} className={`${selClass} flex-1`}>
+                                <option value="">--</option>
+                                {TIMES.map((t) => <option key={t} value={t}>{t}</option>)}
+                              </select>
+                              {!isClosed && (
+                                <>
+                                  <span className="text-xs text-text-muted">-</span>
+                                  <select value={h.close || ""} onChange={(e) => updateDay(day, "close", e.target.value)} className={`${selClass} flex-1`}>
+                                    <option value="">--</option>
+                                    {TIMES.filter((t) => t !== "Closed").map((t) => <option key={t} value={t}>{t}</option>)}
+                                  </select>
+                                </>
+                              )}
+                              <button type="button" onClick={() => copyToAll(day)} title="Copy to all days" className="w-6 h-6 rounded-md bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors shrink-0">
+                                <span className="material-icons-round text-text-muted text-xs">content_copy</span>
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div>
                   <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Description</label>
-                  <textarea value={editForm.description || ""} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} placeholder="A brief description of the venue..." rows={3} className={`${inputClass} w-full resize-none`} />
+                  <textarea value={editForm.description || ""} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} placeholder="A brief description of the venue..." rows={10} className={`${inputClass} w-full resize-none h-full`} />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-8">
                   <div className="flex items-center gap-3">
                     <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold">Private Room</label>
                     <button type="button" onClick={() => setEditForm({ ...editForm, is_private_room: !editForm.is_private_room })} className={`relative w-10 h-5 rounded-full transition-colors ${editForm.is_private_room ? "bg-purple-500" : "bg-white/10"}`}>
@@ -627,12 +730,17 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
                     </div>
                   </div>
 
-                  {/* URL extractor */}
+                  {/* Menu URL + Extract */}
                   <div className="flex gap-2 mb-3">
-                    <input value={menuExtracting === venue.id ? menuExtractUrl : (menuPreview?.venueId === venue.id ? menuExtractUrl : "")} onChange={(e) => setMenuExtractUrl(e.target.value)} onFocus={() => setMenuExtractUrl(venue.menu_url || "")} placeholder="Paste menu URL to auto-extract..." className="flex-1 bg-white/5 border border-border/30 rounded-lg px-3 py-1.5 text-[11px] text-white placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-amber-400/30" />
-                    <button onClick={() => handleExtractMenu(venue.id)} disabled={menuExtracting === venue.id} className="px-2.5 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 text-[10px] font-bold hover:bg-amber-500/20 transition-colors disabled:opacity-50 flex items-center gap-1 shrink-0">
-                      <span className="material-icons-round text-xs">{menuExtracting === venue.id ? "hourglass_top" : "auto_awesome"}</span>
-                      {menuExtracting === venue.id ? "..." : "Extract"}
+                    <input value={editForm.menu_url || ""} onChange={(e) => setEditForm({ ...editForm, menu_url: e.target.value })} placeholder="Paste venue's menu page URL..." className="flex-1 bg-white/5 border border-border/30 rounded-lg px-3 py-1.5 text-xs text-white placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-amber-400/30" />
+                    <button
+                      type="button"
+                      onClick={() => { if (editForm.menu_url) { handleExtractMenu(venue.id, editForm.menu_url); } }}
+                      disabled={!editForm.menu_url || menuExtracting === venue.id}
+                      className="px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 text-xs font-bold hover:bg-amber-500/20 transition-colors disabled:opacity-50 flex items-center gap-1 shrink-0"
+                    >
+                      <span className="material-icons-round text-sm">{menuExtracting === venue.id ? "hourglass_top" : "auto_awesome"}</span>
+                      {menuExtracting === venue.id ? "Extracting..." : "Extract from URL"}
                     </button>
                   </div>
                   {menuPreview?.venueId === venue.id && <p className="text-[10px] text-amber-400 font-bold mb-2">Extracted {menuPreview.items.length} items (saved)</p>}
@@ -670,7 +778,7 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
                       ))}
                       <div onClick={() => { addManualMenuItem(); setEditingMenuIdx(manualMenuItems.length); }} className="border border-dashed border-border/30 rounded-xl p-2.5 cursor-pointer hover:border-amber-400/30 hover:bg-amber-500/5 transition-all min-h-[72px] flex flex-col items-center justify-center gap-0.5">
                         <span className="material-icons-round text-lg text-text-muted">add</span>
-                        <span className="text-[9px] text-text-muted font-semibold">Add Item</span>
+                        <span className="text-[9px] text-text-muted font-semibold">Add Menu Item</span>
                       </div>
                     </div>
                   ) : venue.menu_items && venue.menu_items.length > 0 ? (
@@ -687,14 +795,14 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
                       ))}
                       <div onClick={() => openManualMenuEditor(venue.id)} className="border border-dashed border-border/30 rounded-xl p-2.5 cursor-pointer hover:border-amber-400/30 hover:bg-amber-500/5 transition-all min-h-[72px] flex flex-col items-center justify-center gap-0.5">
                         <span className="material-icons-round text-lg text-text-muted">add</span>
-                        <span className="text-[9px] text-text-muted font-semibold">Add Item</span>
+                        <span className="text-[9px] text-text-muted font-semibold">Add Menu Item</span>
                       </div>
                     </div>
                   ) : (
                     <div className="grid grid-cols-4 gap-2">
                       <div onClick={() => openManualMenuEditor(venue.id)} className="border border-dashed border-border/30 rounded-xl p-2.5 cursor-pointer hover:border-amber-400/30 hover:bg-amber-500/5 transition-all min-h-[72px] flex flex-col items-center justify-center gap-0.5">
                         <span className="material-icons-round text-lg text-text-muted">add</span>
-                        <span className="text-[9px] text-text-muted font-semibold">Add Item</span>
+                        <span className="text-[9px] text-text-muted font-semibold">Add Menu Item</span>
                       </div>
                     </div>
                   )}
