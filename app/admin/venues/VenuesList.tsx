@@ -306,7 +306,7 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
           setMenuPreview({ venueId, items: data.items });
         }
       } else {
-        alert("No menu items found on that page. Try a different URL.");
+        alert("No menu items found in the page text. If the menu is an image, use the 'Upload Menu Images' button instead.");
       }
     } catch {
       alert("Failed to extract menu. Check the URL and try again.");
@@ -586,7 +586,7 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
                     <input value={editForm.cross_street || ""} onChange={(e) => setEditForm({ ...editForm, cross_street: e.target.value })} placeholder="Between 1st and 2nd Ave" className={`${inputClass} w-full`} />
                   </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Website</label>
                     <input value={editForm.website || ""} onChange={(e) => setEditForm({ ...editForm, website: e.target.value })} placeholder="https://example.com" className={`${inputClass} w-full`} />
@@ -595,10 +595,10 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
                     <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Booking URL</label>
                     <input value={editForm.booking_url || ""} onChange={(e) => setEditForm({ ...editForm, booking_url: e.target.value })} placeholder="https://example.com/book" className={`${inputClass} w-full`} />
                   </div>
-                </div>
-                <div>
-                  <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Instagram</label>
-                  <input value={editForm.instagram || ""} onChange={(e) => setEditForm({ ...editForm, instagram: e.target.value })} placeholder="@venuename or URL" className={`${inputClass} w-full`} />
+                  <div>
+                    <label className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-1 block">Instagram</label>
+                    <input value={editForm.instagram || ""} onChange={(e) => setEditForm({ ...editForm, instagram: e.target.value })} placeholder="@venuename or URL" className={`${inputClass} w-full`} />
+                  </div>
                 </div>
                 {/* Hours + Description side by side */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
