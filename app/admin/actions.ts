@@ -4,6 +4,27 @@ import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
+// Helper: remove a venue from the synced_events JSON cache by name
+async function removeSyncedEventsByVenueName(venueName: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("synced_events")
+    .select("events_json")
+    .eq("id", "latest")
+    .single();
+  if (!data?.events_json || !Array.isArray(data.events_json)) return;
+
+  const normalized = venueName.toLowerCase().replace(/&/g, "and").replace(/\s+/g, " ").trim();
+  const filtered = data.events_json.filter((e: Record<string, unknown>) => {
+    const n = ((e.venueName as string) || "").toLowerCase().replace(/&/g, "and").replace(/\s+/g, " ").trim();
+    return n !== normalized;
+  });
+
+  if (filtered.length < data.events_json.length) {
+    await supabase.from("synced_events").update({ events_json: filtered }).eq("id", "latest");
+  }
+}
+
 // ─── User Management ────────────────────────────────────────
 
 export async function updateUserRole(userId: string, role: string) {
@@ -40,12 +61,25 @@ export async function deleteVenue(venueId: string) {
   await requireAdmin();
   const supabase = await createClient();
 
+  // Get venue name before deleting so we can clean synced_events
+  const { data: venue } = await supabase
+    .from("venues")
+    .select("name")
+    .eq("id", venueId)
+    .single();
+
   const { error } = await supabase
     .from("venues")
     .delete()
     .eq("id", venueId);
 
   if (error) return { error: error.message };
+
+  // Also remove from synced_events cache so it disappears from the homepage
+  if (venue?.name) {
+    await removeSyncedEventsByVenueName(venue.name);
+  }
+
   revalidatePath("/admin/venues");
   return { success: true };
 }
@@ -84,12 +118,43 @@ export async function deleteEvent(eventId: string) {
   await requireAdmin();
   const supabase = await createClient();
 
+  // Get event details before deleting so we can clean synced_events
+  const { data: event } = await supabase
+    .from("venue_events")
+    .select("day_of_week, venue_id, venues(name)")
+    .eq("id", eventId)
+    .single();
+
   const { error } = await supabase
     .from("venue_events")
     .delete()
     .eq("id", eventId);
 
   if (error) return { error: error.message };
+
+  // Remove matching entry from synced_events cache
+  const venueName = (event?.venues as any)?.name;
+  if (venueName && event?.day_of_week) {
+    const supabase2 = await createClient();
+    const { data } = await supabase2
+      .from("synced_events")
+      .select("events_json")
+      .eq("id", "latest")
+      .single();
+    if (data?.events_json && Array.isArray(data.events_json)) {
+      const normName = venueName.toLowerCase().replace(/&/g, "and").replace(/\s+/g, " ").trim();
+      const normDay = event.day_of_week.toLowerCase();
+      const filtered = data.events_json.filter((e: Record<string, unknown>) => {
+        const n = ((e.venueName as string) || "").toLowerCase().replace(/&/g, "and").replace(/\s+/g, " ").trim();
+        const d = ((e.dayOfWeek as string) || "").toLowerCase();
+        return !(n === normName && d === normDay);
+      });
+      if (filtered.length < data.events_json.length) {
+        await supabase2.from("synced_events").update({ events_json: filtered }).eq("id", "latest");
+      }
+    }
+  }
+
   revalidatePath("/admin/events");
   return { success: true };
 }
