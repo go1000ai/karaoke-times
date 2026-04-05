@@ -677,6 +677,16 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
                     <span className="material-icons-round text-xs">restaurant_menu</span>
                     Menu
                   </a>
+                ) : dbVenue?.menu_url ? (
+                  <a
+                    href={dbVenue.menu_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 bg-amber-500/10 text-amber-400 text-[10px] px-2.5 py-1 rounded-full font-bold hover:bg-amber-500/20 transition-colors"
+                  >
+                    <span className="material-icons-round text-xs">restaurant_menu</span>
+                    Menu
+                  </a>
                 ) : (
                   <span className="inline-flex items-center gap-1 bg-white/5 text-text-muted text-[10px] px-2.5 py-1 rounded-full font-bold opacity-60">
                     <span className="material-icons-round text-xs">menu_book</span>
@@ -793,6 +803,16 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
             {dbVenue?.menu_items && dbVenue.menu_items.length > 0 ? (
               <a
                 href="#venue-menu"
+                className="flex-1 glass-card rounded-2xl p-4 flex flex-col items-center gap-2 hover:border-amber-500/30 transition-all"
+              >
+                <span className="material-icons-round text-amber-400 text-2xl">restaurant_menu</span>
+                <span className="text-xs text-amber-400 font-semibold">Menu</span>
+              </a>
+            ) : dbVenue?.menu_url ? (
+              <a
+                href={dbVenue.menu_url}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="flex-1 glass-card rounded-2xl p-4 flex flex-col items-center gap-2 hover:border-amber-500/30 transition-all"
               >
                 <span className="material-icons-round text-amber-400 text-2xl">restaurant_menu</span>

@@ -253,7 +253,7 @@ export async function GET() {
         .single(),
       supabase
         .from("venue_events")
-        .select("id, venue_id, day_of_week, event_name, dj, start_time, end_time, notes, flyer_url, is_active, venues(name, address, city, state, zip_code, neighborhood, cross_street, phone, website, instagram, menu_url)")
+        .select("id, venue_id, day_of_week, event_name, dj, start_time, end_time, notes, flyer_url, is_active, venues(name, address, city, state, zip_code, neighborhood, cross_street, phone, website, instagram, menu_url, is_private_room)")
         .neq("is_active", false),
       supabase
         .from("venue_events")
@@ -314,8 +314,43 @@ export async function GET() {
         website: venue.website || null,
         instagram: venue.instagram || null,
         menuUrl: venue.menu_url || null,
-        isPrivateRoom: false,
+        isPrivateRoom: !!(venue.is_private_room),
         bookingUrl: null,
+      });
+    }
+
+    // Fetch private room venues and merge them as "Private Room Karaoke" events
+    const { data: privateRoomVenues } = await supabase
+      .from("venues")
+      .select("id, name, address, city, state, zip_code, neighborhood, cross_street, phone, website, instagram, menu_url, booking_url")
+      .eq("is_private_room", true);
+
+    for (const pv of privateRoomVenues || []) {
+      const key = `${normalizeName(pv.name)}|Private Room Karaoke`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      events.push({
+        id: pv.id,
+        dayOfWeek: "Private Room Karaoke",
+        eventName: "",
+        venueName: pv.name,
+        address: pv.address || "",
+        city: pv.city || "",
+        state: pv.state || "",
+        zipCode: pv.zip_code || "",
+        neighborhood: pv.neighborhood || "",
+        crossStreet: pv.cross_street || "",
+        phone: pv.phone || "",
+        dj: "",
+        startTime: "",
+        endTime: "",
+        notes: "",
+        image: null,
+        website: pv.website || null,
+        instagram: pv.instagram || null,
+        menuUrl: pv.menu_url || null,
+        isPrivateRoom: true,
+        bookingUrl: pv.booking_url || null,
       });
     }
 
@@ -328,7 +363,7 @@ export async function GET() {
         .eq("type", "image"),
       supabase
         .from("venues")
-        .select("id, name, instagram, menu_url"),
+        .select("id, name, website, instagram, menu_url"),
     ]);
 
     // Build venue_id → primary image map
@@ -340,11 +375,13 @@ export async function GET() {
     // Build venue name → venue_id map from ALL venues (not just venue_events)
     // This ensures every venue can be looked up for venue_media images
     const venueIdMap = new Map<string, string>();
+    const venueWebsiteMap = new Map<string, string>();
     const venueInstagramMap = new Map<string, string>();
     const venueMenuMap = new Map<string, string>();
     for (const v of allVenues || []) {
       if (v.name) {
         venueIdMap.set(normalizeName(v.name), v.id);
+        if (v.website) venueWebsiteMap.set(normalizeName(v.name), v.website);
         if (v.instagram) venueInstagramMap.set(normalizeName(v.name), v.instagram);
         if (v.menu_url) venueMenuMap.set(normalizeName(v.name), v.menu_url);
       }
@@ -389,6 +426,11 @@ export async function GET() {
     // 2. Admin curated images (static /venues/*.jpg photos)
     // 3. AI-generated (Gemini stored in auto-flyers, or on-the-fly placeholder)
     for (const ev of events) {
+      // If the event already has a KJ-uploaded flyer URL (e.g. from synced_events), keep it
+      if (ev.image && typeof ev.image === "string" && ev.image.includes("flyer-uploads/event-flyers/")) {
+        continue;
+      }
+
       const venueKey = ev.venueName ? normalizeName(ev.venueName as string) : null;
       const normalizedDay = ev.dayOfWeek ? normalizeDay(ev.dayOfWeek as string) : null;
 
@@ -454,10 +496,11 @@ export async function GET() {
     }
 
 
-    // Enrich all events with instagram/menu from venue data
+    // Enrich all events with website/instagram/menu from venue data
     for (const ev of events) {
       const venueKey = ev.venueName ? normalizeName(ev.venueName as string) : null;
       if (venueKey) {
+        if (!ev.website) ev.website = venueWebsiteMap.get(venueKey) || null;
         if (!ev.instagram) ev.instagram = venueInstagramMap.get(venueKey) || null;
         if (!ev.menuUrl) ev.menuUrl = venueMenuMap.get(venueKey) || null;
       }

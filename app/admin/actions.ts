@@ -488,6 +488,8 @@ export async function createVenue(params: {
   cross_street?: string;
   phone?: string;
   website?: string | null;
+  menu_url?: string | null;
+  instagram?: string | null;
   description?: string | null;
   is_private_room?: boolean;
   accessibility?: string | null;
@@ -508,6 +510,8 @@ export async function createVenue(params: {
       cross_street: params.cross_street || "",
       phone: params.phone || "",
       website: params.website || null,
+      menu_url: params.menu_url || null,
+      instagram: params.instagram || null,
       description: params.description || null,
       is_private_room: params.is_private_room || false,
       accessibility: params.accessibility || null,

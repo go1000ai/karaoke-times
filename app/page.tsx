@@ -204,6 +204,18 @@ const VenueCard = memo(function VenueCard({
                 </span>
               );
             })()}
+            {event.website && event.website !== "N/A" && event.website !== "n/a" && event.website.startsWith("http") && (
+              <a
+                href={event.website}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 min-w-0 bg-blue-500/10 text-blue-400 text-[10px] px-2.5 py-1 rounded-full font-bold hover:bg-blue-500/20 transition-colors"
+              >
+                <span className="material-icons-round text-xs shrink-0">language</span>
+                <span className="truncate">Website</span>
+              </a>
+            )}
             {event.instagram && (
               <a
                 href={event.instagram.startsWith("http") ? event.instagram : `https://instagram.com/${event.instagram.replace("@", "")}`}
@@ -261,101 +273,6 @@ function isZipCode(value: string): boolean {
   return /^\d{5}$/.test(value.trim());
 }
 
-const SPONSOR_CATEGORY_ICONS: Record<string, string> = {
-  liquor: "local_bar",
-  equipment: "speaker",
-  entertainment: "music_note",
-  venue: "storefront",
-  general: "business",
-};
-
-const SPONSOR_CATEGORY_LABELS: Record<string, string> = {
-  liquor: "Featured Spirits",
-  equipment: "Featured Equipment",
-  entertainment: "Entertainment",
-  venue: "Featured Venue",
-  general: "Featured Partner",
-};
-
-const SponsorAdCard = memo(function SponsorAdCard({ sponsor }: {
-  sponsor: { id: string; name: string; logo_url: string | null; link_url: string | null; category: string; tagline: string | null };
-}) {
-  const icon = SPONSOR_CATEGORY_ICONS[sponsor.category] ?? "business";
-  const catLabel = SPONSOR_CATEGORY_LABELS[sponsor.category] ?? "Featured Partner";
-
-  const inner = (
-    <div className="glass-card rounded-2xl overflow-hidden border-primary/20 hover:border-primary/40 transition-all group cursor-pointer flex flex-col h-full">
-      {/* Banner area */}
-      <div className="h-52 relative overflow-hidden bg-gradient-to-br from-primary/5 via-card-dark to-accent/5 flex items-center justify-center flex-shrink-0">
-        {sponsor.logo_url ? (
-          <img
-            src={sponsor.logo_url}
-            alt={sponsor.name}
-            className="max-h-28 max-w-[70%] object-contain filter brightness-90 group-hover:brightness-110 transition-all"
-          />
-        ) : (
-          <span className="material-icons-round text-primary/30 text-8xl">{icon}</span>
-        )}
-        {/* Sponsored badge */}
-        <div className="absolute top-3 left-3 bg-primary/90 text-black text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
-          Sponsored
-        </div>
-        {/* Category badge */}
-        <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-sm text-text-muted text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
-          <span className="material-icons-round text-[12px]">{icon}</span>
-          {catLabel}
-        </div>
-      </div>
-
-      {/* Info */}
-      <div className="p-5 flex flex-col flex-1">
-        <h4 className="font-bold text-white text-lg leading-tight mb-1">{sponsor.name}</h4>
-        {sponsor.tagline ? (
-          <p className="text-text-secondary text-xs mb-3">{sponsor.tagline}</p>
-        ) : (
-          <p className="text-text-secondary text-xs mb-3">{catLabel}</p>
-        )}
-        <div className="mt-auto">
-          <span className="inline-flex items-center gap-1.5 text-primary text-xs font-bold">
-            Learn more
-            <span className="material-icons-round text-sm">arrow_forward</span>
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-
-  if (sponsor.link_url) {
-    return (
-      <a href={sponsor.link_url} target="_blank" rel="noopener noreferrer">
-        {inner}
-      </a>
-    );
-  }
-  return inner;
-});
-
-type ListingItem =
-  | { type: "event"; data: KaraokeEvent; eventIdx: number }
-  | { type: "sponsor"; data: { id: string; name: string; logo_url: string | null; link_url: string | null; category: string; tagline: string | null }; key: string };
-
-function mixWithSponsors(
-  events: KaraokeEvent[],
-  sponsors: { id: string; name: string; logo_url: string | null; link_url: string | null; category: string; tagline: string | null }[],
-  interval = 6
-): ListingItem[] {
-  if (sponsors.length === 0) return events.map((data, eventIdx) => ({ type: "event", data, eventIdx }));
-  const result: ListingItem[] = [];
-  let sponsorCursor = 0;
-  for (let i = 0; i < events.length; i++) {
-    result.push({ type: "event", data: events[i], eventIdx: i });
-    if ((i + 1) % interval === 0) {
-      result.push({ type: "sponsor", data: sponsors[sponsorCursor % sponsors.length], key: `sponsor-${i}` });
-      sponsorCursor++;
-    }
-  }
-  return result;
-}
 
 // Resolve day abbreviations to full day names for search
 const DAY_ALIASES: Record<string, string> = {
@@ -417,6 +334,8 @@ export default function HomePage() {
     if (event.dj) p.set("dj", event.dj);
     if (event.notes) p.set("notes", event.notes);
     if (event.phone) p.set("phone", event.phone);
+    // Pass the flyer image URL so the detail page can show it immediately
+    if (event.image && event.image.includes("flyer-uploads/")) p.set("flyerImg", event.image);
     return `/venue/${event.id}?${p}`;
   };
 
@@ -458,14 +377,6 @@ export default function HomePage() {
     video_url: string | null;
     singer?: { display_name: string | null };
     venue?: { name: string | null };
-  }[]>([]);
-  const [listingSponsors, setListingSponsors] = useState<{
-    id: string;
-    name: string;
-    logo_url: string | null;
-    link_url: string | null;
-    category: string;
-    tagline: string | null;
   }[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const eventsByDay = useMemo(() => {
@@ -524,14 +435,6 @@ export default function HomePage() {
       .limit(6)
       .then(({ data }) => {
         if (data) setFeaturedSingers(data as any);
-      });
-    supabase
-      .from("sponsors")
-      .select("id, name, logo_url, link_url, category, tagline")
-      .eq("is_active", true)
-      .order("display_order")
-      .then(({ data }) => {
-        if (data && data.length > 0) setListingSponsors(data as any);
       });
   }, []);
 
@@ -1065,21 +968,17 @@ export default function HomePage() {
                     </span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {mixWithSponsors(previewEvents, listingSponsors, 3).map((item) =>
-                      item.type === "sponsor" ? (
-                        <SponsorAdCard key={item.key} sponsor={item.data} />
-                      ) : (
+                    {previewEvents.map((event, eventIdx) => (
                         <VenueCard
-                          key={`${item.data.id}-${item.data.dayOfWeek}-${item.eventIdx}`}
-                          event={item.data}
-                          onClick={() => navigateToVenue(item.data)}
+                          key={`${event.id}-${event.dayOfWeek}-${eventIdx}`}
+                          event={event}
+                          onClick={() => navigateToVenue(event)}
                           showActions={!!user}
-                          isFavorited={favorites.has(item.data.id)}
-                          onToggleFavorite={() => toggleFavorite(item.data.id)}
-                          onShare={() => shareEvent(item.data)}
+                          isFavorited={favorites.has(event.id)}
+                          onToggleFavorite={() => toggleFavorite(event.id)}
+                          onShare={() => shareEvent(event)}
                         />
-                      )
-                    )}
+                    ))}
                   </div>
                   {hasMore && (
                     <div className="text-center mt-6">
@@ -1101,21 +1000,17 @@ export default function HomePage() {
           ) : (
             // Show filtered day
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {mixWithSponsors(filteredEvents, listingSponsors, 3).map((item) =>
-                item.type === "sponsor" ? (
-                  <SponsorAdCard key={item.key} sponsor={item.data} />
-                ) : (
+              {filteredEvents.map((event, eventIdx) => (
                   <VenueCard
-                    key={`${item.data.id}-${item.data.dayOfWeek}-${item.eventIdx}`}
-                    event={item.data}
-                    onClick={() => navigateToVenue(item.data)}
+                    key={`${event.id}-${event.dayOfWeek}-${eventIdx}`}
+                    event={event}
+                    onClick={() => navigateToVenue(event)}
                     showActions={!!user}
-                    isFavorited={favorites.has(item.data.id)}
-                    onToggleFavorite={() => toggleFavorite(item.data.id)}
-                    onShare={() => shareEvent(item.data)}
+                    isFavorited={favorites.has(event.id)}
+                    onToggleFavorite={() => toggleFavorite(event.id)}
+                    onShare={() => shareEvent(event)}
                   />
-                )
-              )}
+              ))}
             </div>
           )}
 

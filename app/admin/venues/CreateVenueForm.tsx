@@ -20,6 +20,8 @@ export function CreateVenueForm({ owners }: { owners: Owner[] }) {
   const [crossStreet, setCrossStreet] = useState("");
   const [phone, setPhone] = useState("");
   const [website, setWebsite] = useState("");
+  const [menuUrl, setMenuUrl] = useState("");
+  const [instagram, setInstagram] = useState("");
   const [description, setDescription] = useState("");
   const [isPrivateRoom, setIsPrivateRoom] = useState(false);
   const [accessibility, setAccessibility] = useState("");
@@ -40,6 +42,8 @@ export function CreateVenueForm({ owners }: { owners: Owner[] }) {
         cross_street: crossStreet.trim(),
         phone: phone.trim(),
         website: website.trim() || null,
+        menu_url: menuUrl.trim() || null,
+        instagram: instagram.trim() || null,
         description: description.trim() || null,
         is_private_room: isPrivateRoom,
         accessibility: accessibility || null,
@@ -54,6 +58,8 @@ export function CreateVenueForm({ owners }: { owners: Owner[] }) {
         setCrossStreet("");
         setPhone("");
         setWebsite("");
+        setMenuUrl("");
+        setInstagram("");
         setDescription("");
         setIsPrivateRoom(false);
         setAccessibility("");
@@ -178,6 +184,29 @@ export function CreateVenueForm({ owners }: { owners: Owner[] }) {
                 value={website}
                 onChange={(e) => setWebsite(e.target.value)}
                 placeholder="https://..."
+                className="w-full bg-card-dark border border-border rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 placeholder:text-text-muted"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs text-text-muted uppercase tracking-wider font-bold mb-1.5 block">Menu URL</label>
+              <input
+                type="text"
+                value={menuUrl}
+                onChange={(e) => setMenuUrl(e.target.value)}
+                placeholder="https://menu.example.com"
+                className="w-full bg-card-dark border border-border rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 placeholder:text-text-muted"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-text-muted uppercase tracking-wider font-bold mb-1.5 block">Instagram</label>
+              <input
+                type="text"
+                value={instagram}
+                onChange={(e) => setInstagram(e.target.value)}
+                placeholder="@venuename"
                 className="w-full bg-card-dark border border-border rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 placeholder:text-text-muted"
               />
             </div>
