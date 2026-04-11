@@ -244,8 +244,16 @@ export async function GET() {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
 
-    // Fetch synced events (CSV-sourced), active venue_events, and inactive venue_events in parallel
-    const [syncResult, dbResult, inactiveResult] = await Promise.all([
+    // Compute the date range for "this week" skip checks.
+    // For each day-of-week, find the next occurrence within the next 7 days.
+    const today = new Date();
+    const todayStr = today.toISOString().split("T")[0];
+    const weekFromNow = new Date(today);
+    weekFromNow.setDate(weekFromNow.getDate() + 7);
+    const weekFromNowStr = weekFromNow.toISOString().split("T")[0];
+
+    // Fetch synced events (CSV-sourced), active venue_events, inactive venue_events, and event skips in parallel
+    const [syncResult, dbResult, inactiveResult, skipsResult] = await Promise.all([
       supabase
         .from("synced_events")
         .select("events_json, synced_at")
@@ -259,7 +267,29 @@ export async function GET() {
         .from("venue_events")
         .select("day_of_week, venues(name)")
         .eq("is_active", false),
+      supabase
+        .from("event_skips")
+        .select("event_id, skip_date")
+        .gte("skip_date", todayStr)
+        .lte("skip_date", weekFromNowStr),
     ]);
+
+    // Build skip set: event IDs skipped this week, then map to venue+day combos
+    const skippedEventIds = new Set<string>();
+    for (const skip of (skipsResult.data || [])) {
+      skippedEventIds.add(skip.event_id);
+    }
+
+    // Build venue+day skip keys from active DB events that are in the skip set
+    const skippedKeys = new Set<string>();
+    for (const ve of (dbResult.data || [])) {
+      if (skippedEventIds.has(ve.id)) {
+        const name = (ve.venues as any)?.name;
+        if (name) {
+          skippedKeys.add(`${normalizeName(name)}|${normalizeDay(ve.day_of_week || "")}`);
+        }
+      }
+    }
 
     // Build blocklist: inactive venue+day combos that should be suppressed from synced_events
     const blockedKeys = new Set<string>();
@@ -279,22 +309,24 @@ export async function GET() {
       const normalizedDay = normalizeDay(rawDay);
       const key = `${normalizeName((e.venueName as string) || "")}|${normalizedDay}`;
       if (blockedKeys.has(key)) return false; // admin marked inactive
+      if (skippedKeys.has(key)) return false; // skipped this week
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
     });
 
-    // Merge venue_events from DB that aren't already in synced_events
+    // Merge venue_events from DB: override synced events when both exist (DB is admin-editable),
+    // or add new DB-only events.
     const dbEvents = dbResult.data || [];
     for (const ve of dbEvents) {
       const venue = ve.venues as any;
       if (!venue?.name) continue;
+      if (skippedEventIds.has(ve.id)) continue; // skipped this week
       const rawDay = ve.day_of_week || "";
       const normalizedDay = normalizeDay(rawDay);
       const key = `${normalizeName(venue.name)}|${normalizedDay}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      events.push({
+
+      const dbEvent = {
         id: ve.venue_id,
         dayOfWeek: ve.day_of_week,
         eventName: ve.event_name || "",
@@ -316,7 +348,19 @@ export async function GET() {
         menuUrl: venue.menu_url || null,
         isPrivateRoom: !!(venue.is_private_room),
         bookingUrl: null,
-      });
+      };
+
+      if (seen.has(key)) {
+        // DB event overrides matching synced event (admin edits take priority)
+        const idx = events.findIndex((e) => {
+          const eKey = `${normalizeName((e.venueName as string) || "")}|${normalizeDay((e.dayOfWeek as string) || "")}`;
+          return eKey === key;
+        });
+        if (idx !== -1) events[idx] = dbEvent;
+      } else {
+        seen.add(key);
+        events.push(dbEvent);
+      }
     }
 
     // Fetch private room venues and merge them as "Private Room Karaoke" events

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useTransition } from "react";
 import Link from "next/link";
-import { toggleEvent, deleteEvent, updateEvent, skipEventWeek, removeEventSkip } from "../actions";
+import { toggleEvent, deleteEvent, updateEvent, updateEventVenueFields, skipEventWeek, removeEventSkip } from "../actions";
 import { createClient } from "@/lib/supabase/client";
 
 interface VenueEvent {
@@ -326,6 +326,17 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
     };
 
     const result = await updateEvent(editEvent.id, params as any);
+
+    // Also update venue-level fields (menu, instagram, facebook)
+    const venueId = (fd.get("venue_id") as string) || editEvent.venue_id;
+    const venueMenuUrl = (fd.get("venue_menu_url") as string) || null;
+    const venueInstagram = (fd.get("venue_instagram") as string) || null;
+    const venueFacebook = (fd.get("venue_facebook") as string) || null;
+    await updateEventVenueFields(venueId, {
+      menu_url: venueMenuUrl,
+      instagram: venueInstagram,
+      facebook: venueFacebook,
+    });
 
     setEditSaving(false);
 
@@ -790,6 +801,47 @@ export function EventsList({ groupedEvents: initial, venues, totalActive, totalV
                   placeholder="https://..."
                   className={inputClass}
                 />
+              </div>
+
+              {/* ── Venue Social & Menu Links ── */}
+              <div className="border-t border-border pt-4">
+                <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                  <span className="material-icons-round text-base text-primary">link</span>
+                  Venue Links
+                  <span className="text-[10px] text-text-muted font-normal">(saved to venue)</span>
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelClass}>Menu URL</label>
+                    <input
+                      type="url"
+                      name="venue_menu_url"
+                      defaultValue={(editEvent as any)._venueMenuUrl || ""}
+                      placeholder="https://venue.com/menu"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Instagram</label>
+                    <input
+                      type="text"
+                      name="venue_instagram"
+                      defaultValue={(editEvent as any)._venueInstagram || ""}
+                      placeholder="https://instagram.com/venue or @handle"
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <label className={labelClass}>Facebook</label>
+                  <input
+                    type="url"
+                    name="venue_facebook"
+                    defaultValue={(editEvent as any)._venueFacebook || ""}
+                    placeholder="https://facebook.com/venue"
+                    className={inputClass}
+                  />
+                </div>
               </div>
 
               {/* Active / Inactive */}

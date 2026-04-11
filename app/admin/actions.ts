@@ -243,6 +243,39 @@ export async function updateEvent(
   return { success: true };
 }
 
+// ─── Update Venue Fields from Event Modal ─────────────────────
+// Convenience action: updates venue-level social/menu fields alongside an event edit
+
+export async function updateEventVenueFields(
+  venueId: string,
+  params: {
+    menu_url?: string | null;
+    instagram?: string | null;
+    facebook?: string | null;
+  }
+) {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  // Only include non-undefined fields
+  const updates: Record<string, unknown> = {};
+  if (params.menu_url !== undefined) updates.menu_url = params.menu_url;
+  if (params.instagram !== undefined) updates.instagram = params.instagram;
+  if (params.facebook !== undefined) updates.facebook = params.facebook;
+
+  if (Object.keys(updates).length === 0) return { success: true };
+
+  const { error } = await supabase
+    .from("venues")
+    .update(updates)
+    .eq("id", venueId);
+
+  if (error) return { error: error.message };
+  revalidatePath("/admin/events");
+  revalidatePath("/admin/venues");
+  return { success: true };
+}
+
 // ─── Event Skips (One-Week Off) ──────────────────────────────
 
 export async function skipEventWeek(eventId: string, skipDate: string, reason?: string) {
@@ -456,11 +489,13 @@ export async function updateVenue(
     website?: string | null;
     description?: string | null;
     is_private_room?: boolean;
+    karaoke_type?: string | null;
     accessibility?: string | null;
     hours_open?: string | null;
     booking_url?: string | null;
     instagram?: string | null;
     menu_url?: string | null;
+    facebook?: string | null;
   }
 ) {
   await requireAdmin();
@@ -490,8 +525,10 @@ export async function createVenue(params: {
   website?: string | null;
   menu_url?: string | null;
   instagram?: string | null;
+  facebook?: string | null;
   description?: string | null;
   is_private_room?: boolean;
+  karaoke_type?: string | null;
   accessibility?: string | null;
   owner_id?: string | null;
 }) {
@@ -512,8 +549,10 @@ export async function createVenue(params: {
       website: params.website || null,
       menu_url: params.menu_url || null,
       instagram: params.instagram || null,
+      facebook: params.facebook || null,
       description: params.description || null,
-      is_private_room: params.is_private_room || false,
+      is_private_room: params.karaoke_type === "private_room" || params.is_private_room || false,
+      karaoke_type: params.karaoke_type || "open_format",
       accessibility: params.accessibility || null,
       owner_id: params.owner_id || null,
     })

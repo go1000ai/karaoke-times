@@ -240,6 +240,18 @@ const VenueCard = memo(function VenueCard({
                 <span className="truncate">Menu</span>
               </a>
             )}
+            {event.address && (
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${event.address}, ${event.city || ""}, ${event.state || ""}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 min-w-0 bg-green-500/10 text-green-400 text-[10px] px-2.5 py-1 rounded-full font-bold hover:bg-green-500/20 transition-colors"
+              >
+                <span className="material-icons-round text-xs shrink-0">directions</span>
+                <span className="truncate">Directions</span>
+              </a>
+            )}
           </div>
 
           {/* Actions */}

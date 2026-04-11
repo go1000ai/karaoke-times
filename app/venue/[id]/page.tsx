@@ -668,8 +668,18 @@ export default function VenueDetailPage({ params }: { params: Promise<{ id: stri
                     </a>
                   ) : null;
                 })()}
-                {/* Menu pill */}
-                {dbVenue?.menu_items && dbVenue.menu_items.length > 0 ? (
+                {/* Menu pill — prefer external menu_url, then internal menu_items, then "not available" */}
+                {dbVenue?.menu_url ? (
+                  <a
+                    href={dbVenue.menu_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 bg-amber-500/10 text-amber-400 text-[10px] px-2.5 py-1 rounded-full font-bold hover:bg-amber-500/20 transition-colors"
+                  >
+                    <span className="material-icons-round text-xs">restaurant_menu</span>
+                    Menu
+                  </a>
+                ) : dbVenue?.menu_items && dbVenue.menu_items.length > 0 ? (
                   <a
                     href="#venue-menu"
                     className="inline-flex items-center gap-1 bg-amber-500/10 text-amber-400 text-[10px] px-2.5 py-1 rounded-full font-bold hover:bg-amber-500/20 transition-colors"

@@ -22,8 +22,8 @@ export function CreateVenueForm({ owners }: { owners: Owner[] }) {
   const [website, setWebsite] = useState("");
   const [menuUrl, setMenuUrl] = useState("");
   const [instagram, setInstagram] = useState("");
-  const [description, setDescription] = useState("");
-  const [isPrivateRoom, setIsPrivateRoom] = useState(false);
+  const [facebook, setFacebook] = useState("");
+  const [karaokeType, setKaraokeType] = useState("open_format");
   const [accessibility, setAccessibility] = useState("");
   const [ownerId, setOwnerId] = useState("");
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -44,8 +44,9 @@ export function CreateVenueForm({ owners }: { owners: Owner[] }) {
         website: website.trim() || null,
         menu_url: menuUrl.trim() || null,
         instagram: instagram.trim() || null,
+        facebook: facebook.trim() || null,
         description: description.trim() || null,
-        is_private_room: isPrivateRoom,
+        karaoke_type: karaokeType,
         accessibility: accessibility || null,
         owner_id: ownerId || null,
       });
@@ -60,8 +61,9 @@ export function CreateVenueForm({ owners }: { owners: Owner[] }) {
         setWebsite("");
         setMenuUrl("");
         setInstagram("");
+        setFacebook("");
         setDescription("");
-        setIsPrivateRoom(false);
+        setKaraokeType("open_format");
         setAccessibility("");
         setOwnerId("");
       } else {
@@ -193,10 +195,10 @@ export function CreateVenueForm({ owners }: { owners: Owner[] }) {
             <div>
               <label className="text-xs text-text-muted uppercase tracking-wider font-bold mb-1.5 block">Menu URL</label>
               <input
-                type="text"
+                type="url"
                 value={menuUrl}
                 onChange={(e) => setMenuUrl(e.target.value)}
-                placeholder="https://menu.example.com"
+                placeholder="https://venue.com/menu"
                 className="w-full bg-card-dark border border-border rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 placeholder:text-text-muted"
               />
             </div>
@@ -206,10 +208,21 @@ export function CreateVenueForm({ owners }: { owners: Owner[] }) {
                 type="text"
                 value={instagram}
                 onChange={(e) => setInstagram(e.target.value)}
-                placeholder="@venuename"
+                placeholder="https://instagram.com/venue or @handle"
                 className="w-full bg-card-dark border border-border rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 placeholder:text-text-muted"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="text-xs text-text-muted uppercase tracking-wider font-bold mb-1.5 block">Facebook</label>
+            <input
+              type="url"
+              value={facebook}
+              onChange={(e) => setFacebook(e.target.value)}
+              placeholder="https://facebook.com/venue"
+              className="w-full bg-card-dark border border-border rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50 placeholder:text-text-muted"
+            />
           </div>
 
           <div>
@@ -250,16 +263,16 @@ export function CreateVenueForm({ owners }: { owners: Owner[] }) {
                 ))}
               </select>
             </div>
-            <div className="flex items-end pb-1">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isPrivateRoom}
-                  onChange={(e) => setIsPrivateRoom(e.target.checked)}
-                  className="w-4 h-4 rounded accent-red-500"
-                />
-                <span className="text-sm text-text-secondary">Private Room</span>
-              </label>
+            <div>
+              <label className="text-xs text-text-muted uppercase tracking-wider font-bold mb-1.5 block">Karaoke Type</label>
+              <select
+                value={karaokeType}
+                onChange={(e) => setKaraokeType(e.target.value)}
+                className="w-full bg-card-dark border border-border rounded-xl py-3 px-4 text-sm text-white cursor-pointer"
+              >
+                <option value="open_format">Open Format Karaoke</option>
+                <option value="private_room">Private Room</option>
+              </select>
             </div>
           </div>
 

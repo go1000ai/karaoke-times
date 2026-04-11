@@ -19,7 +19,7 @@ export default async function AdminEventsPage() {
 
   const { data: events } = await supabase
     .from("venue_events")
-    .select("id, venue_id, day_of_week, event_name, dj, start_time, end_time, is_active, notes, recurrence_type, event_date, flyer_url, happy_hour_details, age_restriction, dress_code, cover_charge, drink_minimum, restrictions, website, venues(name)")
+    .select("id, venue_id, day_of_week, event_name, dj, start_time, end_time, is_active, notes, recurrence_type, event_date, flyer_url, happy_hour_details, age_restriction, dress_code, cover_charge, drink_minimum, restrictions, website, venues(name, menu_url, instagram, facebook)")
     .order("start_time", { ascending: true });
 
   const { data: venues } = await supabase
@@ -34,6 +34,10 @@ export default async function AdminEventsPage() {
   (events ?? []).forEach((e: any) => {
     const baseDay = normalizeToBaseDay(e.day_of_week || "Unknown");
     if (!grouped[baseDay]) grouped[baseDay] = [];
+    // Attach venue-level social/menu fields so the edit modal can access them
+    e._venueMenuUrl = e.venues?.menu_url || "";
+    e._venueInstagram = e.venues?.instagram || "";
+    e._venueFacebook = e.venues?.facebook || "";
     grouped[baseDay].push(e);
   });
 
