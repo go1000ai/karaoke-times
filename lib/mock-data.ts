@@ -346,7 +346,7 @@ export const karaokeEvents: KaraokeEvent[] = [
     neighborhood: "Crown Heights",
     crossStreet: "St John's Place And Lincoln Place",
     phone: "347-789-3833",
-    dj: "DJ Chris Ford",
+    dj: "DJ Chris Forde",
     startTime: "8:00 PM",
     endTime: "12:00 AM",
     notes: "Drinks Only",

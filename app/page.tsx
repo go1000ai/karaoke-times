@@ -38,6 +38,7 @@ const DAY_ICONS: Record<string, string> = {
   Saturday: "looks_6",
   Sunday: "calendar_today",
   "Bi-Monthly Sundays": "event_repeat",
+  "Open Format Karaoke": "mic",
   "Private Room Karaoke": "door_sliding",
 };
 
@@ -50,6 +51,7 @@ const DAY_SHORT: Record<string, string> = {
   Saturday: "Sat",
   Sunday: "Sun",
   "Bi-Monthly Sundays": "Bi-Sun",
+  "Open Format Karaoke": "Open Format",
   "Private Room Karaoke": "Private",
 };
 
@@ -101,7 +103,7 @@ const VenueCard = memo(function VenueCard({
         {/* Day badge */}
         {event.dayOfWeek && (
           <div className="absolute top-3 left-3 bg-primary text-black text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
-            {event.dayOfWeek === "Private Room Karaoke" ? "Private Room" : event.dayOfWeek}
+            {event.dayOfWeek === "Private Room Karaoke" ? "Private Room" : event.dayOfWeek === "Open Format Karaoke" ? "Open Format" : event.dayOfWeek}
           </div>
         )}
 
@@ -177,7 +179,7 @@ const VenueCard = memo(function VenueCard({
             {event.dayOfWeek && (
               <span className="shrink-0 inline-flex items-center gap-1 bg-primary/20 text-primary text-[10px] px-2.5 py-1 rounded-full font-bold">
                 <span className="material-icons-round text-xs">event</span>
-                {event.dayOfWeek === "Private Room Karaoke" ? "Private Room" : event.dayOfWeek}
+                {event.dayOfWeek === "Private Room Karaoke" ? "Private Room" : event.dayOfWeek === "Open Format Karaoke" ? "Open Format" : event.dayOfWeek}
               </span>
             )}
             {event.startTime && (
@@ -1302,7 +1304,7 @@ export default function HomePage() {
                               </p>
                               <div className="flex items-center gap-2 mt-2">
                                 <span className="bg-primary/10 text-primary text-[10px] px-2 py-0.5 rounded-full font-bold">
-                                  {event.dayOfWeek === "Private Room Karaoke" ? "Private" : event.dayOfWeek}
+                                  {event.dayOfWeek === "Private Room Karaoke" ? "Private" : event.dayOfWeek === "Open Format Karaoke" ? "Open Format" : event.dayOfWeek}
                                 </span>
                                 {event.dj && (
                                   <span className="text-[10px] text-text-muted truncate">

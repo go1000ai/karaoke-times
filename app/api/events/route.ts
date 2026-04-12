@@ -27,6 +27,7 @@ const DAY_NORMALIZE: Record<string, string> = {
   "Every 1st & 3rd Saturdays": "Saturday",
   "Monthly Fridays": "Friday",
   "Open Karaoke Party Room": "Private Room Karaoke",
+  "Open Format Karaoke": "Open Format Karaoke",
 };
 
 // Standard day names for fallback extraction
@@ -392,6 +393,47 @@ export async function GET() {
         menuUrl: pv.menu_url || null,
         isPrivateRoom: true,
         bookingUrl: pv.booking_url || null,
+      });
+    }
+
+    // Fetch open karaoke room venues (karaoke_type = 'open_format' with no scheduled events)
+    // These are venues like karaoke bars that are always open — not event-based
+    const { data: openKaraokeVenues } = await supabase
+      .from("venues")
+      .select("id, name, address, city, state, zip_code, neighborhood, cross_street, phone, website, instagram, menu_url, booking_url, karaoke_type")
+      .eq("karaoke_type", "open_format")
+      .eq("is_private_room", false);
+
+    for (const ov of openKaraokeVenues || []) {
+      // Only include if venue doesn't already have scheduled events
+      const normKey = normalizeName(ov.name);
+      const alreadyHasEvent = [...seen].some((k) => k.startsWith(normKey + "|"));
+      if (alreadyHasEvent) continue;
+      const key = `${normKey}|Open Format Karaoke`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      events.push({
+        id: ov.id,
+        dayOfWeek: "Open Format Karaoke",
+        eventName: "",
+        venueName: ov.name,
+        address: ov.address || "",
+        city: ov.city || "",
+        state: ov.state || "",
+        zipCode: ov.zip_code || "",
+        neighborhood: ov.neighborhood || "",
+        crossStreet: ov.cross_street || "",
+        phone: ov.phone || "",
+        dj: "",
+        startTime: "",
+        endTime: "",
+        notes: "",
+        image: null,
+        website: ov.website || null,
+        instagram: ov.instagram || null,
+        menuUrl: ov.menu_url || null,
+        isPrivateRoom: false,
+        bookingUrl: ov.booking_url || null,
       });
     }
 
