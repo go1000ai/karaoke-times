@@ -252,13 +252,10 @@ export async function GET() {
     weekFromNow.setDate(weekFromNow.getDate() + 7);
     const weekFromNowStr = weekFromNow.toISOString().split("T")[0];
 
-    // Fetch synced events (CSV-sourced), active venue_events, inactive venue_events, and event skips in parallel
-    const [syncResult, dbResult, inactiveResult, skipsResult] = await Promise.all([
-      supabase
-        .from("synced_events")
-        .select("events_json, synced_at")
-        .eq("id", "latest")
-        .single(),
+    // CSV synced_events disabled — all events now come from venue_events DB only
+    const syncResult = { data: null, error: null } as any;
+
+    const [dbResult, inactiveResult, skipsResult] = await Promise.all([
       supabase
         .from("venue_events")
         .select("id, venue_id, day_of_week, event_name, dj, start_time, end_time, notes, flyer_url, is_active, venues(name, address, city, state, zip_code, neighborhood, cross_street, phone, website, instagram, menu_url, is_private_room)")
