@@ -98,6 +98,10 @@ export default function FlyerGenerator({
     image: false,
   });
 
+  // Flyer type: event (scheduled night), venue (general promo), open_format (open karaoke bar)
+  const [flyerType, setFlyerType] = useState<"event" | "venue" | "open_format">("event");
+  const isEventFlyer = flyerType === "event";
+
   // Form state — Event Basics
   const [eventName, setEventName] = useState(defaults?.eventName || "");
   const [eventDate, setEventDate] = useState(defaults?.eventDate || "");
@@ -236,14 +240,14 @@ export default function FlyerGenerator({
 
   async function handleGenerate() {
     if (!eventName.trim()) {
-      setError("Please enter an event name.");
+      setError(isEventFlyer ? "Please enter an event name." : "Please enter a title for the flyer.");
       return;
     }
-    if (!eventDate) {
+    if (isEventFlyer && !eventDate) {
       setError("Please select an event date.");
       return;
     }
-    if (!startTime.trim()) {
+    if (isEventFlyer && !startTime.trim()) {
       setError("Please enter a start time.");
       return;
     }
@@ -412,7 +416,7 @@ export default function FlyerGenerator({
 
   function buildPrompt() {
     if (!eventName.trim()) {
-      setError("Please enter an event name.");
+      setError(isEventFlyer ? "Please enter an event name." : "Please enter a title for the flyer.");
       return;
     }
 
@@ -424,8 +428,15 @@ export default function FlyerGenerator({
 
     const lines: string[] = [];
 
-    // Core description
-    lines.push(`Design a professional, eye-catching event flyer for "${eventName.trim()}" at ${venueName || "a karaoke venue"}.`);
+    // Core description — adapt based on flyer type
+    if (flyerType === "venue") {
+      lines.push(`Design a professional, eye-catching promotional flyer for "${venueName || eventName.trim()}" — ${eventName.trim()}.`);
+    } else if (flyerType === "open_format") {
+      lines.push(`Design a professional, eye-catching flyer for "${venueName || eventName.trim()}" — an open format karaoke venue. ${eventName.trim()}.`);
+      lines.push("This is an open karaoke bar/lounge, not a specific event. Emphasize that it's always open for singing.");
+    } else {
+      lines.push(`Design a professional, eye-catching event flyer for "${eventName.trim()}" at ${venueName || "a karaoke venue"}.`);
+    }
 
     // Theme & mood
     if (activeTheme) {
@@ -653,24 +664,47 @@ export default function FlyerGenerator({
 
   return (
     <div className="space-y-4">
-      {/* Section 1: Event Basics */}
+      {/* Flyer Type Selector */}
+      <div className="flex gap-2 mb-2">
+        {([
+          { value: "event", label: "Event Flyer", icon: "event" },
+          { value: "venue", label: "Venue Promo", icon: "store" },
+          { value: "open_format", label: "Open Format Karaoke", icon: "mic" },
+        ] as const).map((t) => (
+          <button
+            key={t.value}
+            type="button"
+            onClick={() => setFlyerType(t.value)}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-colors ${
+              flyerType === t.value
+                ? "bg-primary/20 text-primary border border-primary/40"
+                : "bg-white/5 text-text-muted border border-border hover:bg-white/10"
+            }`}
+          >
+            <span className="material-icons-round text-sm">{t.icon}</span>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Section 1: Basics */}
       <CollapsibleSection
-        title="Event Basics"
-        icon="event"
+        title={isEventFlyer ? "Event Basics" : "Flyer Basics"}
+        icon={isEventFlyer ? "event" : "auto_awesome"}
         isOpen={openSections.basics}
         onToggle={() => toggleSection("basics")}
-        filled={!!eventName && !!eventDate && !!startTime}
+        filled={!!eventName && (isEventFlyer ? !!eventDate && !!startTime : true)}
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs text-text-muted mb-1.5 font-semibold uppercase tracking-wider">
-              Event Name *
+              {isEventFlyer ? "Event Name *" : "Flyer Title *"}
             </label>
             <input
               type="text"
               value={eventName}
               onChange={(e) => setEventName(e.target.value)}
-              placeholder="Latin Karaoke Fridays"
+              placeholder={isEventFlyer ? "Latin Karaoke Fridays" : flyerType === "open_format" ? "Open Mic Every Night" : "Weekend Vibes at Our Venue"}
               className="w-full bg-white/5 border border-border rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
           </div>
@@ -699,9 +733,10 @@ export default function FlyerGenerator({
               />
             )}
           </div>
+          {/* Date — required for events, optional for others */}
           <div>
             <label className="block text-xs text-text-muted mb-1.5 font-semibold uppercase tracking-wider">
-              Date *
+              {isEventFlyer ? "Date *" : "Date (optional)"}
             </label>
             <input
               type="date"
@@ -722,16 +757,17 @@ export default function FlyerGenerator({
               className="w-full bg-white/5 border border-border rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
           </div>
+          {/* Times — required for events, optional for others */}
           <div>
             <label className="block text-xs text-text-muted mb-1.5 font-semibold uppercase tracking-wider">
-              Start Time *
+              {isEventFlyer ? "Start Time *" : "Hours (optional)"}
             </label>
             <select
               value={startTime}
               onChange={(e) => setStartTime(e.target.value)}
               className="w-full bg-white/5 border border-border rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
             >
-              <option value="">Select start time...</option>
+              <option value="">{isEventFlyer ? "Select start time..." : "Select time..."}</option>
               {TIME_OPTIONS.map((t) => (
                 <option key={`start-${t}`} value={t}>{t}</option>
               ))}
@@ -1145,7 +1181,7 @@ export default function FlyerGenerator({
         <div className="flex flex-col sm:flex-row gap-3">
           <button
             onClick={handleGenerate}
-            disabled={!eventName || !eventDate || !startTime}
+            disabled={!eventName || (isEventFlyer && (!eventDate || !startTime))}
             className="flex-1 flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-black font-bold px-6 py-3.5 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-lg"
           >
             <span className="material-icons-round">auto_awesome</span>
