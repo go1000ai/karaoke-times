@@ -244,12 +244,13 @@ export async function POST(request: Request) {
       .select("id, name, address, city, is_private_room, karaoke_type, venue_media(id, url, is_primary, type)")
       .or("is_private_room.eq.true,karaoke_type.eq.open_format");
 
+    // Phase 2 is intentionally fill-only: a venue is processed only when it
+    // has no primary image at all. forceRegenerate applies to events (Phase 1);
+    // per-venue replacement should be a separate, explicit action.
     const venuesNeedingFlyer = (candidateVenues || []).filter((v) => {
       const media = (v.venue_media as { id: string; url: string; is_primary: boolean; type: string }[] | null) || [];
       const primaryImage = media.find((m) => m.is_primary && m.type === "image");
-      if (!primaryImage) return true; // no image at all
-      if (forceRegenerate && primaryImage.url.includes("auto-flyers/")) return true; // replace stale auto-flyer
-      return false;
+      return !primaryImage;
     });
 
     const venueBatch = limit ? venuesNeedingFlyer.slice(0, Math.max(0, limit - batch.length)) : venuesNeedingFlyer;
@@ -274,19 +275,6 @@ export async function POST(request: Request) {
             if (uploadError) throw new Error("Upload failed: " + uploadError.message);
 
             const { data: urlData } = supabase.storage.from("flyer-uploads").getPublicUrl(fileName);
-
-            // On force-regenerate, clear out old auto-flyer primary rows so we
-            // don't leave duplicates behind. User-uploaded media (non-auto-flyer
-            // URLs) are left untouched even if they're primary.
-            if (forceRegenerate) {
-              const existingMedia = (v.venue_media as { id: string; url: string; is_primary: boolean; type: string }[] | null) || [];
-              const staleAutoIds = existingMedia
-                .filter((m) => m.is_primary && m.type === "image" && m.url.includes("auto-flyers/"))
-                .map((m) => m.id);
-              if (staleAutoIds.length > 0) {
-                await supabase.from("venue_media").delete().in("id", staleAutoIds);
-              }
-            }
 
             const { error: insertError } = await supabase.from("venue_media").insert({
               venue_id: v.id,
