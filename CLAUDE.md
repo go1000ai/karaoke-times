@@ -118,3 +118,5 @@ Required in `.env.local`:
 - `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_EMAIL`
 - `N8N_WEBHOOK_URL` (flyer generator)
 - `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`
+- `RESEND_API_KEY` (transactional email)
+- `CONTACT_FORWARD_EMAIL` — destination inbox for the public /contact form. Server-only (no `NEXT_PUBLIC_` prefix). Submissions are also stored in the `contact_messages` table and viewable at `/admin/contact`.

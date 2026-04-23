@@ -668,3 +668,36 @@ export async function sendAnnouncement(params: {
   revalidatePath("/admin/announcements");
   return { success: true, count: targetUserIds.length };
 }
+
+// ─── Contact Messages ────────────────────────────────────────
+
+export async function updateContactMessageStatus(
+  id: string,
+  status: "new" | "read" | "archived"
+) {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("contact_messages")
+    .update({ status })
+    .eq("id", id);
+
+  if (error) return { error: error.message };
+  revalidatePath("/admin/contact");
+  return { success: true };
+}
+
+export async function deleteContactMessage(id: string) {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("contact_messages")
+    .delete()
+    .eq("id", id);
+
+  if (error) return { error: error.message };
+  revalidatePath("/admin/contact");
+  return { success: true };
+}

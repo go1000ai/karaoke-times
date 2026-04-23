@@ -23,6 +23,7 @@ export function CreateVenueForm({ owners }: { owners: Owner[] }) {
   const [menuUrl, setMenuUrl] = useState("");
   const [instagram, setInstagram] = useState("");
   const [facebook, setFacebook] = useState("");
+  const [description, setDescription] = useState("");
   const [karaokeType, setKaraokeType] = useState("open_format");
   const [accessibility, setAccessibility] = useState("");
   const [ownerId, setOwnerId] = useState("");

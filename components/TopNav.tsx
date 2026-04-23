@@ -8,6 +8,7 @@ import { useAuth } from "@/components/AuthProvider";
 const publicNavLinks = [
   { label: "Explore", href: "/", icon: "home" },
   { label: "Map", href: "/map", icon: "map" },
+  { label: "Contact", href: "/contact", icon: "mail" },
 ];
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday", "Private Room Karaoke"];
