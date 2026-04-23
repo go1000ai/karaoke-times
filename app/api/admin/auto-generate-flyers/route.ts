@@ -150,16 +150,7 @@ export async function POST(request: Request) {
     });
   }
 
-  if (events.length === 0) {
-    return NextResponse.json({
-      success: true,
-      message: "All active events already have flyers!",
-      generated: 0,
-      failed: 0,
-    });
-  }
-
-  // Optionally limit batch size
+  // Optionally limit batch size (phase 2 venues share the same limit budget)
   const batch = limit ? events.slice(0, limit) : events;
 
   let generated = 0;
@@ -237,12 +228,107 @@ export async function POST(request: Request) {
     }
   }
 
+  // ── Phase 2: private-room and open-format venues (no venue_events) ────
+  // These are karaoke displays that have no event row, so the loop above
+  // never reaches them. They live entirely on the venue and use venue_media
+  // as their image source.
+  //
+  // Skipped when the request targeted specific venue_event IDs — that's an
+  // event-only workflow.
+  let venuesProcessed = 0;
+  const venueStyles = Object.keys(promptConfig.styles as Record<string, unknown>);
+
+  if (!venueEventIds || venueEventIds.length === 0) {
+    const { data: candidateVenues } = await supabase
+      .from("venues")
+      .select("id, name, address, city, is_private_room, karaoke_type, venue_media(id, url, is_primary, type)")
+      .or("is_private_room.eq.true,karaoke_type.eq.open_format");
+
+    const venuesNeedingFlyer = (candidateVenues || []).filter((v) => {
+      const media = (v.venue_media as { id: string; url: string; is_primary: boolean; type: string }[] | null) || [];
+      const primaryImage = media.find((m) => m.is_primary && m.type === "image");
+      if (!primaryImage) return true; // no image at all
+      if (forceRegenerate && primaryImage.url.includes("auto-flyers/")) return true; // replace stale auto-flyer
+      return false;
+    });
+
+    const venueBatch = limit ? venuesNeedingFlyer.slice(0, Math.max(0, limit - batch.length)) : venuesNeedingFlyer;
+
+    for (let i = 0; i < venueBatch.length; i += BATCH_SIZE) {
+      const chunk = venueBatch.slice(i, i + BATCH_SIZE);
+
+      const chunkResults = await Promise.allSettled(
+        chunk.map(async (v) => {
+          const venueName = v.name || "Karaoke Venue";
+          const hash = venueName.split("").reduce((a: number, c: string) => a + c.charCodeAt(0), 0);
+          const styleName = venueStyles[hash % venueStyles.length];
+          const prompt = buildPrompt(styleName, hash);
+
+          try {
+            const imageBuffer = await generateImage(prompt, apiKey);
+
+            const fileName = `auto-flyers/venue-${v.id}-${Date.now()}.png`;
+            const { error: uploadError } = await supabase.storage
+              .from("flyer-uploads")
+              .upload(fileName, imageBuffer, { contentType: "image/png", upsert: true });
+            if (uploadError) throw new Error("Upload failed: " + uploadError.message);
+
+            const { data: urlData } = supabase.storage.from("flyer-uploads").getPublicUrl(fileName);
+
+            // On force-regenerate, clear out old auto-flyer primary rows so we
+            // don't leave duplicates behind. User-uploaded media (non-auto-flyer
+            // URLs) are left untouched even if they're primary.
+            if (forceRegenerate) {
+              const existingMedia = (v.venue_media as { id: string; url: string; is_primary: boolean; type: string }[] | null) || [];
+              const staleAutoIds = existingMedia
+                .filter((m) => m.is_primary && m.type === "image" && m.url.includes("auto-flyers/"))
+                .map((m) => m.id);
+              if (staleAutoIds.length > 0) {
+                await supabase.from("venue_media").delete().in("id", staleAutoIds);
+              }
+            }
+
+            const { error: insertError } = await supabase.from("venue_media").insert({
+              venue_id: v.id,
+              url: urlData.publicUrl,
+              type: "image",
+              is_primary: true,
+              sort_order: 0,
+            });
+            if (insertError) throw new Error("DB insert failed: " + insertError.message);
+
+            return { venue: venueName, event: "(venue)", style: styleName, success: true };
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : "Unknown error";
+            throw new Error(`${venueName} — venue: ${msg}`);
+          }
+        })
+      );
+
+      for (const result of chunkResults) {
+        if (result.status === "fulfilled") {
+          venuesProcessed++;
+          generated++;
+          results.push(result.value);
+        } else {
+          failed++;
+          errors.push(result.reason?.message || "Unknown error");
+        }
+      }
+
+      if (i + BATCH_SIZE < venueBatch.length) {
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+      }
+    }
+  }
+
+  const totalProcessed = batch.length + venuesProcessed;
   return NextResponse.json({
     success: true,
     message: `Generated ${generated} flyers via Imagen 4.0. ${failed > 0 ? `${failed} failed.` : "All succeeded!"}`,
     generated,
     failed,
-    total: batch.length,
+    total: totalProcessed,
     results: results.slice(0, 20),
     errors: errors.length > 0 ? errors.slice(0, 10) : undefined,
   });

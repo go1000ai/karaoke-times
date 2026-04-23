@@ -95,10 +95,10 @@ export default function SyncPage() {
   }
 
   async function handleAutoGenerateFlyers() {
-    if (!confirm("This will use the n8n AI flyer generator to create flyers for ALL events that don't have one. This may take several minutes. Continue?")) return;
+    if (!confirm("This will generate AI flyers for every event AND every private-room / open-format venue that doesn't have one. This may take several minutes. Continue?")) return;
     setGenerating(true);
     setResult(null);
-    setGenerateProgress("Finding events without flyers...");
+    setGenerateProgress("Finding events and venues without flyers...");
     try {
       const res = await fetch("/api/admin/auto-generate-flyers", { method: "POST" });
       const data = await res.json();
