@@ -71,6 +71,27 @@ App Router (`app/`). Key route groups:
 - `lib/auth.ts` — `getUser()`, `getUserProfile()`, `requireAuth()`, `requireAdmin()`, `requireVenueOwner()`, `requireKJOrOwner()`, `requireAdvertiser()`
 - `lib/permissions.ts` — Role-based permission system with `hasPermission(role, permission)`. Owner-only: `staff.manage`, `integration.manage`. KJ gets everything else.
 
+### Flyer Images (Homepage Cards)
+
+Every homepage card shows an image. The `/api/events` endpoint resolves `image` via this priority chain (see the "Enrich all events with images" loop):
+1. KJ/admin-uploaded flyer (`venue_events.flyer_url` under `flyer-uploads/event-flyers/`)
+2. AI-generated auto-flyer (`venue_events.flyer_url` under `flyer-uploads/auto-flyers/`)
+3. Static curated image (`/venues/*.jpg`, matched via `findVenueImage`)
+4. Primary `venue_media` row (uploaded via admin dashboard)
+5. OG placeholder (`/api/venue-image` — dynamically rendered neon banner)
+
+**Private-room and open-format venues have no `venue_events` row**, so they bypass sources 1 and 2. They rely on source 4 (`venue_media`) or fall back to source 5.
+
+**Auto-generating flyers for missing images** (admin-only):
+- **`POST /api/admin/auto-generate-flyers`** — triggered from **/admin/sync → "Auto-Generate Flyers"** button. Runs two phases:
+  - Phase 1: `venue_events` rows with `flyer_url IS NULL` — generates Imagen 4.0 flyers, writes to `venue_events.flyer_url`
+  - Phase 2: Venues where `is_private_room = true OR karaoke_type = 'open_format'` that have no primary `venue_media` — generates a flyer, inserts a primary `venue_media` row
+- `{forceRegenerate: true}` replaces existing auto-flyers in both phases. User-uploaded media (URLs not under `auto-flyers/`) is always preserved.
+- `{venueEventIds: [...]}` targets only specific events, skips Phase 2 entirely
+- Style selection: `detectStyle()` checks event/notes/DJ keywords first, then `day_style_hints`, else deterministic hash-based pick from `lib/flyer-prompts.json`. Phase 2 always uses the hash-based pick since venues have no event context.
+
+Requires `GEMINI_API_KEY` (Imagen 4.0 via `generativelanguage.googleapis.com`).
+
 ### Queue System
 
 Songs in `song_queue` table with statuses: `waiting` → `up_next` → `now_singing` → `completed`/`skipped`.
