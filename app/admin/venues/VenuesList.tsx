@@ -4,6 +4,7 @@ import { useState, useRef, useTransition } from "react";
 import { deleteVenue, assignVenueOwner, updateVenue } from "../actions";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import { RegenerateFlyerModal } from "./RegenerateFlyerModal";
 
 interface Venue {
   id: string;
@@ -48,6 +49,7 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
   const [search, setSearch] = useState("");
   const [ownerFilter, setOwnerFilter] = useState<"all" | "assigned" | "unassigned">("all");
   const [accessFilter, setAccessFilter] = useState("");
+  const [regenFor, setRegenFor] = useState<Venue | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Venue>>({});
 
@@ -904,6 +906,12 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
                     <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-0.5 text-[9px] font-semibold text-white bg-black/90 rounded whitespace-nowrap opacity-0 pointer-events-none group-hover/tip:opacity-100 transition-opacity">View</span>
                   </div>
                   <div className="relative group/tip">
+                    <button onClick={(e) => { e.stopPropagation(); setRegenFor(venue); }} className="w-6 h-6 rounded-md bg-fuchsia-500/10 flex items-center justify-center hover:bg-fuchsia-500/20 transition-colors">
+                      <span className="material-icons-round text-fuchsia-400 text-xs">auto_awesome</span>
+                    </button>
+                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-0.5 text-[9px] font-semibold text-white bg-black/90 rounded whitespace-nowrap opacity-0 pointer-events-none group-hover/tip:opacity-100 transition-opacity">Regenerate flyer</span>
+                  </div>
+                  <div className="relative group/tip">
                     <button onClick={(e) => { e.stopPropagation(); handleDelete(venue.id, venue.name); }} disabled={isPending && processingId === venue.id} className="w-6 h-6 rounded-md bg-red-500/10 flex items-center justify-center hover:bg-red-500/20 transition-colors disabled:opacity-50">
                       <span className="material-icons-round text-red-400 text-xs">delete</span>
                     </button>
@@ -962,6 +970,19 @@ export function VenuesList({ venues: initialVenues, owners }: { venues: Venue[];
           <span className="material-icons-round text-4xl text-text-muted mb-2">search_off</span>
           <p className="text-text-secondary text-sm">No venues match your search</p>
         </div>
+      )}
+
+      {regenFor && (
+        <RegenerateFlyerModal
+          venueId={regenFor.id}
+          venueName={regenFor.name}
+          currentImage={regenFor._primary_image}
+          onClose={() => setRegenFor(null)}
+          onSuccess={(newUrl) => {
+            setVenues((vs) => vs.map((v) => (v.id === regenFor.id ? { ...v, _primary_image: newUrl } : v)));
+            setRegenFor(null);
+          }}
+        />
       )}
 
     </div>
