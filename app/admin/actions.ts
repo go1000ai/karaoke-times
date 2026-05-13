@@ -55,6 +55,39 @@ export async function deleteUser(userId: string) {
   return { success: true };
 }
 
+export async function updateUserProfile(
+  userId: string,
+  params: {
+    display_name?: string | null;
+    role?: string;
+    phone?: string | null;
+    address?: string | null;
+    website?: string | null;
+    social_links?: Record<string, string>;
+  }
+) {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (params.display_name !== undefined) updates.display_name = params.display_name;
+  if (params.role !== undefined) updates.role = params.role;
+  if (params.phone !== undefined) updates.phone = params.phone;
+  if (params.address !== undefined) updates.address = params.address;
+  if (params.website !== undefined) updates.website = params.website;
+  if (params.social_links !== undefined) updates.social_links = params.social_links;
+
+  const { error } = await supabase
+    .from("profiles")
+    .update(updates)
+    .eq("id", userId);
+
+  if (error) return { error: error.message };
+  revalidatePath("/admin/users");
+  revalidatePath(`/admin/users/${userId}`);
+  return { success: true };
+}
+
 // ─── Venue Management ───────────────────────────────────────
 
 export async function deleteVenue(venueId: string) {

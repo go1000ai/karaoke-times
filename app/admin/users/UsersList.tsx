@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { updateUserRole, deleteUser } from "../actions";
 
 interface User {
@@ -13,11 +14,11 @@ interface User {
 }
 
 const ROLE_TABS = [
-  { value: "all", label: "All" },
-  { value: "user", label: "Singers" },
-  { value: "venue_owner", label: "Owners" },
-  { value: "kj", label: "KJs" },
-  { value: "admin", label: "Admins" },
+  { value: "all", label: "All", icon: "groups", accent: "text-white", bg: "bg-white/5" },
+  { value: "user", label: "Singers", icon: "mic", accent: "text-primary", bg: "bg-primary/10" },
+  { value: "venue_owner", label: "Owners", icon: "store", accent: "text-amber-400", bg: "bg-amber-400/10" },
+  { value: "kj", label: "KJs", icon: "headphones", accent: "text-purple-400", bg: "bg-purple-400/10" },
+  { value: "admin", label: "Admins", icon: "shield", accent: "text-red-400", bg: "bg-red-400/10" },
 ];
 
 function matchesRole(user: User, roleFilter: string) {
@@ -91,21 +92,43 @@ export function UsersList({ users: initialUsers }: { users: User[] }) {
         </div>
       </div>
 
-      {/* Headcount Stat Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+      {/* Headcount Bento Grid — 6 cols desktop (All spans 2), 2 cols mobile (All spans 2) */}
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
         {ROLE_TABS.map((tab) => {
           const count = counts[tab.value as keyof typeof counts];
           const isActive = roleFilter === tab.value;
+          const isFeatured = tab.value === "all";
           return (
             <button
               key={tab.value}
               onClick={() => setRoleFilter(tab.value)}
-              className={`glass-card rounded-2xl p-4 text-left transition-colors ${
-                isActive ? "border border-red-500/30 bg-red-500/5" : "hover:bg-white/5"
+              className={`glass-card rounded-2xl p-4 md:p-5 text-left transition-all flex flex-col justify-between min-h-[100px] md:min-h-[120px] ${
+                isFeatured ? "col-span-2" : "col-span-1"
+              } ${
+                isActive
+                  ? "border border-red-500/40 bg-red-500/5 ring-1 ring-red-500/20"
+                  : "hover:bg-white/5 border border-transparent"
               }`}
             >
-              <p className="text-xs text-text-muted uppercase tracking-wide mb-1">{tab.label}</p>
-              <p className="text-2xl font-extrabold text-white">{count}</p>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center ${tab.bg}`}
+                >
+                  <span className={`material-icons-round text-base ${tab.accent}`}>
+                    {tab.icon}
+                  </span>
+                </span>
+                <p className="text-[11px] text-text-muted uppercase tracking-wider font-bold">
+                  {tab.label}
+                </p>
+              </div>
+              <p
+                className={`font-extrabold text-white leading-none mt-3 ${
+                  isFeatured ? "text-4xl md:text-5xl" : "text-3xl md:text-4xl"
+                }`}
+              >
+                {count}
+              </p>
             </button>
           );
         })}
@@ -146,15 +169,15 @@ export function UsersList({ users: initialUsers }: { users: User[] }) {
       {/* Users List */}
       <div className="space-y-3">
         {filteredUsers.map((user) => (
-          <div key={user.id} className="glass-card rounded-2xl p-4 md:p-5">
-            {/* Name row */}
-            <div className="flex items-center gap-3">
+          <div key={user.id} className="glass-card rounded-2xl p-4 md:p-5 hover:bg-white/[0.02] transition-colors">
+            {/* Name row — clickable link to full profile editor */}
+            <Link href={`/admin/users/${user.id}`} className="flex items-center gap-3 group">
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                 <span className="material-icons-round text-primary">person</span>
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-white font-bold">
+                  <p className="text-white font-bold group-hover:text-primary transition-colors">
                     {user.display_name || "Unnamed User"}
                   </p>
                   {user.isKJ && (
@@ -166,7 +189,10 @@ export function UsersList({ users: initialUsers }: { users: User[] }) {
                   Joined {new Date(user.created_at).toLocaleDateString()}
                 </p>
               </div>
-            </div>
+              <span className="material-icons-round text-text-muted group-hover:text-white transition-colors">
+                chevron_right
+              </span>
+            </Link>
 
             {/* Actions row */}
             <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/20">
@@ -180,6 +206,12 @@ export function UsersList({ users: initialUsers }: { users: User[] }) {
                 <option value="venue_owner">venue_owner</option>
                 <option value="admin">admin</option>
               </select>
+              <Link
+                href={`/admin/users/${user.id}`}
+                className="text-xs font-medium px-3 py-1.5 rounded-full bg-white/5 text-text-secondary hover:bg-white/10 hover:text-white transition-colors"
+              >
+                Edit profile
+              </Link>
               <button
                 onClick={() => handleDelete(user.id, user.display_name || "user")}
                 disabled={isPending && processingId === user.id}
