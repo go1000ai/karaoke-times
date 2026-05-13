@@ -92,71 +92,31 @@ export function UsersList({ users: initialUsers }: { users: User[] }) {
         </div>
       </div>
 
-      {/* Headcount Bento Grid — 4 cols × 2 rows desktop, All is 2×2 hero tile */}
-      <div className="grid grid-cols-2 md:grid-cols-4 md:grid-rows-2 gap-3 mb-6 md:auto-rows-fr">
+      {/* Headcount Bento — 5 small equal cards (2 cols mobile, 5 cols desktop) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 md:gap-3 mb-6">
         {ROLE_TABS.map((tab) => {
           const count = counts[tab.value as keyof typeof counts];
           const isActive = roleFilter === tab.value;
-          const isFeatured = tab.value === "all";
           return (
             <button
               key={tab.value}
               onClick={() => setRoleFilter(tab.value)}
-              className={`glass-card rounded-2xl p-4 md:p-5 text-left transition-all flex flex-col justify-between relative overflow-hidden ${
-                isFeatured
-                  ? "col-span-2 md:row-span-2 min-h-[180px] md:min-h-[260px]"
-                  : "col-span-1 min-h-[110px] md:min-h-[125px]"
-              } ${
+              className={`glass-card rounded-xl p-3 text-left transition-all flex items-center gap-2.5 ${
                 isActive
                   ? "border border-red-500/40 bg-red-500/5 ring-1 ring-red-500/20"
                   : "hover:bg-white/[0.04] border border-white/[0.06]"
               }`}
             >
-              {/* Decorative background icon for featured tile */}
-              {isFeatured && (
-                <span
-                  className={`material-icons-round absolute -bottom-6 -right-4 text-[180px] opacity-[0.04] pointer-events-none ${tab.accent}`}
-                >
-                  {tab.icon}
-                </span>
-              )}
-
-              <div className="flex items-center gap-2 relative">
-                <span
-                  className={`flex items-center justify-center rounded-xl ${tab.bg} ${
-                    isFeatured ? "w-11 h-11" : "w-9 h-9"
-                  }`}
-                >
-                  <span
-                    className={`material-icons-round ${tab.accent} ${
-                      isFeatured ? "text-2xl" : "text-lg"
-                    }`}
-                  >
-                    {tab.icon}
-                  </span>
-                </span>
-                <p
-                  className={`text-text-muted uppercase tracking-wider font-bold ${
-                    isFeatured ? "text-xs" : "text-[10px]"
-                  }`}
-                >
+              <span
+                className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${tab.bg}`}
+              >
+                <span className={`material-icons-round text-lg ${tab.accent}`}>{tab.icon}</span>
+              </span>
+              <div className="min-w-0">
+                <p className="text-[10px] text-text-muted uppercase tracking-wider font-bold leading-none">
                   {tab.label}
                 </p>
-              </div>
-
-              <div className="relative">
-                <p
-                  className={`font-extrabold text-white leading-none ${
-                    isFeatured
-                      ? "text-6xl md:text-7xl"
-                      : "text-3xl md:text-4xl"
-                  }`}
-                >
-                  {count}
-                </p>
-                {isFeatured && (
-                  <p className="text-xs text-text-muted mt-2">Total registered users</p>
-                )}
+                <p className="text-xl font-extrabold text-white leading-tight mt-0.5">{count}</p>
               </div>
             </button>
           );
