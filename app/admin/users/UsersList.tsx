@@ -20,6 +20,13 @@ const ROLE_TABS = [
   { value: "admin", label: "Admins" },
 ];
 
+function matchesRole(user: User, roleFilter: string) {
+  if (roleFilter === "all") return true;
+  if (roleFilter === "kj") return !!user.isKJ;
+  if (roleFilter === "user") return user.role === "user" && !user.isKJ;
+  return user.role === roleFilter;
+}
+
 export function UsersList({ users: initialUsers }: { users: User[] }) {
   const [users, setUsers] = useState(initialUsers);
   const [isPending, startTransition] = useTransition();
@@ -27,16 +34,21 @@ export function UsersList({ users: initialUsers }: { users: User[] }) {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
 
+  const counts = {
+    all: users.length,
+    user: users.filter((u) => u.role === "user" && !u.isKJ).length,
+    venue_owner: users.filter((u) => u.role === "venue_owner").length,
+    kj: users.filter((u) => u.isKJ).length,
+    admin: users.filter((u) => u.role === "admin").length,
+  };
+
   const filteredUsers = users.filter((u) => {
     const matchesSearch =
       (u.display_name || "").toLowerCase().includes(search.toLowerCase()) ||
       (u.email || "").toLowerCase().includes(search.toLowerCase()) ||
       u.role.toLowerCase().includes(search.toLowerCase());
 
-    if (roleFilter === "all") return matchesSearch;
-    if (roleFilter === "kj") return matchesSearch && u.isKJ;
-    if (roleFilter === "user") return matchesSearch && u.role === "user" && !u.isKJ;
-    return matchesSearch && u.role === roleFilter;
+    return matchesSearch && matchesRole(u, roleFilter);
   });
 
   function handleRoleChange(userId: string, newRole: string) {
@@ -79,21 +91,44 @@ export function UsersList({ users: initialUsers }: { users: User[] }) {
         </div>
       </div>
 
+      {/* Headcount Stat Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+        {ROLE_TABS.map((tab) => {
+          const count = counts[tab.value as keyof typeof counts];
+          const isActive = roleFilter === tab.value;
+          return (
+            <button
+              key={tab.value}
+              onClick={() => setRoleFilter(tab.value)}
+              className={`glass-card rounded-2xl p-4 text-left transition-colors ${
+                isActive ? "border border-red-500/30 bg-red-500/5" : "hover:bg-white/5"
+              }`}
+            >
+              <p className="text-xs text-text-muted uppercase tracking-wide mb-1">{tab.label}</p>
+              <p className="text-2xl font-extrabold text-white">{count}</p>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Role Filter Tabs */}
       <div className="flex gap-1 mb-4 overflow-x-auto">
-        {ROLE_TABS.map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => setRoleFilter(tab.value)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
-              roleFilter === tab.value
-                ? "bg-red-500/10 text-red-400 border border-red-500/20"
-                : "text-text-secondary hover:text-white hover:bg-white/5"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+        {ROLE_TABS.map((tab) => {
+          const count = counts[tab.value as keyof typeof counts];
+          return (
+            <button
+              key={tab.value}
+              onClick={() => setRoleFilter(tab.value)}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${
+                roleFilter === tab.value
+                  ? "bg-red-500/10 text-red-400 border border-red-500/20"
+                  : "text-text-secondary hover:text-white hover:bg-white/5"
+              }`}
+            >
+              {tab.label} <span className="opacity-70">({count})</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Search */}
